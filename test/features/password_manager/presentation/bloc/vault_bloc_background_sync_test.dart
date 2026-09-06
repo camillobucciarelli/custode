@@ -969,6 +969,47 @@ void main() {
       },
     );
   });
+
+  // Regression for the "Create a new file on Drive" double-tap bug: Drive
+  // doesn't enforce filename uniqueness, so two concurrent
+  // `LinkCurrentDatabaseToDrive` events (default bloc event handling is
+  // concurrent, not sequential — see package:bloc's `Bloc.transformer` doc)
+  // each call `createFile` and leave one of the two remote files orphaned.
+  group('LinkCurrentDatabaseToDrive re-entrancy guard', () {
+    test(
+      'two events dispatched back-to-back trigger only one '
+      'linkDatabaseToRemote call',
+      () async {
+        final gate = Completer<void>();
+        final repo = _FakeSyncRepo()
+          ..isConnectedResult = true
+          ..mapping = _testMapping
+          ..linkGate = gate;
+        final bloc = _makeBloc(repo, _FakeVaultKdbxService());
+        addTearDown(bloc.close);
+        bloc.add(const InitializeVault());
+        await _waitUntil(() => bloc.state.isDriveConnected);
+
+        bloc.add(const LinkCurrentDatabaseToDrive(remoteFileId: 'remote-1'));
+        bloc.add(const LinkCurrentDatabaseToDrive(remoteFileId: 'remote-2'));
+
+        await _waitUntil(
+          () => bloc.state.syncStatus == DatabaseSyncStatus.syncing,
+        );
+        // Give any (buggy) second concurrent handler a chance to run its
+        // synchronous prefix — including a second `linkDatabaseToRemote`
+        // call — before the first call's gate is released.
+        await Future<void>.delayed(Duration.zero);
+        gate.complete();
+
+        await _waitUntil(
+          () => bloc.state.syncStatus == DatabaseSyncStatus.success,
+        );
+
+        expect(repo.linkCallCount, 1);
+      },
+    );
+  });
 }
 
 const _kDbPath = '/vault/test.kdbx';
@@ -1362,12 +1403,30 @@ class _FakeSyncRepo implements DatabaseSyncRepository {
   /// When set, `linkDatabaseToRemote` throws this instead of succeeding.
   Object? linkError;
 
+  int linkCallCount = 0;
+
+  /// When set, `linkDatabaseToRemote` awaits this before resolving, holding
+  /// the call "in flight" so a test can assert on the state visible to a
+  /// second, concurrently-dispatched event before releasing it.
+  Completer<void>? linkGate;
+
   @override
   Future<DatabaseSyncMapping> linkDatabaseToRemote({
     required String databasePath,
     String? remoteFileId,
     String? remoteFileName,
-  }) async => throw linkError ?? UnimplementedError();
+  }) async {
+    linkCallCount += 1;
+    final error = linkError;
+    if (error != null) {
+      throw error;
+    }
+    final gate = linkGate;
+    if (gate != null) {
+      await gate.future;
+    }
+    return mapping ?? _testMapping;
+  }
 
   @override
   Future<StorageAccountSummary> getConnectedAccount() async =>
