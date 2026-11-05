@@ -30,7 +30,7 @@ dependencies:
   local_auth: ^3.0.2
   loggy: ^2.0.3
   otp: ^3.2.1
-  mobile_scanner: ^7.4.2
+  mobile_scanner: ^7.5.0
   oauth2: ^2.0.5
   path: ^1.9.1
   path_provider: ^2.1.6
