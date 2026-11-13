@@ -2,7 +2,7 @@
 // shared by the goldens, the semantics matrix and the dynamic assertions.
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_theme.dart';

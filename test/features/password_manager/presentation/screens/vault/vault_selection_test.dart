@@ -4,7 +4,7 @@
 // Omitted axes, stated per VR-002: these are behavioural assertions, so they
 // run at light theme only. The visual treatment is covered by the 1024
 // goldens; the dark theme by their dark variants.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

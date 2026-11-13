@@ -12,7 +12,7 @@
 //                 .tablet, i.e. 1024, which is not where the columns fit)
 //
 // The 600 boundary is unchanged and still swaps the tab bar for the rail.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/features/password_manager/presentation/navigation/vault_shell_router.dart';
 

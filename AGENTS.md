@@ -33,9 +33,9 @@ flutter pub run flutter_launcher_icons                       # after changing as
 
 ### Flutter toolchain pin
 
-Flutter is pinned to the exact version **3.47.8** (stable, revision `737ba8f885`, Dart 3.13.7).
+Flutter is pinned to the exact version **3.50.0** (stable, revision `ab2912035e`, Dart 3.14.0).
 
-**`.fvmrc` is the single source of truth.** It holds `{"flutter": "3.47.8"}` and
+**`.fvmrc` is the single source of truth.** It holds `{"flutter": "3.50.0"}` and
 nothing else restates the version:
 
 - Locally, `fvm flutter …` reads it.
@@ -84,9 +84,9 @@ shipping.
 Whoever administers those runners must therefore keep the pinned version present,
 by either:
 
-- installing fvm and running `fvm install 3.47.8` once, so the SDK is at
-  `~/fvm/versions/3.47.8/` where the script looks; or
-- putting Flutter 3.47.8 itself on the runner's `PATH`.
+- installing fvm and running `fvm install 3.50.0` once, so the SDK is at
+  `~/fvm/versions/3.50.0/` where the script looks; or
+- putting Flutter 3.50.0 itself on the runner's `PATH`.
 
 The `ios-app-store-publish` and `macos-app-store-publish` jobs are also
 self-hosted but do not need Flutter: they download an artifact built by an earlier

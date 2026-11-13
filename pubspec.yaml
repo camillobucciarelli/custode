@@ -20,13 +20,13 @@ dependencies:
   # Held at 10.x: every 11.x needs win32 ^6 (via flutter_secure_storage_windows
   # 4.2.2), which only file_picker >=12 accepts. Moves together with file_picker.
   flutter_secure_storage: ^10.3.4
-  flutter_svg: ^2.3.2
+  flutter_svg: ^2.4.0
   google_sign_in: ^7.2.0
   get_it: ^9.3.0
   google_fonts: ^9.0.0
   crypto: ^3.0.8
   http: ^1.6.0
-  kdbx: ^2.5.0
+  kdbx: ^2.6.0
   local_auth: ^3.0.2
   loggy: ^2.0.3
   otp: ^3.2.1
@@ -49,8 +49,13 @@ dependencies:
   # AutoType) straight off the public, exported `KdbxNode.node`. Promoted from
   # `dev_dependencies` in Phase 3 slice 2, exactly as the note there said it
   # would be when the adapter landed in `lib/`.
-  # Held at 6.x: kdbx 2.5.0 (latest) constrains xml <7.0.0.
+  # Held at 6.x: kdbx 2.6.0 (latest) constrains xml <7.0.0.
   xml: ^6.6.1
+
+  # Flutter 3.50 deprecates package:flutter/material.dart and cupertino.dart
+  # in favour of these two packages, which now own the widgets.
+  cupertino_ui: ^1.1.6
+  material_ui: ^1.11.0
 
 dev_dependencies:
   flutter_test:

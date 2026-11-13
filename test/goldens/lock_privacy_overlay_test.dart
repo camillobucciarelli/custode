@@ -2,7 +2,7 @@
 // (Privacy overlay), plus the AC3 non-negotiable — the privacy overlay
 // renders literally zero `Text` widgets, so the OS app-switcher preview
 // cannot leak anything.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

@@ -7,7 +7,7 @@
 // after a successful pick — this tests the screen's *reaction* to that
 // event (sheet auto-open, navigation, error copy) without fighting the
 // picker plugin.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';

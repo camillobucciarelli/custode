@@ -7,7 +7,7 @@
 //      composes, checked arithmetically for light and dark;
 //   2. the rendered view — every `Text` inside the dialog resolves to one of
 //      those foregrounds, so a stray hard-coded colour cannot slip past 1.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

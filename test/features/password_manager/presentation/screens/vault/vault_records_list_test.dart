@@ -1,7 +1,7 @@
 // spec-019 T033/T040/T042 — the records list is a list of records.
 //
 // Omitted axes (VR-002): behavioural, light theme only.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/widgets/kv_folder_tree.dart';

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/responsive/breakpoints.dart';
 import '../../../../core/widgets/kv_bottom_sheet.dart';

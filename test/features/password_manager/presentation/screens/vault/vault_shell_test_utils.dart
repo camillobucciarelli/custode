@@ -8,7 +8,7 @@
 // between tests.
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:password_manager/core/theme/app_theme.dart';
 import 'package:password_manager/core/utils/clipboard_guard.dart';

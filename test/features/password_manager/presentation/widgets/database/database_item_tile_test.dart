@@ -1,6 +1,6 @@
 // PR #188 review: the hover surface replaced InkWell, so keyboard activation
 // must be wired explicitly — a focused tile activates with Enter and Space.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_theme.dart';

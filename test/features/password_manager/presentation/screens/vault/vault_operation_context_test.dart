@@ -5,7 +5,7 @@
 // context and hit the "No VaultOperationScope found in context" assertion.
 // These are live widget-tap tests through the real router, not source
 // inspection: they fail on the pre-fix router shape and pass on the fix.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'entry_editor_generator_test_utils.dart';

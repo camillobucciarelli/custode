@@ -4,7 +4,7 @@
 // (FR-002a) and, in the editor, its value is obscured with a show/hide
 // affordance. Turning the switch off on a field that arrived protected asks
 // first, naming the field.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/widgets/kv_switch.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_custom_field.dart';

@@ -2,7 +2,7 @@
 // master password) and 3 (Confirm security changes sheet). Same
 // deterministic-render harness as vault_shell_test.dart /
 // database_and_unlock_test.dart.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';

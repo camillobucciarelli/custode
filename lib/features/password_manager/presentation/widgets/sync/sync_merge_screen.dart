@@ -9,7 +9,7 @@
 // list on the left, field detail on the right) at or above it. Every phase
 // keeps the two facts the review must never hide: one-sided data is preserved
 // automatically, and nothing is written until "Merge and sync".
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../core/theme/app_glyph.dart';

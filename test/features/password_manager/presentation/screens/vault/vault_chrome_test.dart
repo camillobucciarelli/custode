@@ -4,7 +4,7 @@
 // showed a Lucide key instead of the app's mark (C-SH-03), two destinations
 // carried glyphs `ICONS.md` does not name (C-03-13), and the selected
 // destination was signalled by colour alone (C-03-14).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_colors.dart';

@@ -3,7 +3,7 @@
 // One case table; `cases.length == 12` is asserted before any case runs and
 // every filename is matched exactly. Dynamic behaviour is NOT captured here —
 // it lives in the named widget assertions (T608).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

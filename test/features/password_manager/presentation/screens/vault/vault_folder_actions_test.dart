@@ -2,7 +2,7 @@
 // per-row `•••` everywhere it appears. These tests pin what replaced the
 // dialog: same actions, same recipe, no separate surface and no `Manage`
 // entry point anywhere.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'vault_navigation_fixture.dart';
