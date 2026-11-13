@@ -47,7 +47,11 @@ void main() {
     'Appearance',
     'Apply',
     'Attachment',
-    'Attachments',
+    // 2026-11-13 (user-directed attachment UX): the record menu's
+    // `Attachments` item and the detail's `Manage` chip opened a separate
+    // dialog, which is retired. Its capabilities stay reachable: the detail
+    // lists every file with 'Export attachment', and the editor carries
+    // 'Add attachment' and 'Remove attachment', applied with the save.
     'Back',
     'Cancel',
     'Check again',
@@ -78,7 +82,6 @@ void main() {
     'Link',
     'Lock vault',
     'Lowercase letters (a-z)',
-    'Manage',
     'Manage duplicates',
     // 2026-08-31 (user-directed group-merge UX): 'Merge and move duplicate'
     // became count-aware — one button per group, labelled 'Merge and move
