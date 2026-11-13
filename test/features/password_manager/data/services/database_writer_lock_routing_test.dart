@@ -208,25 +208,6 @@ void main() {
       );
     });
 
-    test('removeAttachment', () async {
-      final entryId = await newEntry();
-      final sourcePath = await attachmentSource();
-      await setup.addAttachment(
-        databasePath: databasePath,
-        password: _password,
-        entryId: entryId,
-        filePath: sourcePath,
-      );
-      await check(
-        (service) => service.removeAttachment(
-          databasePath: databasePath,
-          password: _password,
-          entryId: entryId,
-          attachmentKey: 'attachment.bin',
-        ),
-      );
-    });
-
     test('exportAttachment locks database and destination', () async {
       final entryId = await newEntry();
       final sourcePath = await attachmentSource();

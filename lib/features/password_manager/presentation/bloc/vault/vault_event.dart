@@ -157,6 +157,8 @@ class UpdateVaultEntry extends VaultEvent {
     required this.url,
     required this.notes,
     this.customFields = const [],
+    this.attachmentPaths = const [],
+    this.removedAttachmentKeys = const [],
   });
 
   final String entryId;
@@ -167,6 +169,13 @@ class UpdateVaultEntry extends VaultEvent {
   final String notes;
   final List<VaultCustomField> customFields;
 
+  /// Files to attach as part of this save.
+  final List<String> attachmentPaths;
+
+  /// Keys of the record's existing attachments to remove as part of this
+  /// save.
+  final List<String> removedAttachmentKeys;
+
   @override
   List<Object?> get props => [
     entryId,
@@ -176,6 +185,8 @@ class UpdateVaultEntry extends VaultEvent {
     url,
     RedactedValue(notes, redaction: '<redacted notes>'),
     customFields,
+    attachmentPaths,
+    removedAttachmentKeys,
   ];
 
   @override
@@ -187,7 +198,9 @@ class UpdateVaultEntry extends VaultEvent {
         'password: <redacted>, '
         'url: $url, '
         'notes: <redacted>, '
-        'customFields: ${customFields.length})';
+        'customFields: ${customFields.length}, '
+        'attachmentPaths: ${attachmentPaths.length}, '
+        'removedAttachmentKeys: ${removedAttachmentKeys.length})';
   }
 }
 
@@ -313,29 +326,6 @@ class DeleteVaultGroupPermanently extends VaultEvent {
 
 class EmptyRecycleBin extends VaultEvent {
   const EmptyRecycleBin();
-}
-
-class AddVaultAttachment extends VaultEvent {
-  const AddVaultAttachment({required this.entryId, required this.filePath});
-
-  final String entryId;
-  final String filePath;
-
-  @override
-  List<Object?> get props => [entryId, filePath];
-}
-
-class RemoveVaultAttachment extends VaultEvent {
-  const RemoveVaultAttachment({
-    required this.entryId,
-    required this.attachmentKey,
-  });
-
-  final String entryId;
-  final String attachmentKey;
-
-  @override
-  List<Object?> get props => [entryId, attachmentKey];
 }
 
 class ExportVaultAttachment extends VaultEvent {

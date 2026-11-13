@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KeyVault Browser Autofill BETA",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "THIS EXTENSION IS FOR BETA TESTING. Autofill for KeyVault; requires the local KeyVault desktop app and Native Messaging host.",
   "permissions": ["activeTab", "nativeMessaging", "scripting", "storage"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],

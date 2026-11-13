@@ -266,12 +266,16 @@ void main() {
 
   group('FR-012 — the record actions survive at every width', () {
     for (final width in <double>[650, 1024]) {
-      testWidgets('a list row still offers all four at $width', (tester) async {
+      // The fourth, `Attachments`, was retired with its dialog: a record's
+      // files are listed in its detail and edited in its editor.
+      testWidgets('a list row still offers all three at $width', (
+        tester,
+      ) async {
         await pumpAt(tester, width);
         await tester.tap(find.byTooltip('Record actions').first);
         await tester.pumpAndSettle();
 
-        for (final action in const ['Edit', 'Move', 'Attachments', 'Delete']) {
+        for (final action in const ['Edit', 'Move', 'Delete']) {
           expect(find.text(action), findsWidgets, reason: action);
         }
       });

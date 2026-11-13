@@ -42,7 +42,14 @@
 04|_showGroupDialog|Create folder|-|Create|GroupEditResult?|sheet|dialog
 05|_showDeleteConfirm|Confirm delete|{label}|Delete|ConfirmDecision?|dialog|dialog
 06|_showMoveTargetDialog|Move to folder|-|Move|MoveTargetResult?|sheet|dialog
-07|_showAttachmentsDialog|Attachments|-|Close|VaultDone?|route|pane
+# 2026-11-13 supersession (user-directed attachment UX): row 07's
+# "Attachments" manage dialog is retired. Creating a record listed its files
+# in the editor while editing one hid them behind this dialog, so the same
+# files had two unrelated homes. The detail now lists them with an export
+# action per row (`ExportVaultAttachment` survives there), and the editor adds
+# and removes them for new and existing records alike, applied on Save through
+# `CreateVaultEntry` / `UpdateVaultEntry`.
+#07|_showAttachmentsDialog|Attachments|-|Close|VaultDone?|route|pane
 08|_pickExistingDriveFile|Link to a Drive file|-|Link|DriveLinkResult?|route|pane
 09|_showSyncConflictDialog|Both versions changed|This device and "{driveFileName}" on Drive were both edited since the last sync.|Use remote|SyncConflictRouteResult?|sheet|pane
 10|_showDuplicatesDialog|Manage duplicates|-|Close|VaultDone?|route|route

@@ -169,8 +169,8 @@ void main() {
 
       expect(tester.takeException(), isNull);
       // FR-011 as amended by spec 020: `Attachments` left the overflow for
-      // a permanent body section with `Manage`.
-      expect(find.text('Manage'), findsWidgets);
+      // a permanent body section (which lists the files since 2026-11-13).
+      expect(find.text('No attachments'), findsWidgets);
       for (final label in ['Move', 'Delete']) {
         expect(
           find.text(label),

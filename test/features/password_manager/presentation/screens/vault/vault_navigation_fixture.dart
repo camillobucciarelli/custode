@@ -56,6 +56,10 @@ class NavigationFixtureVaultKdbxService implements VaultKdbxService {
   /// Every mutating call the BLoC made, in order.
   final List<RecordedVaultCall> calls = <RecordedVaultCall>[];
 
+  /// When set, the next `updateEntry` throws it after recording the call, the
+  /// way the real service does for an unreadable attachment source.
+  Object? updateFailure;
+
   /// Ids removed by a recorded delete — the next `loadVault` omits them, so
   /// the "entry disappeared" path is exercised for real.
   final Set<String> _deleted = <String>{};
@@ -151,6 +155,8 @@ class NavigationFixtureVaultKdbxService implements VaultKdbxService {
     required String url,
     required String notes,
     List<VaultCustomField> customFields = const [],
+    List<String> addedAttachmentPaths = const [],
+    List<String> removedAttachmentKeys = const [],
   }) async {
     calls.add(
       RecordedVaultCall('update', entryId, {
@@ -158,8 +164,16 @@ class NavigationFixtureVaultKdbxService implements VaultKdbxService {
         'username': username,
         'url': url,
         'notes': notes,
+        if (addedAttachmentPaths.isNotEmpty)
+          'added': addedAttachmentPaths.join(','),
+        if (removedAttachmentKeys.isNotEmpty)
+          'removed': removedAttachmentKeys.join(','),
       }, customFields),
     );
+    final failure = updateFailure;
+    if (failure != null) {
+      throw failure;
+    }
     final base =
         _updated[entryId] ??
         entries.firstWhere((entry) => entry.id == entryId, orElse: () => gmail);
@@ -172,7 +186,24 @@ class NavigationFixtureVaultKdbxService implements VaultKdbxService {
       url: url,
       notes: notes,
       customFields: customFields,
+      // The next `loadVault` omits a removed attachment, so the detail the
+      // user lands on after a save shows what the file now holds.
+      attachments: [
+        for (final attachment in base.attachments)
+          if (!removedAttachmentKeys.contains(attachment.key)) attachment,
+      ],
     );
+  }
+
+  @override
+  Future<void> addAttachment({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String entryId,
+    required String filePath,
+  }) async {
+    calls.add(RecordedVaultCall('addAttachment', entryId, {'path': filePath}));
   }
 
   @override
@@ -275,6 +306,24 @@ class NavigationFixtureVaultKdbxService implements VaultKdbxService {
     calls.add(
       RecordedVaultCall('move', entryId, {'targetGroupId': targetGroupId}),
     );
+  }
+
+  @override
+  Future<String> exportAttachment({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String entryId,
+    required String attachmentKey,
+    required String destinationDirectory,
+  }) async {
+    calls.add(
+      RecordedVaultCall('exportAttachment', entryId, {
+        'key': attachmentKey,
+        'directory': destinationDirectory,
+      }),
+    );
+    return '$destinationDirectory/$attachmentKey';
   }
 
   @override

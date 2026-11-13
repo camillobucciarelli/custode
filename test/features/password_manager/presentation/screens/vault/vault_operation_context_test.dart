@@ -63,24 +63,6 @@ void main() {
       });
     }
 
-    for (final width in [390.0, 708.0]) {
-      testWidgets('Attachments closes at $width', (tester) async {
-        await pumpVault(tester, width);
-        // spec-020: the dialog opens from the body section's `Manage`.
-        await tester.tap(find.text('GitHub').first);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Manage').last);
-        await tester.pumpAndSettle();
-
-        expect(find.widgetWithText(AlertDialog, 'Attachments'), findsOneWidget);
-        await tester.tap(find.text('Close').last);
-        await tester.pumpAndSettle();
-
-        expect(tester.takeException(), isNull);
-        expect(find.widgetWithText(AlertDialog, 'Attachments'), findsNothing);
-      });
-    }
-
     // spec-019, amended 2026-08-31: the Folders sheet is retired — on the
     // phone the folder rows live in the file-system list, so the path is the
     // list row's `•••` -> `New folder`; what this test asserts — that the

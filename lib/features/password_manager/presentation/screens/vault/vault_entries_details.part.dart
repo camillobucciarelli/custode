@@ -170,13 +170,6 @@ class _RecordListItem extends StatelessWidget {
                     child: _MenuItemContent(icon: AppIcons.move, label: 'Move'),
                   ),
                   _RoundedPopupItem(
-                    value: _EntryAction.attachments,
-                    child: _MenuItemContent(
-                      icon: AppIcons.attachment,
-                      label: 'Attachments',
-                    ),
-                  ),
-                  _RoundedPopupItem(
                     value: _EntryAction.duplicate,
                     child: _MenuItemContent(
                       icon: AppIcons.copy,

@@ -401,3 +401,75 @@ Future<void> _startCsvImportFlow(BuildContext context) async {
   );
   bloc.add(const ClearCsvImportOutcome());
 }
+
+/// Shown wherever a record has no attachment, in the detail and the editor.
+const _kNoAttachmentsLabel = 'No attachments';
+
+/// One attachment, drawn the same in a record's detail and in its editor.
+///
+/// Only the trailing action differs: export where the record is read, remove
+/// where it is edited. Two different looks for the same file is what made the
+/// two screens read as unrelated features.
+class _AttachmentRow extends StatelessWidget {
+  const _AttachmentRow({
+    super.key,
+    required this.name,
+    required this.caption,
+    required this.trailing,
+  });
+
+  final String name;
+
+  /// The file's size, or a note that it is not saved yet.
+  final String caption;
+  final Widget trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.row),
+      ),
+      child: Row(
+        children: [
+          KvIcon(
+            glyph: AppGlyph.attachment,
+            size: 18,
+            color: colors.iconNeutral,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.fieldValue.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.secondary.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          trailing,
+        ],
+      ),
+    );
+  }
+}

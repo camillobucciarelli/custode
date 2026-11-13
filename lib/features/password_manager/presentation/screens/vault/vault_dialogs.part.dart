@@ -3,8 +3,9 @@ part of '../vault_screen.dart';
 // spec-004: the entry editor dialog (_EntryDialog/_showEntryDialog), the
 // OTP QR scanner and its camera-denied fallback moved to
 // vault_entry_editor.part.dart. This file keeps the other, out-of-scope
-// dialogs: folder create/rename, delete confirm, move target, attachments
-// manager, Drive link, sync conflict.
+// dialogs: folder create/rename, delete confirm, move target, Drive link,
+// sync conflict. Attachments have no dialog: the detail lists them and the
+// editor adds and removes them.
 
 Future<GroupEditResult?> _showGroupDialog(
   BuildContext context, {
@@ -150,130 +151,6 @@ Future<MoveTargetResult?> _showMoveTargetDialog(
               ]),
             );
           },
-        );
-      },
-    ),
-  );
-}
-
-enum _AttachmentAction { export, remove }
-
-Future<VaultDone?> _showAttachmentsDialog(
-  BuildContext context,
-  VaultEntry entry,
-) async {
-  return VaultShellRouterScope.of(context).open<VaultDone>(
-    context: context,
-    surface: AttachmentsSurface<VaultDone>(
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Attachments'),
-          insetPadding: _dialogInsetPadding(dialogContext),
-          contentPadding: _dialogContentPadding(dialogContext),
-          actionsOverflowDirection: VerticalDirection.down,
-          actionsOverflowButtonSpacing: 8,
-          content: SizedBox(
-            width: _dialogContentWidth(dialogContext, 520),
-            child: entry.attachments.isEmpty
-                ? const Text('No attachments for this record.')
-                : ListView.separated(
-                    shrinkWrap: true,
-                    itemBuilder: (context, index) {
-                      final attachment = entry.attachments[index];
-                      return ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(AppIcons.attachment),
-                        title: Text(attachment.name),
-                        subtitle: Text(formatBytes(attachment.size)),
-                        trailing: PopupMenuButton<_AttachmentAction>(
-                          // Vertical dots everywhere: the adaptive default
-                          // is horizontal on Apple platforms.
-                          icon: const Icon(AppIcons.more),
-                          onSelected: (action) async {
-                            if (!dialogContext.mounted) {
-                              return;
-                            }
-
-                            switch (action) {
-                              case _AttachmentAction.export:
-                                final directory =
-                                    await FilePicker.getDirectoryPath();
-                                if (directory != null &&
-                                    dialogContext.mounted) {
-                                  dialogContext.read<VaultBloc>().add(
-                                    ExportVaultAttachment(
-                                      entryId: entry.id,
-                                      attachmentKey: attachment.key,
-                                      destinationDirectory: directory,
-                                    ),
-                                  );
-                                  VaultOperationScope.of(dialogContext)
-                                      .complete(const VaultDone());
-                                }
-                                break;
-                              case _AttachmentAction.remove:
-                                final confirmed = await _showDeleteConfirm(
-                                  dialogContext,
-                                  label:
-                                      'Remove attachment ${attachment.name}?',
-                                  actionLabel: 'Remove',
-                                );
-                                if (confirmed && dialogContext.mounted) {
-                                  dialogContext.read<VaultBloc>().add(
-                                    RemoveVaultAttachment(
-                                      entryId: entry.id,
-                                      attachmentKey: attachment.key,
-                                    ),
-                                  );
-                                  VaultOperationScope.of(dialogContext)
-                                      .complete(const VaultDone());
-                                }
-                                break;
-                            }
-                          },
-                          itemBuilder: (context) => const [
-                            PopupMenuItem(
-                              value: _AttachmentAction.export,
-                              child: Text('Export'),
-                            ),
-                            PopupMenuItem(
-                              value: _AttachmentAction.remove,
-                              child: Text('Remove'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemCount: entry.attachments.length,
-                  ),
-          ),
-          actions: _adaptiveDialogActions(dialogContext, [
-            TextButton(
-              onPressed: () async {
-                final result = await FilePicker.pickFiles(
-                  allowMultiple: false,
-                  withData: false,
-                );
-                final path = result?.files.single.path;
-                if (path != null && dialogContext.mounted) {
-                  dialogContext.read<VaultBloc>().add(
-                    AddVaultAttachment(entryId: entry.id, filePath: path),
-                  );
-                  VaultOperationScope.of(dialogContext)
-                      .complete(const VaultDone());
-                }
-              },
-              child: const Text('Add attachment'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  VaultOperationScope.of(dialogContext)
-                      .complete(const VaultDone()),
-              child: const Text('Close'),
-            ),
-          ]),
         );
       },
     ),

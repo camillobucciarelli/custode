@@ -183,6 +183,24 @@ class _EntryDetailPanelState extends State<_EntryDetailPanel> {
   bool _isRevealed({int? fieldIndex}) =>
       _revealController.isRevealed && _revealedFieldIndex == fieldIndex;
 
+  Future<void> _exportAttachment(
+    VaultEntry entry,
+    VaultAttachment attachment,
+  ) async {
+    // Captured before the await: the detail can be rebuilt or replaced while
+    // the system folder picker is open.
+    final bloc = context.read<VaultBloc>();
+    final directory = await FilePicker.getDirectoryPath();
+    if (directory == null) return;
+    bloc.add(
+      ExportVaultAttachment(
+        entryId: entry.id,
+        attachmentKey: attachment.key,
+        destinationDirectory: directory,
+      ),
+    );
+  }
+
   /// spec 023 T205 / FR-010: deleting a passkey destroys the only copy of a
   /// private key. The confirmation names the site and the account so the user
   /// can tell two passkeys apart, says it cannot be recovered, and says the
@@ -561,9 +579,11 @@ class _EntryDetailPanelState extends State<_EntryDetailPanel> {
                 onDelete: (passkey) => _confirmDeletePasskey(entry, passkey),
               ),
             ],
-            // spec-020 (C-04-04): attachments are a permanent section with
-            // their count — shown at zero too, so the first one can always be
-            // added from here. The header overflow no longer offers them.
+            // Attachments are a permanent section, shown at zero too, and the
+            // files are listed here like every other field of the record —
+            // not counted behind a second surface. Reading is what this
+            // screen does, so each row offers export; adding and removing
+            // are edits and live in the editor, with the same rows.
             const SizedBox(height: 16),
             Text(
               'Attachments',
@@ -571,27 +591,30 @@ class _EntryDetailPanelState extends State<_EntryDetailPanel> {
                 color: colors.textSecondary,
               ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${entry.attachments.length} attachment${entry.attachments.length == 1 ? '' : 's'}',
-                    style: AppTextStyles.secondary.copyWith(
-                      color: colors.textPrimary,
-                    ),
+            if (entry.attachments.isEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                _kNoAttachmentsLabel,
+                style: AppTextStyles.secondary.copyWith(
+                  color: colors.textPrimary,
+                ),
+              ),
+            ] else
+              for (final attachment in entry.attachments) ...[
+                const SizedBox(height: 9),
+                _AttachmentRow(
+                  key: ValueKey('entry-attachment-${attachment.key}'),
+                  name: attachment.name,
+                  caption: formatBytes(attachment.size),
+                  trailing: KvCircleIconButton(
+                    glyph: AppGlyph.export,
+                    tooltip: 'Export attachment',
+                    nested: true,
+                    iconSize: 17,
+                    onPressed: () => _exportAttachment(entry, attachment),
                   ),
                 ),
-                _MoreChip(
-                  icon: AppGlyph.attachment,
-                  label: 'Manage',
-                  onTap: widget.onSelectedAction == null
-                      ? null
-                      : () =>
-                            widget.onSelectedAction!(_EntryAction.attachments),
-                ),
               ],
-            ),
             // spec 017 T202: history is reached from the record the user is
             // already looking at, and is read only when asked for (FR-015) —
             // hence a chip and not a count, which would need the file read.

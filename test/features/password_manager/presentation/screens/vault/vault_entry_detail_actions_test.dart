@@ -123,37 +123,28 @@ void main() {
   });
 
   // spec-020 (C-04-04): attachments have one home — a permanent section.
+  // Amended 2026-11-13: the section lists the files themselves; the `Manage`
+  // dialog it used to open is retired (vault_attachments_consistency_test).
   group('C-04-04 — attachments are a section, not an overflow item', () {
     for (final width in <double>[390, 1024]) {
-      testWidgets(
-        'at $width a record with none shows 0 and Manage opens the dialog',
-        (tester) async {
-          await pumpAt(tester, width);
-          await openRecord(tester, 'Gmail');
+      testWidgets('at $width a record with none shows the section, empty', (
+        tester,
+      ) async {
+        await pumpAt(tester, width);
+        await openRecord(tester, 'Gmail');
 
-          expect(find.text('0 attachments'), findsOneWidget);
-          await tester.tap(find.byTooltip('Record actions').last);
-          await tester.pumpAndSettle();
-          // Once, as the section title — never as a menu item.
-          expect(find.text('Attachments'), findsOneWidget);
-          await tester.tapAt(Offset.zero);
-          await tester.pumpAndSettle();
-
-          await tester.tap(find.text('Manage').last);
-          await tester.pumpAndSettle();
-          expect(
-            find.widgetWithText(AlertDialog, 'Attachments'),
-            findsOneWidget,
-          );
-          expect(find.text('No attachments for this record.'), findsOneWidget);
-        },
-      );
+        expect(find.text('No attachments'), findsOneWidget);
+        await tester.tap(find.byTooltip('Record actions').last);
+        await tester.pumpAndSettle();
+        // Once, as the section title — never as a menu item.
+        expect(find.text('Attachments'), findsOneWidget);
+      });
     }
 
-    testWidgets('a record with two shows 2', (tester) async {
+    testWidgets('a record with two lists both', (tester) async {
       await pumpAt(tester, 1024);
       await openRecord(tester, 'GitHub');
-      expect(find.text('2 attachments'), findsOneWidget);
+      expect(find.byTooltip('Export attachment'), findsNWidgets(2));
     });
   });
 

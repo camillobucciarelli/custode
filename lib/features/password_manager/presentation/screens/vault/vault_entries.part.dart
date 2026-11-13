@@ -12,7 +12,7 @@ part of '../vault_screen.dart';
 /// The action callback receives the hosted surface's own (descendant)
 /// context, never the caller's: the caller's context can be deactivated by
 /// the time an action is picked from a menu inside the surface, which made
-/// every dialog opened from here (Delete, Attachments, Move) throw "Looking
+/// every dialog opened from here (Delete, Move) throw "Looking
 /// up a deactivated widget's ancestor" once the entries list rebuilt.
 Future<void> _openEntryDetailsSurface(
   BuildContext context, {
@@ -192,6 +192,8 @@ class _EntriesCardState extends State<_EntriesCard> {
             url: payload.url,
             notes: payload.notes,
             customFields: payload.customFields,
+            attachmentPaths: payload.attachmentPaths,
+            removedAttachmentKeys: payload.removedAttachmentKeys,
           ),
         );
       case _EntryAction.move:
@@ -206,15 +208,6 @@ class _EntriesCardState extends State<_EntriesCard> {
         bloc.add(
           MoveVaultEntry(entryId: entryId, targetGroupId: target.groupId),
         );
-      case _EntryAction.attachments:
-        // Re-read: the attachment list may have changed since the surface
-        // opened, and showing a stale one would act on stale attachments.
-        final fresh = currentEntry();
-        if (fresh == null) {
-          bloc.add(const ReportVaultActionAbandoned());
-          return;
-        }
-        await _showAttachmentsDialog(surfaceContext, fresh);
       case _EntryAction.info:
         // Read-only: a stale copy could show stale timestamps, so re-read.
         final freshInfo = currentEntry();
@@ -519,7 +512,7 @@ class _EntriesCardState extends State<_EntriesCard> {
 // spec-019 C-04-05: `duplicate` joins the record actions. The design's
 // normative overflow inventory for the detail is `Move / Delete / Duplicate`;
 // the list row offers the same set it always did, plus this.
-enum _EntryAction { edit, move, attachments, duplicate, delete, info }
+enum _EntryAction { edit, move, duplicate, delete, info }
 
 OverlayEntry? _activeCopyToastEntry;
 Timer? _activeCopyToastTimer;

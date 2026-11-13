@@ -169,11 +169,15 @@ Ordinary requests use GitHub Issues; roadmap specs remain repository-authored an
 
 ### Triage labels
 
-Ordinary issues use the canonical `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix` states. Generated `spec` issues are excluded. See `docs/agents/triage-labels.md`.
+Ordinary issues use the seven default triage labels: `bug` and `enhancement` for category, `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix` for state. Generated `spec` issues are excluded. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Use the single-context domain documentation layout. See `docs/agents/domain.md`.
+Single-context: one `GLOSSARY.md` at the repo root and ADRs in `docs/adr/`, both created when the first term or decision is recorded. See `docs/agents/domain.md`.
+
+### External peers
+
+`auto`: `code-review` and `jury` call a Claude or Codex peer only when the host supports it, default model, effort `high`. See `docs/agents/cross-model.json`.
 
 ## Agent Instructions
 

@@ -39,7 +39,6 @@ void main() {
     ),
     'GroupEditSurface': GroupEditSurface<VaultDone>(builder: _noop),
     'MoveTargetSurface': MoveTargetSurface<VaultDone>(builder: _noop),
-    'AttachmentsSurface': AttachmentsSurface<VaultDone>(builder: _noop),
     'RecycleBinSurface': RecycleBinSurface<VaultDone>(builder: _noop),
     'DuplicatesSurface': DuplicatesSurface<VaultDone>(builder: _noop),
     'HealthCategorySurface': HealthCategorySurface<VaultDone>(builder: _noop),
@@ -69,7 +68,6 @@ void main() {
     // contract table was amended in the same change.
     'GroupEditSurface': (narrow: 'sheet', wide: 'dialog'),
     'MoveTargetSurface': (narrow: 'sheet', wide: 'dialog'),
-    'AttachmentsSurface': (narrow: 'route', wide: 'pane'),
     // 2026-08-31 (user-directed): hygiene destinations and the merge
     // preview are full-screen pushed routes at every width.
     'RecycleBinSurface': (narrow: 'route', wide: 'route'),
@@ -179,7 +177,9 @@ void main() {
             'sheet sheet sheet dialog dialog dialog dialog dialog',
         'MoveTargetSurface':
             'sheet sheet sheet dialog dialog dialog dialog dialog',
-        'AttachmentsSurface': 'route route route pane pane pane pane pane',
+        // 2026-11-13 (user-directed): `AttachmentsSurface` is retired. The
+        // detail lists a record's attachments and the editor adds and
+        // removes them, so the separate surface has no caller left.
         // 2026-08-31 (user-directed): full-screen routes at every width.
         'RecycleBinSurface': 'route route route route route route route route',
         'DuplicatesSurface': 'route route route route route route route route',

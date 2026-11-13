@@ -194,7 +194,7 @@ and listed event/callback when applicable.
 | 04 | `_showGroupDialog` / create/rename folder copy | sheet / pane | `GroupEditResult?` | `CreateVaultGroup` or `RenameVaultGroup` |
 | 05 | `_showDeleteConfirm` / `Confirm delete` | sheet / sheet | `ConfirmDecision?` | caller's existing `DeleteVaultEntry`, `DeleteVaultGroup`, `DeleteVaultEntryPermanently`, `DeleteVaultGroupPermanently`, `DeleteDuplicateEntry`, `EmptyRecycleBin` or `RemoveVaultAttachment` |
 | 06 | `_showMoveTargetDialog` / `Move to folder` | sheet / pane | `MoveTargetResult?` | `MoveVaultEntry` or `MoveVaultGroup` |
-| 07 | `_showAttachmentsDialog` / `Attachments` | route / pane | `VaultDone?` | `ExportVaultAttachment` / `RemoveVaultAttachment` |
+| 07 | `_showAttachmentsDialog` / `Attachments` (retired 2026-11-13: the detail lists and exports attachments, the editor adds and removes them with the save) | route / pane | `VaultDone?` | `ExportVaultAttachment` / `RemoveVaultAttachment` |
 | 08 | `_showLinkDatabaseDialog` / `Link database to Drive` | route / pane | `DriveLinkResult?` | `LoadDriveRemoteFiles`; then `LinkCurrentDatabaseToDrive` |
 | 09 | `_showSyncConflictDialog` / `Sync conflict detected` | sheet / pane | `SyncConflictRouteResult?` | `ClearVaultSyncFeedback`; accepted choice dispatches `SyncCurrentDatabaseNow` |
 | 10 | `_showDuplicatesDialog` / `Manage duplicates` | route / pane | `VaultDone?` | `LoadDuplicates` |

@@ -72,9 +72,6 @@ void main() {
     test('OTP QR scanner: route / pane', () {
       expectRouteThenPane(OtpScannerSurface<VaultDone>(builder: _noop));
     });
-    test('Attachments: route / pane', () {
-      expectRouteThenPane(AttachmentsSurface<VaultDone>(builder: _noop));
-    });
     // 2026-08-31 (user-directed): hygiene destinations and the merge
     // preview are full-screen pushed routes at every width.
     test('Recycle bin: route / route', () {

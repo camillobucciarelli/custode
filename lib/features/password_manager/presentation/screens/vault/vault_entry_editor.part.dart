@@ -87,6 +87,10 @@ class _EntryDialogState extends State<_EntryDialog> {
   var _otpProtected = false;
   var _nextCustomFieldId = 0;
   late List<_CustomFieldFormRow> _customFieldRows;
+
+  /// Keys of the record's own attachments removed in this session. Nothing is
+  /// written until Save, like every other field of the form.
+  final Set<String> _removedAttachmentKeys = {};
   final List<String> _attachmentPaths = [];
   final Set<String> _dirtyFields = {};
   var _showCustomFields = false;
@@ -155,6 +159,9 @@ class _EntryDialogState extends State<_EntryDialog> {
             .toList(growable: true) ??
         <_CustomFieldFormRow>[];
     _showCustomFields = _customFieldRows.isNotEmpty;
+    // A record that already holds files opens with them listed: editing shows
+    // the same attachments the detail does.
+    _showAttachments = widget.initial?.attachments.isNotEmpty ?? false;
     _showOtp = _otpUriController.text.isNotEmpty;
   }
 
@@ -257,6 +264,9 @@ class _EntryDialogState extends State<_EntryDialog> {
           otpProtected: _otpProtected,
         ),
         attachmentPaths: List<String>.unmodifiable(_attachmentPaths),
+        removedAttachmentKeys: List<String>.unmodifiable(
+          _removedAttachmentKeys,
+        ),
       ),
     );
   }
@@ -317,6 +327,11 @@ class _EntryDialogState extends State<_EntryDialog> {
       showOtp: _showOtp,
       showPendingPasswordHint: widget.initialPendingHint,
       customFieldRows: _customFieldRows,
+      existingAttachments: [
+        for (final attachment
+            in widget.initial?.attachments ?? const <VaultAttachment>[])
+          if (!_removedAttachmentKeys.contains(attachment.key)) attachment,
+      ],
       attachmentPaths: _attachmentPaths,
       onFieldChanged: _markDirty,
       onTitleChanged: (v) {
@@ -354,6 +369,8 @@ class _EntryDialogState extends State<_EntryDialog> {
         final result = await FilePicker.pickFiles(allowMultiple: false);
         final filePath = result?.files.single.path;
         if (filePath == null || filePath.isEmpty || !mounted) return;
+        // Picking the same file twice would attach it twice under one name.
+        if (_attachmentPaths.contains(filePath)) return;
         setState(() {
           _attachmentPaths.add(filePath);
           _markDirty('attachments');
@@ -361,6 +378,10 @@ class _EntryDialogState extends State<_EntryDialog> {
       },
       onRemoveAttachment: (path) => setState(() {
         _attachmentPaths.remove(path);
+        _markDirty('attachments');
+      }),
+      onRemoveExistingAttachment: (attachment) => setState(() {
+        _removedAttachmentKeys.add(attachment.key);
         _markDirty('attachments');
       }),
       onScanOtp: () async {
@@ -492,6 +513,7 @@ class _EntryEditorForm extends StatelessWidget {
     required this.showOtp,
     this.showPendingPasswordHint = false,
     required this.customFieldRows,
+    required this.existingAttachments,
     required this.attachmentPaths,
     required this.onFieldChanged,
     required this.onTitleChanged,
@@ -506,6 +528,7 @@ class _EntryEditorForm extends StatelessWidget {
     required this.onCustomFieldChanged,
     required this.onAddAttachment,
     required this.onRemoveAttachment,
+    required this.onRemoveExistingAttachment,
     required this.onScanOtp,
   });
 
@@ -527,6 +550,11 @@ class _EntryEditorForm extends StatelessWidget {
   final bool showOtp;
   final bool showPendingPasswordHint;
   final List<_CustomFieldFormRow> customFieldRows;
+
+  /// The record's saved attachments, minus the ones removed in this session.
+  final List<VaultAttachment> existingAttachments;
+
+  /// Files picked in this session, attached when the record is saved.
   final List<String> attachmentPaths;
   final ValueChanged<String> onFieldChanged;
   final ValueChanged<String> onTitleChanged;
@@ -541,6 +569,7 @@ class _EntryEditorForm extends StatelessWidget {
   final VoidCallback onCustomFieldChanged;
   final VoidCallback onAddAttachment;
   final ValueChanged<String> onRemoveAttachment;
+  final ValueChanged<VaultAttachment> onRemoveExistingAttachment;
   final VoidCallback onScanOtp;
 
   @override
@@ -805,51 +834,59 @@ class _EntryEditorForm extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                TextButton(
+                KvCircleIconButton(
+                  glyph: AppGlyph.add,
+                  tooltip: 'Add attachment',
                   onPressed: isSaving ? null : onAddAttachment,
-                  child: const Text('Add'),
                 ),
               ],
             ),
-            if (attachmentPaths.isEmpty)
+            if (existingAttachments.isEmpty && attachmentPaths.isEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'No attachments selected.',
-                  style: AppTextStyles.body.copyWith(
-                    color: colors.textSecondary,
+                  _kNoAttachmentsLabel,
+                  style: AppTextStyles.secondary.copyWith(
+                    color: colors.textPrimary,
                   ),
                 ),
-              )
-            else
-              for (final filePath in attachmentPaths) ...[
-                const SizedBox(height: 8),
-                KvFieldRow(
-                  label: path.basename(filePath),
-                  value: filePath,
-                  maxLines: 1,
-                  trailing: SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: IconButton(
-                      tooltip: 'Remove attachment',
-                      onPressed: isSaving
-                          ? null
-                          : () => onRemoveAttachment(filePath),
-                      style: IconButton.styleFrom(
-                        backgroundColor: colors.surfaceNested,
-                        shape: const CircleBorder(),
-                        padding: EdgeInsets.zero,
-                      ),
-                      icon: KvIcon(
-                        glyph: AppGlyph.close,
-                        size: 15,
-                        color: colors.iconNeutral,
-                      ),
-                    ),
-                  ),
+              ),
+            // Saved files first, then the ones picked now: one list, the same
+            // rows the detail shows, whether the record is new or not.
+            for (final attachment in existingAttachments) ...[
+              const SizedBox(height: 8),
+              _AttachmentRow(
+                key: ValueKey('entry-attachment-${attachment.key}'),
+                name: attachment.name,
+                caption: formatBytes(attachment.size),
+                trailing: KvCircleIconButton(
+                  glyph: AppGlyph.close,
+                  tooltip: 'Remove attachment',
+                  nested: true,
+                  iconSize: 15,
+                  onPressed: isSaving
+                      ? null
+                      : () => onRemoveExistingAttachment(attachment),
                 ),
-              ],
+              ),
+            ],
+            for (final filePath in attachmentPaths) ...[
+              const SizedBox(height: 8),
+              _AttachmentRow(
+                key: ValueKey('entry-new-attachment-$filePath'),
+                name: path.basename(filePath),
+                caption: 'Added when you save',
+                trailing: KvCircleIconButton(
+                  glyph: AppGlyph.close,
+                  tooltip: 'Remove attachment',
+                  nested: true,
+                  iconSize: 15,
+                  onPressed: isSaving
+                      ? null
+                      : () => onRemoveAttachment(filePath),
+                ),
+              ),
+            ],
           ],
         ],
       ),

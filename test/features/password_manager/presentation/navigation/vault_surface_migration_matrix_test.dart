@@ -93,7 +93,7 @@ final Map<String, VaultSurface<VaultDone>> _surfaceByRow = {
   '04': GroupEditSurface<VaultDone>(builder: _noop),
   '05': ConfirmationSurface<VaultDone>(builder: _noop),
   '06': MoveTargetSurface<VaultDone>(builder: _noop),
-  '07': AttachmentsSurface<VaultDone>(builder: _noop),
+  // Row 07 retired 2026-11-13 — see the fixture's supersession note.
   '08': SyncLinkSurface<VaultDone>(builder: _noop),
   '09': SyncConflictSurface<VaultDone>(builder: _noop),
   '10': DuplicatesSurface<VaultDone>(builder: _noop),
@@ -117,7 +117,6 @@ final Map<String, List<String>> _effectByRow = {
   '02': ['CreateVaultEntry', 'UpdateVaultEntry'],
   '04': ['CreateVaultGroup', 'RenameVaultGroup'],
   '06': ['MoveVaultEntry', 'MoveVaultGroup'],
-  '07': ['ExportVaultAttachment', 'RemoveVaultAttachment'],
   '08': ['LoadRemoteFiles', 'LinkCurrentDatabaseToDrive'],
   '09': ['ClearVaultSyncFeedback', 'SyncCurrentDatabaseNow'],
   '10': ['LoadDuplicates'],
@@ -148,8 +147,8 @@ void main() {
     vaultSources = buffer.toString();
   });
 
-  test('fixture has exactly 18 live rows (row 13 retired 2026-08-31)', () {
-    expect(rows.length, 18);
+  test('fixture has exactly 17 live rows (rows 07 and 13 retired)', () {
+    expect(rows.length, 17);
   });
 
   for (final row in rows) {
