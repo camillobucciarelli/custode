@@ -172,7 +172,7 @@ The branch stays after the release, so the next fix on that line has a base.
 
 ### Issue tracker
 
-Ordinary requests use GitHub Issues; roadmap specs remain repository-authored and are mirrored to GitHub Project #2. See `docs/agents/issue-tracker.md`.
+Ordinary requests use GitHub Issues. A roadmap spec is also a GitHub issue, labelled `spec`, and that issue is the spec: its body holds the document and the task checklist. `specs/` is an archive. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -192,17 +192,13 @@ Per `.github/copilot-instructions.md`: if `graphify-out/GRAPH_REPORT.md` exists,
 
 ## Spec Task Tracking
 
-When you finish work that completes a task in a `specs/NNN-*/tasks.md` file, tick that task's box (`- [ ]` → `- [x]`) in the same change that lands the work. This is not bookkeeping: `tasks.md` is the sole source of completed roadmap work (Projects v2 #2), and `.github/workflows/spec-project-sync.yml` derives each spec's issue body and Status from those boxes on every push to `main`. An untouched box means the board reports the work as not done. Open PRs touching a spec are detected separately and make it `In Progress`; their unmerged boxes never count as completed.
+A roadmap spec lives in its GitHub issue (label `spec`), on Projects v2 #2. The issue body is the source of truth: the spec in the `to-spec` shape (Problem Statement, Solution, User Stories, Implementation Decisions, Testing Decisions, Out of Scope, Further Notes) and then a `## Tasks` checklist. Nothing generates or overwrites it. There is no sync script and no sync workflow.
 
-Tick a box only when that task's own acceptance criteria are met and its tests pass. Never edit the generated issue body or move a card by hand — the next sync overwrites both. To resync without a push: `PROJECT_NUMBER=2 tool/sync_spec_project.sh`.
+When work that completes a task merges into `main`, tick that task's box in the issue body (`- [ ]` to `- [x]`). Tick a box only when that task's own acceptance criteria are met and its tests pass, and only for merged work: an open PR never counts. Edit the body with care, change only the lines you mean to change, and keep the task ids (`T001`, ...) stable.
 
-The same duty covers every other spec edit, not just ticking boxes: adding or removing a spec, renaming one, adding, deleting, reordering or rewording tasks. The board must end up consistent with `specs/` in the same change, so keep the shapes the sync depends on:
+The board does not follow by itself. When you tick the last box, close the issue as completed and set its card to `Done`. When the first box is ticked or a PR for the spec opens, set the card to `In Progress`. Report the board state after a spec change.
 
-- `specs/NNN-slug/spec.md` — first line is `# <id> — <Title>`; the id (`001`, `007A`) is the issue's identity. Changing the id orphans the existing issue and creates a second one; change the title freely, never the id.
-- `tasks.md` — task lines start at column 0 as `- [ ]` / `- [x]`; continuation lines are indented. Anything else is invisible to the sync.
-- A spec with no `tasks.md` shows as `Todo` with an explanatory body — expected for drafts.
-
-After a spec change, run the script (`PROJECT_NUMBER=2 tool/sync_spec_project.sh`) or the `Spec project sync` workflow via `workflow_dispatch`, and report the resulting board state. Do not leave `specs/` and the board disagreeing.
+`specs/NNN-slug/` is an archive of the documents the issues were written from. For the specs that were open at the conversion (010 to 017 and 023), `spec.md` and `tasks.md` are frozen: do not tick or edit them, the issue has replaced them. Their supporting documents (`plan.md`, `data-model.md`, `contracts/`, evidence files) stay live and the issue links to them. A new spec is a new issue, not a new `specs/` directory.
 
 ## Agent Branch Workflow
 
