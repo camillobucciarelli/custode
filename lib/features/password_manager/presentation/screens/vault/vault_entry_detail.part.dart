@@ -183,11 +183,6 @@ class _EntryDetailPanelState extends State<_EntryDetailPanel> {
   bool _isRevealed({int? fieldIndex}) =>
       _revealController.isRevealed && _revealedFieldIndex == fieldIndex;
 
-  /// spec 023 T205 / FR-010: deleting a passkey destroys the only copy of a
-  /// private key. The confirmation names the site and the account so the user
-  /// can tell two passkeys apart, says it cannot be recovered, and says the
-  /// dated backup is written first — the coordinator writes it before the
-  /// save, so that promise is kept even if the save then fails.
   Future<void> _exportAttachment(
     VaultEntry entry,
     VaultAttachment attachment,
@@ -206,6 +201,11 @@ class _EntryDetailPanelState extends State<_EntryDetailPanel> {
     );
   }
 
+  /// spec 023 T205 / FR-010: deleting a passkey destroys the only copy of a
+  /// private key. The confirmation names the site and the account so the user
+  /// can tell two passkeys apart, says it cannot be recovered, and says the
+  /// dated backup is written first — the coordinator writes it before the
+  /// save, so that promise is kept even if the save then fails.
   Future<void> _confirmDeletePasskey(
     VaultEntry entry,
     VaultPasskey passkey,

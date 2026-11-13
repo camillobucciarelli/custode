@@ -2582,6 +2582,103 @@ void main() {
       },
     );
 
+    // The editor stages attachment changes and saves them with the fields.
+    group('updateEntry with attachment changes', () {
+      Future<List<String>> attachmentNames(String entryId) async {
+        final snapshot = await service.loadVault(
+          databasePath: databasePath,
+          password: password,
+        );
+        return snapshot.allEntries
+            .firstWhere((entry) => entry.id == entryId)
+            .attachments
+            .map((attachment) => attachment.key)
+            .toList();
+      }
+
+      Future<String> attachmentFile(String name) async {
+        final file = File('${tempDir.path}/$name');
+        await file.writeAsBytes(const [1, 2, 3]);
+        return file.path;
+      }
+
+      Future<void> update(
+        String entryId, {
+        List<String> added = const [],
+        List<String> removed = const [],
+      }) {
+        return service.updateEntry(
+          databasePath: databasePath,
+          password: password,
+          entryId: entryId,
+          title: 'Mail',
+          username: 'ada',
+          entryPassword: 'p1',
+          url: 'https://mail.example',
+          notes: 'edited',
+          addedAttachmentPaths: added,
+          removedAttachmentKeys: removed,
+        );
+      }
+
+      Future<int> revisionCount(String entryId) async {
+        final history = await service.loadEntryHistory(
+          databasePath: databasePath,
+          password: password,
+          entryId: entryId,
+        );
+        return history.revisions.length;
+      }
+
+      test('removals and adds land in one history revision', () async {
+        final entryId = await createEntry();
+        await update(entryId, added: [await attachmentFile('old.pem')]);
+        final before = await revisionCount(entryId);
+
+        await update(
+          entryId,
+          added: [await attachmentFile('a.txt'), await attachmentFile('b.txt')],
+          removed: ['old.pem'],
+        );
+
+        expect(await attachmentNames(entryId), ['a.txt', 'b.txt']);
+        expect(await revisionCount(entryId), before + 1);
+      });
+
+      test('a key that is already gone does not block the rest', () async {
+        final entryId = await createEntry();
+
+        await update(
+          entryId,
+          added: [await attachmentFile('a.txt')],
+          removed: ['gone.txt'],
+        );
+
+        expect(await attachmentNames(entryId), ['a.txt']);
+      });
+
+      test(
+        'an unreadable source fails the update and writes nothing',
+        () async {
+          final entryId = await createEntry();
+          await update(entryId, added: [await attachmentFile('keep.pem')]);
+          final before = await File(databasePath).readAsBytes();
+
+          await expectLater(
+            update(
+              entryId,
+              added: ['${tempDir.path}/missing.txt'],
+              removed: ['keep.pem'],
+            ),
+            throwsA(anything),
+          );
+
+          expect(await File(databasePath).readAsBytes(), before);
+          expect(await attachmentNames(entryId), ['keep.pem']);
+        },
+      );
+    });
+
     test('an unknown entry throws', () async {
       await createEntry();
 

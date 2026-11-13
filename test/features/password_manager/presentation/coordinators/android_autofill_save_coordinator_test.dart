@@ -325,6 +325,8 @@ class _FakeVaultKdbxService implements VaultKdbxService {
     required String url,
     required String notes,
     List<VaultCustomField> customFields = const [],
+    List<String> addedAttachmentPaths = const [],
+    List<String> removedAttachmentKeys = const [],
   }) async {
     updatedEntryIds.add(entryId);
     updatedPasswords.add(entryPassword);

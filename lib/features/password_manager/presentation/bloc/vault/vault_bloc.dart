@@ -636,45 +636,17 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
         url: event.url,
         notes: event.notes,
         customFields: event.customFields,
+        // The editor stages attachment changes; they land in the same write
+        // as the fields, so a save is all or nothing.
+        addedAttachmentPaths: event.attachmentPaths,
+        removedAttachmentKeys: event.removedAttachmentKeys,
       );
-      // The editor stages attachment changes and they land with the save.
-      // The fields are already written at this point, so a failure here must
-      // not be reported as "nothing was saved": reload what the file now
-      // holds and say which part did not go through.
-      String? attachmentError;
-      try {
-        for (final attachmentKey in event.removedAttachmentKeys) {
-          await vaultKdbxService.removeAttachment(
-            databasePath: state.databasePath,
-            password: _password,
-            keyFilePath: _keyFilePath,
-            entryId: event.entryId,
-            attachmentKey: attachmentKey,
-          );
-        }
-        for (final attachmentPath in event.attachmentPaths) {
-          await vaultKdbxService.addAttachment(
-            databasePath: state.databasePath,
-            password: _password,
-            keyFilePath: _keyFilePath,
-            entryId: event.entryId,
-            filePath: attachmentPath,
-          );
-        }
-      } catch (e, st) {
-        logError('Failed updating vault entry attachments.', e, st);
-        attachmentError =
-            'Record saved, but its attachments could not be updated. $e';
-      }
       await _reload(
         emit,
         currentGroupId: state.currentGroupId,
         keepLoadingFlag: false,
       );
       await _loadRecycleBinEntries(emit, isInitialLoad: true);
-      if (attachmentError != null) {
-        _safeEmit(emit, state.copyWith(errorMessage: attachmentError));
-      }
       _scheduleAutoSync();
     } catch (e, st) {
       logError('Failed updating vault entry.', e, st);

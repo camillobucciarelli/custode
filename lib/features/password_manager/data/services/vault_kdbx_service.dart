@@ -330,6 +330,8 @@ class VaultKdbxService {
     required String url,
     required String notes,
     List<VaultCustomField> customFields = const [],
+    List<String> addedAttachmentPaths = const [],
+    List<String> removedAttachmentKeys = const [],
   }) {
     return _mutex.withDatabaseLock([databasePath], () async {
       final file = await _openFile(
@@ -342,6 +344,13 @@ class VaultKdbxService {
         file.body.rootGroup.getAllEntries(),
         entryId,
       );
+      // Read every new attachment before the entry is touched: an unreadable
+      // or oversized file fails the whole update, so the fields and the files
+      // land together or not at all, in one save and one history revision.
+      final addedAttachments = <(String, Uint8List)>[
+        for (final filePath in addedAttachmentPaths)
+          (p.basename(filePath), await _readAttachmentSource(filePath)),
+      ];
       entry.setString(KdbxKeyCommon.TITLE, PlainValue(title));
       entry.setString(KdbxKeyCommon.USER_NAME, PlainValue(username));
       entry.setString(
@@ -351,9 +360,35 @@ class VaultKdbxService {
       entry.setString(KdbxKeyCommon.URL, PlainValue(url));
       entry.setString(_notesKey, PlainValue(notes));
       _setCustomFields(entry, customFields);
+      // Removals first, so a replaced file never collides with its old copy.
+      // A key that is already gone (a sync merge removed it while the editor
+      // was open) is the outcome the user asked for, not a failure.
+      final existingKeys = entry.binaryEntries
+          .map((binary) => binary.key.key)
+          .toSet();
+      for (final attachmentKey in removedAttachmentKeys) {
+        if (existingKeys.contains(attachmentKey)) {
+          entry.removeBinary(KdbxKey(attachmentKey));
+        }
+      }
+      for (final (name, bytes) in addedAttachments) {
+        entry.createBinary(isProtected: false, name: name, bytes: bytes);
+      }
 
       await _save(databasePath, file);
     });
+  }
+
+  Future<Uint8List> _readAttachmentSource(String filePath) async {
+    final source = File(filePath);
+    if (!await source.exists()) {
+      throw Exception('Attachment source file not found.');
+    }
+    final bytes = await source.readAsBytes();
+    if (bytes.length > maxAttachmentBytes) {
+      throw Exception('Attachment exceeds 20 MB limit.');
+    }
+    return bytes;
   }
 
   /// spec 017 T103 — the revisions the KDBX writer already recorded for an
@@ -1106,15 +1141,7 @@ class VaultKdbxService {
         keyFilePath: keyFilePath,
       );
 
-      final source = File(filePath);
-      if (!await source.exists()) {
-        throw Exception('Attachment source file not found.');
-      }
-
-      final bytes = await source.readAsBytes();
-      if (bytes.length > maxAttachmentBytes) {
-        throw Exception('Attachment exceeds 20 MB limit.');
-      }
+      final bytes = await _readAttachmentSource(filePath);
 
       final entry = _findEntryById(
         file.body.rootGroup.getAllEntries(),
@@ -1125,29 +1152,6 @@ class VaultKdbxService {
         name: p.basename(filePath),
         bytes: bytes,
       );
-      await _save(databasePath, file);
-    });
-  }
-
-  Future<void> removeAttachment({
-    required String databasePath,
-    required String password,
-    String? keyFilePath,
-    required String entryId,
-    required String attachmentKey,
-  }) {
-    return _mutex.withDatabaseLock([databasePath], () async {
-      final file = await _openFile(
-        databasePath: databasePath,
-        password: password,
-        keyFilePath: keyFilePath,
-      );
-
-      final entry = _findEntryById(
-        file.body.rootGroup.getAllEntries(),
-        entryId,
-      );
-      entry.removeBinary(KdbxKey(attachmentKey));
       await _save(databasePath, file);
     });
   }

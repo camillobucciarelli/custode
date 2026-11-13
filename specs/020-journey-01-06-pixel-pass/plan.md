@@ -16,6 +16,10 @@ KDBX change. `Manage` dispatches the existing `_EntryAction.attachments`, which
 `vault_entries.part.dart` already routes to `_showAttachmentsDialog`. Tests:
 `flutter_test` widget tests + goldens.
 
+Superseded 2026-11-13: the `Manage` chip, `_EntryAction.attachments` and
+`_showAttachmentsDialog` are retired. The detail lists the attachments with an
+Export action per row; the editor adds and removes them with the save.
+
 ## Constitution Check
 
 | Principle | Status |
