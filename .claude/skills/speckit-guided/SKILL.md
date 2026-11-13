@@ -30,10 +30,12 @@ The user may enter at any phase ("guided from plan") or stop at any phase
 
 ## Repo rules that apply to every phase
 
-- `specs/NNN-slug/spec.md` first line must be `# <id> — <Title>`. The id is the
-  GitHub issue identity — never change it after creation.
-- `tasks.md` task lines start at column 0 as `- [ ]`; continuation lines indented.
-- Tick `- [x]` in the same change that lands the work (phase 6).
-- After adding, renaming, or editing a spec, run
-  `PROJECT_NUMBER=2 tool/sync_spec_project.sh` and report the board state.
+- The spec-kit files under `specs/NNN-slug/` are working documents. The spec of
+  record is a GitHub issue labelled `spec` (see `docs/agents/issue-tracker.md`,
+  **Roadmap specs**): after the tasks phase, publish or update that issue in the
+  `to-spec` shape with a `## Tasks` checklist.
+- Title of the issue is `<id> — <Title>`. The id never changes after creation.
+- Task lines start at column 0 as `- [ ]`; continuation lines indented.
+- Tick `- [x]` in the issue when the work is merged (phase 6), and update the
+  Project #2 card by hand. There is no sync script.
 - Before finishing phase 6: `flutter test` and `flutter analyze`, report results.

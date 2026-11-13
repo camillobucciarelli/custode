@@ -18,4 +18,4 @@ Edit the right-hand column to match whatever vocabulary you actually use.
 
 ## Scope
 
-These labels apply only to ordinary issues. Issues carrying `spec` are generated roadmap mirrors and stay outside triage. Every triaged ordinary issue carries one category label and one state label.
+These labels apply only to ordinary issues. Issues carrying `spec` are roadmap specs and stay outside triage. Every triaged ordinary issue carries one category label and one state label.

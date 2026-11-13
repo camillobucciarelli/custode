@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues for this repo live as GitHub issues. Use the `gh` CLI for all operations. The repo has two distinct issue surfaces: **ordinary requests** (bugs, enhancements, triage work, standalone implementation tickets), which the conventions below cover, and **roadmap specs**, which are generated mirrors of repository files (see below).
+Issues for this repo live as GitHub issues. Use the `gh` CLI for all operations. The repo has two distinct issue surfaces: **ordinary requests** (bugs, enhancements, triage work, standalone implementation tickets), which the conventions below cover, and **roadmap specs**, which are issues labelled `spec` that hold the spec itself (see below).
 
 ## Conventions
 
@@ -48,25 +48,25 @@ Used by `/wayfinder`; `/to-tickets` uses **Blocking** too. The **map** is a sing
 
 ## Roadmap specs
 
-Issues labelled `spec` are generated mirrors of repository files, not editable planning records.
+An issue labelled `spec` is the spec. Its body is the source of truth and is edited by hand; nothing generates it.
 
-Source of truth:
+Body shape, in this order:
 
-- `specs/NNN-slug/spec.md` defines identity and title.
-- `specs/NNN-slug/tasks.md` defines checklist and completion.
-- `specs/README.md` indexes specs.
-- `tool/sync_spec_project.sh` updates generated issues and Project #2.
+- `## Problem Statement`, `## Solution`, `## User Stories`, `## Implementation Decisions`, `## Testing Decisions`, `## Out of Scope`, `## Further Notes` (the `/to-spec` template).
+- `## Tasks`: the checklist, column-zero `- [ ]` / `- [x]` rows with stable task ids.
 
-Never edit a generated spec issue body, state, title, or Project status manually. Change repository files, then run:
+Rules:
 
-`PROJECT_NUMBER=2 tool/sync_spec_project.sh`
-
-The workflow `.github/workflows/spec-project-sync.yml` also runs after relevant pushes to `main` and pull-request lifecycle changes.
+- Title is `<id> — <Title>` (`024 — ...`). The id is the next free number and never changes.
+- Tick a task box when the work is merged into `main` and its acceptance criteria hold. Change only the lines you mean to change.
+- All boxes ticked: close the issue as completed and set its Project #2 card to `Done`. Work started: set the card to `In Progress`. The board is updated by hand.
+- `specs/NNN-slug/` is an archive. `spec.md` and `tasks.md` there are frozen for every spec that has an issue in this shape; supporting documents (`plan.md`, `data-model.md`, `contracts/`, evidence files) stay live and the issue links to them.
+- Closed spec issues from before the conversion keep their old generated body (a copy of `tasks.md`). Leave them as they are.
 
 ## Skill routing
 
-- `/to-spec`: create the next `specs/NNN-slug/spec.md`, update `specs/README.md`, then run the spec sync. Do not create the generated issue directly or apply triage labels to it.
-- `/to-tickets` for a roadmap spec: write approved tasks into that spec's `tasks.md` using column-zero `- [ ]` rows, then run the spec sync. Do not create one GitHub issue per task.
+- `/to-spec`: publish the spec as a new issue labelled `spec`, title `<next id> — <Title>`, add it to Project #2 with status `Todo`. Do not create a `specs/` directory. Do not apply triage labels to it.
+- `/to-tickets` for a roadmap spec: write the approved tasks into the `## Tasks` section of the spec issue as column-zero `- [ ]` rows. Do not create one GitHub issue per task.
 - `/to-tickets` for ordinary work: create ordinary GitHub issues with native dependency links (see **Blocking** above).
 - `/triage`: operate on ordinary issues only. Ignore issues carrying the `spec` label.
 - `/wayfinder`: maps and child tickets are ordinary issues. They never carry the `spec` label.
