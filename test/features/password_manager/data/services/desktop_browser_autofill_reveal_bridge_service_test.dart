@@ -1362,8 +1362,37 @@ void main() {
       },
     );
 
+    test('an Ed25519 passkey signs with a raw 64-byte signature', () async {
+      final (:descriptor, prompts: _) = await startWithPasskey(
+        entries: [
+          _entry(
+            id: 'entry-1',
+            username: 'alice',
+            password: '',
+            url: 'https://example.com/login',
+            passkeys: [
+              _passkey(
+                pem: eddsaPrivateKeyPem,
+                algorithm: VaultPasskeyAlgorithm.eddsa,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final response = await _postBridge(
+        descriptor: descriptor,
+        path: '/passkey-assert',
+        body: body(descriptor),
+      );
+
+      expect(response.json['ok'], isTrue);
+      final signature = (response.json['data']! as Map)['signature']! as String;
+      expect(base64Url.decode(base64Url.normalize(signature)), hasLength(64));
+    });
+
     test(
-      'EdDSA cannot be signed here and says so rather than failing',
+      'an unknown algorithm cannot be signed and says so rather than failing',
       () async {
         final (:descriptor, prompts: _) = await startWithPasskey(
           entries: [
@@ -1372,12 +1401,7 @@ void main() {
               username: 'alice',
               password: '',
               url: 'https://example.com/login',
-              passkeys: [
-                _passkey(
-                  pem: eddsaPrivateKeyPem,
-                  algorithm: VaultPasskeyAlgorithm.eddsa,
-                ),
-              ],
+              passkeys: [_passkey(algorithm: VaultPasskeyAlgorithm.unknown)],
             ),
           ],
         );

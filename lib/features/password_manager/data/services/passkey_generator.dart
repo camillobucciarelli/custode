@@ -31,9 +31,8 @@ class GeneratedPasskey {
 /// spec 023 US3 — creates ES256 passkeys.
 ///
 /// ES256 only, deliberately. It is the one algorithm every relying party
-/// accepts, the one the desktop signer can sign with, and the one all three
-/// platform authenticators verify; offering EdDSA here would create
-/// credentials the desktop bridge cannot use (research R10).
+/// accepts and the one all three platform authenticators verify. A site
+/// that accepts only another algorithm is left to the browser.
 ///
 /// Self-attestation is not used either: `fmt: "none"` with an empty statement
 /// is what a software authenticator honestly is, and the target relying

@@ -656,8 +656,8 @@ class DesktopBrowserAutofillRevealBridgeService {
         origin: origin,
       );
     } on DesktopPasskeySignException {
-      // EdDSA has no pointycastle implementation here (research R10), and a
-      // key that will not parse cannot sign. Either way the page falls
+      // A key that will not parse, or an algorithm the app does not know,
+      // cannot sign. The page falls
       // through to the browser rather than seeing an error it cannot act on.
       await _writePasskeyRefusal(request, 'unsupported_algorithm');
       return;

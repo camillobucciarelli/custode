@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/features/password_manager/data/services/desktop_passkey_signer.dart';
+import 'package:password_manager/features/password_manager/data/services/ed25519.dart';
 import 'package:password_manager/features/password_manager/data/services/passkey_parser.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_passkey.dart';
 import 'package:pointycastle/export.dart';
@@ -117,10 +118,30 @@ void main() {
     expect(assertion.signature, hasLength(256));
   });
 
-  test('EdDSA is unsupported on this platform', () {
+  test('EdDSA signs with the raw 64-byte signature', () {
+    final assertion = signer.sign(
+      passkey: passkeyFor(eddsaPrivateKeyPem),
+      challenge: challenge,
+      origin: origin,
+    );
+    // The private key seed inside the fixture's PKCS#8. `ed25519_test.dart`
+    // pins the primitive against RFC 8032 and OpenSSL with this same key.
+    final seed = PasskeyParser.pemToDer(eddsaPrivateKeyPem)!.sublist(16);
+    expect(Ed25519.publicKey(seed), spkiKeyBytes(eddsaPublicKeyPem));
+    expect(assertion.signature, hasLength(64));
+    expect(assertion.signature, Ed25519.sign(seed, signedMessage(assertion)));
+  });
+
+  test('an Ed25519 key that is not a 32-byte seed is a bad key', () {
+    // The same PKCS#8 with a 31-byte seed.
+    const shortSeedPem = '''
+-----BEGIN PRIVATE KEY-----
+MC0CAQAwBQYDK2VwBCEEH0/KNjFb/g7qelADCTqrUfJnMgM3wVBpkXgH6uT7QnU=
+-----END PRIVATE KEY-----
+''';
     expect(
       () => signer.sign(
-        passkey: passkeyFor(eddsaPrivateKeyPem),
+        passkey: passkeyFor(shortSeedPem),
         challenge: challenge,
         origin: origin,
       ),
@@ -128,7 +149,7 @@ void main() {
         isA<DesktopPasskeySignException>().having(
           (e) => e.reason,
           'reason',
-          VaultPasskeyUnusableReason.unsupportedOnPlatform,
+          VaultPasskeyUnusableReason.badKey,
         ),
       ),
     );

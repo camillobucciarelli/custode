@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:pointycastle/export.dart';
 
 import '../../domain/models/vault_passkey.dart';
+import 'ed25519.dart';
 import 'passkey_parser.dart';
 
 /// What the browser extension needs to answer `navigator.credentials.get`
@@ -34,8 +35,9 @@ class DesktopPasskeySignException implements Exception {
 }
 
 /// Spec 023 T014 — signs WebAuthn assertions in the app process for the
-/// desktop bridge (plan D5/D6). ES256 and RS256 through `pointycastle`;
-/// EdDSA is unusable here (research R10). No CBOR: assertions need none.
+/// desktop bridge (plan D5/D6). ES256 and RS256 through `pointycastle`,
+/// EdDSA through [Ed25519], because `pointycastle` has none (research R10).
+/// No CBOR: assertions need none.
 class DesktopPasskeySigner {
   const DesktopPasskeySigner();
 
@@ -102,9 +104,7 @@ class DesktopPasskeySigner {
       case VaultPasskeyAlgorithm.rs256:
         signature = _signRs256(passkey.privateKeyPem, message);
       case VaultPasskeyAlgorithm.eddsa:
-        throw const DesktopPasskeySignException(
-          VaultPasskeyUnusableReason.unsupportedOnPlatform,
-        );
+        signature = _signEd25519(passkey.privateKeyPem, message);
       case VaultPasskeyAlgorithm.unknown:
         throw const DesktopPasskeySignException(
           VaultPasskeyUnusableReason.unsupportedAlgorithm,
@@ -145,6 +145,18 @@ class DesktopPasskeySigner {
         ),
       );
     return signer.generateSignature(message).bytes;
+  }
+
+  /// PKCS#8 → CurvePrivateKey `OCTET STRING` holding the 32-byte seed
+  /// (RFC 8410, section 7). The signature is the raw 64 bytes `R ‖ S`.
+  static Uint8List _signEd25519(String pem, Uint8List message) {
+    final key = _pkcs8PrivateKey(pem);
+    if (key.tag != DerNode.octetString || key.content.length != 32) {
+      throw const DesktopPasskeySignException(
+        VaultPasskeyUnusableReason.badKey,
+      );
+    }
+    return Ed25519.sign(key.content, message);
   }
 
   /// The algorithm-specific structure inside PKCS#8's `privateKey` OCTET
