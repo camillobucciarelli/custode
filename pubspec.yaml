@@ -24,7 +24,7 @@ dependencies:
   google_sign_in: ^7.2.0
   get_it: ^9.3.0
   google_fonts: ^9.0.0
-  crypto: ^3.0.7
+  crypto: ^3.0.8
   http: ^1.6.0
   kdbx: ^2.5.0
   local_auth: ^3.0.2
