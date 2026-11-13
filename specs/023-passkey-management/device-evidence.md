@@ -6,8 +6,8 @@ without the OS and browser version is not evidence.
 
 Nothing here is filled in by an agent. Every line is something someone watched
 happen on a device. The rows below are the empty ledger; the tasks that consume
-it are T212 (KeePassXC round trip), T601 (redaction sweep) and T603 (the full
-quickstart run).
+it are T212 (KeePassXC round trip), T601 (redaction sweep), T603 (the full
+quickstart run) and T808 (the device run of sections H, I and J).
 
 ## Devices used
 
@@ -60,6 +60,63 @@ iOS and macOS are recorded separately: the same code path, two systems.
 | F.4 | L1 | | | | |
 | F.5 the previous native host build answers `unsupported_type` | W1 | | | | |
 | F.5 | L1 | | | | |
+
+## H — Android create (US4), API 34+
+
+For H.10 the versions include the KeePassXC version and the desktop it ran on.
+
+| Step | Device | Date | Versions | Observed | Verdict |
+|------|--------|------|----------|----------|---------|
+| H.1 Custode open and unlocked: confirmation names site and account, user presence asked, the site succeeds only afterwards | A1 | | | | |
+| H.2 a new record titled with the site holds the passkey, and a dated backup precedes the write | A1 | | | | |
+| H.3 the single record for the site and username receives the passkey, no new record | A1 | | | | |
+| H.4 app closed: the screen says so and offers "Open Custode"; continues on return and the site succeeds | A1 | | | | |
+| H.5 vault locked: the screen says so and offers "Open Custode"; continues on return and the site succeeds | A1 | | | | |
+| H.6 dismissed while locked: no success on the site, vault unchanged | A1 | | | | |
+| H.7 replacement warning before the write, then exactly one passkey for the site on the same record | A1 | | | | |
+| H.8 cancelling the biometric is a cancellation, vault unchanged | A1 | | | | |
+| H.8 cancelling at the replacement warning leaves the old passkey in place | A1 | | | | |
+| H.9 sign-in with the new passkeys, user presence every time | A1 | | | | |
+| H.10 KeePassXC shows the new passkeys with protected secrets and signs in | A1 | | | | |
+| H.11 a request without ES256 gets no Custode entry | A1 | | | | |
+
+## I — macOS create (US4), and iOS still refusing
+
+For I.9 the versions include the KeePassXC version.
+
+| Step | Device | Date | Versions | Observed | Verdict |
+|------|--------|------|----------|----------|---------|
+| I.1 Custode open and unlocked: confirmation names site and account, device owner authentication asked, the site succeeds only afterwards | M1 | | | | |
+| I.2 a new record titled with the site holds the passkey, and a dated backup precedes the write | M1 | | | | |
+| I.3 the single record for the site and username receives the passkey, no new record | M1 | | | | |
+| I.4 app closed: refusal says Custode must be open and unlocked, the site reports a failure, vault unchanged; the retry with the app open succeeds | M1 | | | | |
+| I.5 vault locked: the same refusal and failure, vault unchanged | M1 | | | | |
+| I.6 replacement warning before the write, then exactly one passkey for the site on the same record | M1 | | | | |
+| I.7 cancelling the authentication is a cancellation, vault unchanged | M1 | | | | |
+| I.7 cancelling at the replacement warning leaves the old passkey in place | M1 | | | | |
+| I.8 sign-in with the new passkeys, user presence every time | M1 | | | | |
+| I.9 KeePassXC shows the new passkeys with protected secrets and signs in | M1 | | | | |
+| I.10 iOS still refuses: refusal screen, failed registration, vault unchanged | I1 | | | | |
+
+## J — Ed25519 sign-in (US4), Windows and Linux
+
+Record the site used for E5 and the client that created its key in "Observed"
+of J.1.
+
+| Step | Device | Date | Versions | Observed | Verdict |
+|------|--------|------|----------|----------|---------|
+| J.1 E5 shows key type EdDSA (Ed25519) and is not marked unusable | W1 | | | | |
+| J.1 | L1 | | | | |
+| J.2 confirmation names site and username, then the site succeeds with the Ed25519 passkey | W1 | | | | |
+| J.2 | L1 | | | | |
+| J.3 declining shows the site a cancellation | W1 | | | | |
+| J.3 | L1 | | | | |
+| J.4 a locked app falls through to the browser's own dialog | W1 | | | | |
+| J.4 | L1 | | | | |
+| J.5 the ES256 passkey E1 still signs in | W1 | | | | |
+| J.5 | L1 | | | | |
+| J.6 the verbose log of J.2 contains no `PRIVATE KEY` (record the log size) | W1 | | | | |
+| J.6 | L1 | | | | |
 
 ## T212 — KeePassXC round trip (SC-001)
 

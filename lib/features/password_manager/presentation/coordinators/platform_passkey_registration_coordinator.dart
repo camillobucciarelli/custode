@@ -25,6 +25,10 @@ enum PasskeyRegistrationStatus {
   /// The backup or the vault write failed. Nothing was created.
   failed,
 
+  /// The vault already holds a credential the request excludes (WebAuthn
+  /// `excludeCredentials`). The surface must refuse and not ask for a write.
+  excluded,
+
   /// The vault holds the new passkey.
   done,
 }
@@ -75,6 +79,7 @@ class PlatformPasskeyRegistrationCoordinator
         return prepare(
           relyingPartyId: _string(map['rpId']),
           userHandle: _decode(map['userHandle']),
+          excludeCredentialIds: _decodeList(map['excludeCredentialIds']),
         );
       case commitMethod:
         return commit(
@@ -88,15 +93,29 @@ class PlatformPasskeyRegistrationCoordinator
     }
   }
 
-  /// `{status, replaces}`: `status` is `ready`, `noVault` or `locked`;
-  /// `replaces` is true when a passkey for the site and account exists.
+  /// `{status, replaces}`: `status` is `ready`, `noVault`, `locked` or
+  /// `excluded`; `replaces` is true when a passkey for the site and account
+  /// exists.
   Future<Map<String, Object?>> prepare({
     required String relyingPartyId,
     required Uint8List? userHandle,
+    List<Uint8List> excludeCredentialIds = const [],
   }) async {
     final status = _sessionStatus();
     if (status != PasskeyRegistrationStatus.ready) {
       return {'status': status.name, 'replaces': false};
+    }
+    final excluded = await passkeyCoordinator.holdsAnyPasskeyCredential(
+      databasePath: _databasePath!,
+      keyFilePath: await currentKeyFilePath(),
+      relyingPartyId: relyingPartyId,
+      credentialIds: excludeCredentialIds,
+    );
+    if (excluded) {
+      return {
+        'status': PasskeyRegistrationStatus.excluded.name,
+        'replaces': false,
+      };
     }
     final replaces = await passkeyCoordinator.hasPasskeyFor(
       databasePath: _databasePath!,
@@ -174,6 +193,11 @@ class PlatformPasskeyRegistrationCoordinator
       return null;
     }
   }
+
+  static List<Uint8List> _decodeList(Object? value) => [
+    if (value is List)
+      for (final item in value) ?_decode(item),
+  ];
 
   static String _encode(Uint8List bytes) =>
       base64Url.encode(bytes).replaceAll('=', '');

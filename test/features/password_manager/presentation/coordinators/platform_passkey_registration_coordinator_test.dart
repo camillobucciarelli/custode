@@ -35,6 +35,19 @@ class _FakeVaultKdbxService implements VaultKdbxService {
     return 'entry-1';
   }
 
+  List<Uint8List> heldCredentialIds = const [];
+
+  @override
+  Future<bool> holdsAnyPasskeyCredential({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String relyingPartyId,
+    required List<Uint8List> credentialIds,
+  }) async => credentialIds.any(
+    (id) => heldCredentialIds.any((held) => held.join(',') == id.join(',')),
+  );
+
   @override
   Future<bool> hasPasskeyFor({
     required String databasePath,
@@ -135,6 +148,31 @@ void main() {
             'userHandle': 'BAUG',
           }),
           {'status': 'ready', 'replaces': true},
+        );
+      },
+    );
+
+    test(
+      'a credential the request excludes and the vault holds is excluded',
+      () async {
+        await open();
+        service.heldCredentialIds = [
+          Uint8List.fromList([7, 7, 7]),
+        ];
+
+        expect(
+          await call('preparePasskeyRegistration', {
+            'rpId': 'webauthn.io',
+            'excludeCredentialIds': ['AQID', 'BwcH'],
+          }),
+          {'status': 'excluded', 'replaces': false},
+        );
+        expect(
+          (await call('preparePasskeyRegistration', {
+            'rpId': 'webauthn.io',
+            'excludeCredentialIds': ['AQID', 'not base64 !'],
+          }))['status'],
+          'ready',
         );
       },
     );

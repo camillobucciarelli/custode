@@ -750,6 +750,31 @@ class VaultKdbxService {
     );
   }
 
+  /// Whether a record outside the recycle bin holds, for this relying party,
+  /// one of the credentials a registration excludes (WebAuthn
+  /// `excludeCredentials`: an authenticator that holds one must refuse).
+  Future<bool> holdsAnyPasskeyCredential({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String relyingPartyId,
+    required List<Uint8List> credentialIds,
+  }) async {
+    if (credentialIds.isEmpty) return false;
+    final entries = await loadAllEntries(
+      databasePath: databasePath,
+      password: password,
+      keyFilePath: keyFilePath,
+    );
+    return entries.any(
+      (entry) => entry.passkeys.any(
+        (candidate) =>
+            candidate.relyingPartyId == relyingPartyId &&
+            credentialIds.any((id) => _sameBytes(candidate.credentialId, id)),
+      ),
+    );
+  }
+
   /// True when [url]'s host is [relyingPartyId] or a subdomain of it. A URL
   /// with no scheme is read as a host.
   static bool _hostBelongsTo(String url, String relyingPartyId) {

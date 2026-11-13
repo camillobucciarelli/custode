@@ -139,6 +139,24 @@ class PasskeyCoordinator {
     );
   }
 
+  /// Whether the open vault holds one of [credentialIds] for the site. False
+  /// on a locked session.
+  Future<bool> holdsAnyPasskeyCredential({
+    required String databasePath,
+    String? keyFilePath,
+    required String relyingPartyId,
+    required List<Uint8List> credentialIds,
+  }) async {
+    if (!sessionSecretHolder.hasSecret) return false;
+    return vaultKdbxService.holdsAnyPasskeyCredential(
+      databasePath: databasePath,
+      password: sessionSecretHolder.read(),
+      keyFilePath: keyFilePath,
+      relyingPartyId: relyingPartyId,
+      credentialIds: credentialIds,
+    );
+  }
+
   Future<PasskeyCreateResult> _create({
     required String databasePath,
     required String relyingPartyId,
