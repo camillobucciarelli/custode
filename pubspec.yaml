@@ -75,7 +75,7 @@ dev_dependencies:
   # analyzer's `meta` floor must stay satisfiable by the meta that
   # flutter_test pins in the .fvmrc SDK; re-check `flutter pub get` on a
   # toolchain bump.
-  analyzer: ^14.5.0
+  analyzer: ^14.7.0
 
 flutter:
   # Per-project switch (overrides `flutter config`): every iOS/macOS plugin
