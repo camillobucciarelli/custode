@@ -100,6 +100,8 @@ job and upload it.
 
 **Test order must not matter.** The `test-random-order` PR job runs the suite under a fresh `--test-randomize-ordering-seed` on every run, so a new order dependence fails immediately instead of lying dormant until something reshuffles the suite. That job excludes `test/goldens/*` for the same macOS-rasterization reason the `test` job does, so **golden ordering is only ever checked locally** — when you touch a golden or its harness, run `flutter test test/goldens --test-randomize-ordering-seed=$RANDOM` as well as the plain run. Two rules keep goldens order-independent: never resolve `di.sl<T>()` inside `dispose()` (capture the dependency in `initState` — teardown must not require the locator to still be registered), and warm any `Image.asset` a golden renders via `warmUpGoldenAssets()` in `setUpAll`, because asset decoding completes on the real event loop and `pumpAndSettle()` never advances it, so whichever test mounts the asset first would otherwise capture a blank image.
 
+**No Mac at hand:** the `Update goldens` workflow (`.github/workflows/update-goldens.yml`, `workflow_dispatch` only) runs the golden suite on a GitHub-hosted macOS runner. With `commit` off it only reports which committed images that runner draws differently; with `commit` on it regenerates them, checks them in random order, and pushes one commit to the dispatched branch. It refuses to commit to `main`.
+
 **Windows prerequisite:** three QA suites build a `/var`→`/private/var`-style path divergence with `Link.create`, which on Windows requires Developer Mode or an elevated shell. Without it these files fail locally for environment reasons only — they are not skipped, since every CI Flutter job runs on `ubuntu-latest` and macOS is unaffected. Affected files: `test/features/password_manager/data/portable_path_symlink_qa_test.dart`, `test/core/utils/mobile_file_storage_guard_qa_test.dart`, `test/core/utils/mobile_file_storage_guard_bypass_qa_test.dart`.
 
 ### Manual, on-demand QA harnesses
@@ -116,7 +118,7 @@ Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `ci:`), s
 
 ### Versioning and releases
 
-`version:` in `pubspec.yaml` is `X.Y.Z+N`. Bump `X.Y.Z` by hand in the PR that warrants it; never touch `+N` outside of that bump. The one exception is the `X.Y.Z` bump itself: hand-set `+N` to a low, positive, buildable number (never `0` — `versionCode = flutter.versionCode` in `android/app/build.gradle.kts` requires a positive integer, so `+0` breaks Android builds on `main` until the next dispatch) so the counter restarts near the new version line instead of continuing the old one's count. App Store Connect and the Chrome Web Store each require every uploaded build number to be strictly higher than the last one published for that app, so this reset is only safe directly after bumping `X.Y.Z` — never on an existing version line with builds already published. The browser extension ships as `X.Y.Z.N` built from that same `pubspec.yaml` version (the release workflow overwrites `version` in `desktop/browser_extension/manifest.json`), so it rides the same bump; keep the manifest's own `version` equal to `X.Y.Z` for local packaging. Nothing ships on merge: `.github/workflows/release.yml` is `workflow_dispatch` only, with a `channel` input:
+`version:` in `pubspec.yaml` is `X.Y.Z+N`. Bump `X.Y.Z` by hand in the PR that warrants it. **Never restart or lower `+N`**, not even with an `X.Y.Z` bump: it is one build counter for the whole app, on every version line. The reason is Android: `+N` is the APK's `versionCode` (`versionCode = flutter.versionCode` in `android/app/build.gradle.kts`), and Android refuses to install an APK whose `versionCode` is lower than the one already installed. The APK ships from GitHub releases, so a counter that restarts with the version (as it did from `0.3.0+99` to `0.5.0+4`) leaves installed users unable to update without uninstalling, which deletes the app's data. App Store Connect and the Chrome Web Store only need the number to grow within their own upload history, so one growing counter satisfies all three. The release workflow enforces this: it takes the higher of `pubspec.yaml`'s `+N` and the highest `+N` of any `v*` tag, adds one, and commits the result, so a hand-edited `pubspec.yaml` cannot ship a lower number. The Chrome Web Store caps each version part at 65535, and the workflow fails the `chrome` job above that. The browser extension ships as `X.Y.Z.N` built from that same `pubspec.yaml` version (the release workflow overwrites `version` in `desktop/browser_extension/manifest.json`), so it rides the same bump; keep the manifest's own `version` equal to `X.Y.Z` for local packaging. Nothing ships on merge: `.github/workflows/release.yml` is `workflow_dispatch` only, with a `channel` input:
 
 - `beta` (default) — bumps `+N`, commits `chore: bump build number to vX.Y.Z-beta+N` to the dispatched branch, tags it, and publishes a GitHub **pre-release** with every artifact.
 - `release` — same, tagged `vX.Y.Z+N`, a normal GitHub release.
@@ -145,10 +147,9 @@ When that situation arrives:
 2. Do the work on `hotfix/X.Y.Z` cut from that branch, and open the PR **into
    `release/X.Y.x`**. A PR from this base into `main` reads as a revert of
    everything merged since the tag.
-3. Bump the patch digit on that line in the same PR — `0.5.0` → `0.5.1`, never
-   the build counter after the `+` — and reset `+N` per the rule above, safe
-   here precisely because the new patch version has published nothing yet
-   (`version: 0.5.0+4` becomes `version: 0.5.1+1`). Mirror
+3. Bump the patch digit on that line in the same PR — `0.5.0` → `0.5.1` — and
+   leave the build counter after the `+` alone: the release workflow continues
+   it from the highest tag on any line (see **Versioning and releases**). Mirror
    `_kApplicationVersion` in the settings screen, as any version bump does.
 4. Dispatch `release.yml` **from `release/X.Y.x`** to ship it: the workflow bumps
    and tags whichever branch it is dispatched on, so nothing else is needed.
