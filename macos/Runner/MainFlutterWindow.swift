@@ -55,6 +55,9 @@ class MainFlutterWindow: NSWindow {
     AppleAutofillV2Channel.shared.configure(
       binaryMessenger: flutterViewController.engine.binaryMessenger
     )
+    // spec 023 T709: after the channel exists, so a request that arrives
+    // early is answered through it rather than turned away.
+    PasskeyRegistrationPort.shared.start()
     wipeLegacyAutofillPlaintextArtifacts(reason: "app launch")
 
     super.awakeFromNib()

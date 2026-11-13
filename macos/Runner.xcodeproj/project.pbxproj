@@ -36,6 +36,10 @@
 		MACE0000000000000000B007 /* SharedAutofillStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = MACE0000000000000000A003 /* SharedAutofillStore.swift */; };
 		MACE0000000000000000B008 /* PasskeyAssertionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = MACE0000000000000000A00A /* PasskeyAssertionBuilder.swift */; };
 		MACE0000000000000000B009 /* PasskeyUserPresence.swift in Sources */ = {isa = PBXBuildFile; fileRef = MACE0000000000000000A009 /* PasskeyUserPresence.swift */; };
+		MACE0000000000000000B00A /* PasskeyRegistrationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = MACE0000000000000000A00B /* PasskeyRegistrationClient.swift */; };
+		MACE0000000000000000B00B /* PasskeyRegistrationPort.swift in Sources */ = {isa = PBXBuildFile; fileRef = MACE0000000000000000A00C /* PasskeyRegistrationPort.swift */; };
+		MACE0000000000000000B00C /* PasskeyRegistrationWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = MACE0000000000000000A00D /* PasskeyRegistrationWire.swift */; };
+		MACE0000000000000000B00D /* PasskeyRegistrationWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = MACE0000000000000000A00D /* PasskeyRegistrationWire.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 /* End PBXBuildFile section */
 
@@ -111,6 +115,9 @@
 		MACE0000000000000000A003 /* SharedAutofillStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedAutofillStore.swift; sourceTree = "<group>"; };
 		MACE0000000000000000A00A /* PasskeyAssertionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyAssertionBuilder.swift; sourceTree = "<group>"; };
 		MACE0000000000000000A009 /* PasskeyUserPresence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyUserPresence.swift; sourceTree = "<group>"; };
+		MACE0000000000000000A00B /* PasskeyRegistrationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyRegistrationClient.swift; sourceTree = "<group>"; };
+		MACE0000000000000000A00C /* PasskeyRegistrationPort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyRegistrationPort.swift; sourceTree = "<group>"; };
+		MACE0000000000000000A00D /* PasskeyRegistrationWire.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyRegistrationWire.swift; sourceTree = "<group>"; };
 		MACE0000000000000000A004 /* BridgeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeClient.swift; sourceTree = "<group>"; };
 		MACE0000000000000000A005 /* CredentialListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialListView.swift; sourceTree = "<group>"; };
 		MACE0000000000000000A006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -214,6 +221,7 @@
 				33CC10F02044A3C60003C045 /* AppDelegate.swift */,
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				MACE0000000000000000A008 /* AppleAutofillV2Channel.swift */,
+				MACE0000000000000000A00C /* PasskeyRegistrationPort.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
 				33CC11242044D66E0003C045 /* Resources */,
@@ -229,6 +237,8 @@
 				MACE0000000000000000A003 /* SharedAutofillStore.swift */,
 				MACE0000000000000000A00A /* PasskeyAssertionBuilder.swift */,
 				MACE0000000000000000A009 /* PasskeyUserPresence.swift */,
+				MACE0000000000000000A00B /* PasskeyRegistrationClient.swift */,
+				MACE0000000000000000A00D /* PasskeyRegistrationWire.swift */,
 				MACE0000000000000000A004 /* BridgeClient.swift */,
 				MACE0000000000000000A005 /* CredentialListView.swift */,
 				MACE0000000000000000A006 /* Info.plist */,
@@ -461,6 +471,8 @@
 			files = (
 				33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */,
 				MACE0000000000000000B006 /* AppleAutofillV2Channel.swift in Sources */,
+				MACE0000000000000000B00B /* PasskeyRegistrationPort.swift in Sources */,
+				MACE0000000000000000B00D /* PasskeyRegistrationWire.swift in Sources */,
 				MACE0000000000000000B007 /* SharedAutofillStore.swift in Sources */,
 				33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
@@ -475,6 +487,8 @@
 				MACE0000000000000000B002 /* SharedAutofillStore.swift in Sources */,
 				MACE0000000000000000B008 /* PasskeyAssertionBuilder.swift in Sources */,
 				MACE0000000000000000B009 /* PasskeyUserPresence.swift in Sources */,
+				MACE0000000000000000B00A /* PasskeyRegistrationClient.swift in Sources */,
+				MACE0000000000000000B00C /* PasskeyRegistrationWire.swift in Sources */,
 				MACE0000000000000000B003 /* BridgeClient.swift in Sources */,
 				MACE0000000000000000B004 /* CredentialListView.swift in Sources */,
 			);

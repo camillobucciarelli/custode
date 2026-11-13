@@ -23,6 +23,31 @@ final class AppleAutofillV2Channel {
     self.channel = channel
   }
 
+  /// spec 023 T709 — call a method the Dart side answers on this channel.
+  ///
+  /// Returns `false`, without calling `completion`, when the channel does not
+  /// exist yet: there is no Flutter engine to ask, so there is no vault either.
+  /// Otherwise `completion` receives Flutter's raw result on the main thread
+  /// (a value, a `FlutterError`, or `FlutterMethodNotImplemented`).
+  ///
+  /// Main thread only, like every platform channel call.
+  func invokeOnDart(
+    method: String,
+    arguments: [String: Any],
+    completion: @escaping (Any?) -> Void
+  ) -> Bool {
+    dispatchPrecondition(condition: .onQueue(.main))
+    guard let channel else { return false }
+    channel.invokeMethod(method, arguments: arguments) { result in
+      if Thread.isMainThread {
+        completion(result)
+      } else {
+        DispatchQueue.main.async { completion(result) }
+      }
+    }
+    return true
+  }
+
   private func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "publishCredentials":

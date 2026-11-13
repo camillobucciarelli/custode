@@ -20,10 +20,18 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
   /// assertion instead of handing back an `ASPasswordCredential`.
   private var passkeyRequest: ASPasskeyCredentialRequest?
 
-  /// spec 023 T708 — hosts the registration refusal screen. Separate from
-  /// [hostingController] because the two root views are different types and a
-  /// single invocation only ever shows one of them.
-  private var registrationHost: NSHostingController<PasskeyRegistrationUnavailableView>?
+  /// spec 023 T708 / T709 — hosts the registration screens (waiting, refusal,
+  /// confirmation). Separate from [hostingController] because the root views
+  /// are different types and a single invocation only ever shows one flow.
+  private var registrationHost: NSHostingController<AnyView>?
+
+  /// spec 023 T709 — talks to the running app, the only process that can
+  /// write the vault.
+  private let registrationClient = PasskeyRegistrationClient()
+
+  /// Set from the moment the user presses Create until the ceremony ends, so a
+  /// second press cannot start a second write.
+  private var registrationCommitStarted = false
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -148,45 +156,243 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
     prepareInterfaceToProvideCredential(for: identity)
   }
 
-  // MARK: - Registration (spec 023 T708)
+  // MARK: - Registration (spec 023 T708 / T709)
 
-  /// spec 023 T708 / FR-020 — a registration never happens in this process.
+  /// spec 023 T709 / FR-020 — a passkey is created by the running app and
+  /// confirmed here.
   ///
-  /// The decision, in one line: registration always goes through the app, and
-  /// the extension implements no step of it the app does not perform. The
-  /// reasoning is on [PasskeyRegistrationUnavailableView]; the mechanics are
-  /// that this process has no master password and therefore cannot write the
-  /// `.kdbx`, so the only alternative to refusing would be telling the site a
-  /// credential exists before the vault holds one.
+  /// This process has no master password, so it cannot write the `.kdbx` and
+  /// never mints a key. What it owns is the part only it can do: showing the
+  /// user what is about to be created and proving they are present. The app
+  /// then writes the vault and returns the public half, and the site is told
+  /// "registered" only after that write has completed. Every other outcome
+  /// cancels the request; there is no path that completes without `done`.
   ///
-  /// The refusal is explicit rather than an unimplemented override: without it
+  /// The request is stopped before any confirmation when the site does not
+  /// accept ES256 (the only algorithm the app creates), when the app cannot
+  /// write right now (not running, no vault open, vault locked), and when the
+  /// vault already holds a credential the site excluded.
+  ///
+  /// Stopping is explicit rather than an unimplemented override: without it
   /// the system presents this extension's empty sheet and the ceremony hangs
   /// until the user backs out, with no explanation anywhere.
   @available(macOS 14.0, *)
   override func prepareInterface(forPasskeyRegistration registrationRequest: any ASCredentialRequest) {
-    let identity = (registrationRequest as? ASPasskeyCredentialRequest)?
-      .credentialIdentity as? ASPasskeyCredentialIdentity
+    store.wipeLegacyPlaintextArtifacts(reason: "passkey registration")
+    let request = registrationRequest as? ASPasskeyCredentialRequest
+    let identity = request?.credentialIdentity as? ASPasskeyCredentialIdentity
     let rpId = identity?.relyingPartyIdentifier ?? ""
     let userName = identity?.userName ?? ""
-    log.info("prepareInterface(forPasskeyRegistration) rpId=\(rpId, privacy: .public) → refused, the app is the only writer")
 
-    installRegistrationRefusal(relyingPartyId: rpId, userName: userName)
+    guard let request, let identity, !rpId.isEmpty else {
+      log.error("prepareInterface(forPasskeyRegistration) without a passkey identity → stopped")
+      installRegistrationStop(.algorithmUnsupported, relyingPartyId: rpId, userName: userName)
+      return
+    }
+    guard request.supportedAlgorithms.contains(where: { $0 == .ES256 }) else {
+      log.info("prepareInterface(forPasskeyRegistration) rpId=\(rpId, privacy: .public) → stopped, ES256 not accepted")
+      installRegistrationStop(.algorithmUnsupported, relyingPartyId: rpId, userName: userName)
+      return
+    }
+
+    // WebAuthn `excludeCredentials`. The system only hands the list over from
+    // macOS 15; on macOS 14 there is nothing to check against.
+    var excludedCredentialIDs: [Data] = []
+    if #available(macOS 15.0, *) {
+      excludedCredentialIDs = Self.boundedExcludedCredentialIDs(
+        (request.excludedCredentials ?? []).map { $0.credentialID }
+      )
+    }
+
+    log.info("prepareInterface(forPasskeyRegistration) rpId=\(rpId, privacy: .public) excludedCount=\(excludedCredentialIDs.count, privacy: .public) → asking the app")
+    registrationCommitStarted = false
+    installRegistration(AnyView(PasskeyRegistrationProgressView(message: "Checking Custode…")))
+
+    let userHandle = identity.userHandle
+    let clientDataHash = request.clientDataHash
+    registrationClient.prepare(
+      rpId: rpId,
+      userHandle: userHandle,
+      excludedCredentialIDs: excludedCredentialIDs
+    ) { [weak self] outcome in
+      guard let self else { return }
+      switch outcome {
+      case .appUnavailable:
+        log.info("registration stopped: the app has no unlocked vault to write")
+        self.installRegistrationStop(.appUnavailable, relyingPartyId: rpId, userName: userName)
+      case .excluded:
+        log.info("registration stopped: the vault holds an excluded credential")
+        self.installRegistrationStop(.excluded, relyingPartyId: rpId, userName: userName)
+      case .ready(let replaces, let nonce):
+        log.info("registration ready replaces=\(replaces, privacy: .public)")
+        self.installRegistrationConfirmation(
+          rpId: rpId,
+          userName: userName,
+          userHandle: userHandle,
+          clientDataHash: clientDataHash,
+          replaces: replaces,
+          nonce: nonce
+        )
+      }
+    }
   }
 
-  private func installRegistrationRefusal(relyingPartyId: String, userName: String) {
+  /// The excluded list as it fits in one message. A credential id is at most
+  /// 1023 bytes in WebAuthn and usually 16 to 64; the bounds keep a hostile
+  /// list from pushing the request past the message size limit, at the price
+  /// of not checking ids beyond them.
+  private static func boundedExcludedCredentialIDs(_ ids: [Data]) -> [Data] {
+    var kept: [Data] = []
+    var budget = 6 * 1024
+    for id in ids where !id.isEmpty && id.count <= 1023 {
+      guard kept.count < 64, id.count <= budget else { break }
+      budget -= id.count
+      kept.append(id)
+    }
+    return kept
+  }
+
+  private func installRegistrationStop(
+    _ stop: PasskeyRegistrationStop,
+    relyingPartyId: String,
+    userName: String
+  ) {
     let rootView = PasskeyRegistrationUnavailableView(
       relyingPartyId: relyingPartyId,
       userName: userName,
+      stop: stop,
       onCancel: { [weak self] in
-        log.info("registration refusal dismissed by the user")
-        // `.failed` and not `.userCanceled`: the user did not decline the
-        // passkey, this provider cannot serve it. The distinction is what lets
-        // the browser offer another provider instead of treating the ceremony
-        // as abandoned.
-        self?.cancelWithError(.failed, message: "Custode creates passkeys in the app, not in AutoFill.")
+        log.info("registration stop screen dismissed by the user")
+        // Never `.userCanceled`: the user did not decline the passkey, this
+        // provider could not serve it. The distinction is what lets the
+        // browser offer another provider instead of treating the ceremony as
+        // abandoned.
+        switch stop {
+        case .appUnavailable:
+          self?.cancelWithError(.failed, message: "Open Custode, unlock your vault, then try again.")
+        case .algorithmUnsupported:
+          self?.cancelWithError(.failed, message: "The site does not accept the passkey type Custode creates.")
+        case .excluded:
+          if #available(macOS 15.0, *) {
+            self?.cancelWithError(
+              .matchedExcludedCredential,
+              message: "Custode already holds a passkey for this account on this site."
+            )
+          } else {
+            self?.cancelWithError(
+              .failed,
+              message: "Custode already holds a passkey for this account on this site."
+            )
+          }
+        case .maybeSaved:
+          self?.cancelWithError(.failed, message: "Custode did not confirm that the passkey was saved.")
+        }
       }
     )
+    installRegistration(AnyView(rootView))
+  }
 
+  private func installRegistrationConfirmation(
+    rpId: String,
+    userName: String,
+    userHandle: Data,
+    clientDataHash: Data,
+    replaces: Bool,
+    nonce: String
+  ) {
+    let rootView = PasskeyRegistrationConfirmView(
+      relyingPartyId: rpId,
+      userName: userName,
+      replaces: replaces,
+      onCreate: { [weak self] in
+        self?.createPasskey(
+          rpId: rpId,
+          userName: userName,
+          userHandle: userHandle,
+          clientDataHash: clientDataHash,
+          replaces: replaces,
+          nonce: nonce
+        )
+      },
+      onCancel: { [weak self] in
+        log.info("registration declined by the user")
+        self?.cancelWithError(.userCanceled)
+      }
+    )
+    installRegistration(AnyView(rootView))
+  }
+
+  /// Authenticate, ask the app to write, complete. In that order: the app is
+  /// asked to write only after the device owner check succeeds, every time,
+  /// and the ceremony completes only after the app reports the vault holds the
+  /// passkey.
+  ///
+  /// `replaces` is the value that was on screen when the user pressed Create.
+  /// If the vault changed in between, the app answers `alreadyExists` rather
+  /// than replacing a passkey the user was not warned about.
+  ///
+  /// `nonce` is what the app handed out with that confirmation. It is good
+  /// for one `commit` and for two minutes; a confirmation left open longer
+  /// than that fails, and the user starts again.
+  private func createPasskey(
+    rpId: String,
+    userName: String,
+    userHandle: Data,
+    clientDataHash: Data,
+    replaces: Bool,
+    nonce: String
+  ) {
+    guard !registrationCommitStarted else { return }
+    registrationCommitStarted = true
+
+    PasskeyUserPresence.require(
+      reason: "Create a passkey for \(rpId)"
+    ) { [weak self] authenticated in
+      guard let self else { return }
+      guard authenticated else {
+        log.info("passkey registration declined at authentication")
+        self.cancelWithError(.userCanceled)
+        return
+      }
+      self.installRegistration(AnyView(PasskeyRegistrationProgressView(message: "Saving the passkey in Custode…")))
+      self.registrationClient.commit(
+        rpId: rpId,
+        username: userName,
+        userHandle: userHandle,
+        replaceExisting: replaces,
+        nonce: nonce
+      ) { [weak self] outcome in
+        guard let self else { return }
+        switch outcome {
+        case .done(let credentialID, let attestationObject):
+          let credential = ASPasskeyRegistrationCredential(
+            relyingParty: rpId,
+            clientDataHash: clientDataHash,
+            credentialID: credentialID,
+            attestationObject: attestationObject
+          )
+          log.info("passkey registration completed rpId=\(rpId, privacy: .public)")
+          self.extensionContext.completeRegistrationRequest(using: credential)
+        case .unknownAfterAccepted:
+          // No rollback: this process cannot tell whether the vault changed.
+          // The user is told what to check before the request is cancelled.
+          log.error("passkey registration outcome unknown: the app accepted the write and did not answer")
+          self.installRegistrationStop(.maybeSaved, relyingPartyId: rpId, userName: userName)
+        case .appUnavailable:
+          log.error("passkey registration failed: vault closed or locked before the write")
+          self.cancelWithError(.failed, message: "Open Custode, unlock your vault, then try again.")
+        case .alreadyExists:
+          log.error("passkey registration failed: a passkey for this account appeared meanwhile")
+          self.cancelWithError(.failed, message: "Custode already holds a passkey for this account.")
+        case .failed:
+          log.error("passkey registration failed: the app did not write the vault")
+          self.cancelWithError(.failed, message: "Custode could not save the passkey.")
+        }
+      }
+    }
+  }
+
+  private func installRegistration(_ rootView: AnyView) {
     if let registrationHost {
       registrationHost.rootView = rootView
       return
