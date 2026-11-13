@@ -114,7 +114,7 @@ Human-executed checklist. Every item is boolean evidence: done or not done.
   Verify: boolean.
 
 - [ ] **T104 Publish OAuth branding in Cloud Console** — owner: human operator.  
-  Acceptance: app name `KeyVault Password Manager`, compliant square logo,
+  Acceptance: app name `Custode Password Manager`, compliant square logo,
   homepage and privacy URLs on the verified domain, support email set, audience
   External and status In production.  
   Verify: boolean; consent screen inspected on a non-owner account.

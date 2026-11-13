@@ -1,8 +1,8 @@
-# Handoff: KeyVault UX/UI restyle (Flutter app + Chrome extension + app icon)
+# Handoff: Custode UX/UI restyle (Flutter app + Chrome extension + app icon)
 
 ## Overview
 
-A full restyle of **KeyVault** — the cross-platform Flutter password manager in
+A full restyle of **Custode** — the cross-platform Flutter password manager in
 `camillobucciarelli/key-vault-password-manager` — aimed at a simpler UX and a
 cleaner UI. The package covers all twelve functional journeys of the app, in
 mobile (390×844) and tablet/desktop (1024×768) layouts, in light and dark, plus
@@ -151,7 +151,7 @@ Journey 01 — database selection (`DatabaseSelectionBloc`,
    Open/Export/Remove popup menu — keep those actions in the row's overflow.
    *Proposal*: the "file not found → Locate" row.
 3. **Create database, steps 1–3** — progress = three 4 px bars; step 1 name +
-   storage note ("KeyVault app storage"), step 2 master password with a 4-notch
+   storage note ("Custode app storage"), step 2 master password with a 4-notch
    strength meter and confirm field, step 3 optional locks: generate key file,
    Face ID, auto-lock (accepted). Field labels match the real dialog.
 4. **Drive picker, loading** — skeleton rows shaped like the final rows.
@@ -281,9 +281,9 @@ fits Android's adaptive safe zone (66/108). Generated files are in `icons/`:
 
 | File | Use |
 | --- | --- |
-| `keyvault-source-1024.png` | `flutter_launcher_icons: image_path` |
-| `keyvault-adaptive-foreground-1024.png` | `adaptive_icon_foreground` (transparent) |
-| `keyvault-monochrome-1024.png` | `adaptive_icon_monochrome` (white on alpha) |
+| `custode-source-1024.png` | `flutter_launcher_icons: image_path` |
+| `custode-adaptive-foreground-1024.png` | `adaptive_icon_foreground` (transparent) |
+| `custode-monochrome-1024.png` | `adaptive_icon_monochrome` (white on alpha) |
 | `app-512.png`, `app-192.png` | `web/icons/` |
 | `ext-16/32/48/128.png` | extension `manifest.json` |
 
@@ -338,14 +338,14 @@ New state needed only for the two new features:
 
 ## Assets
 
-- `assets/keyvault-icon.png` — the new mark used as app chrome in the mockups.
+- `assets/custode-icon.png` — the new mark used as app chrome in the mockups.
 - `icons/*` — the generated icon family (see the table above), drawn from the
   chosen direction, not from the previous PNG.
 - Fonts: Caprasimo and Figtree (Google Fonts).
 - Icons: Lucide (https://lucide.dev), stroke-width 2.75. Not bundled — add the
   Lucide Flutter package or export the SVGs you need.
-- The original marks read from the repo (`assets/logo/keyvault-source.png`,
-  `keyvault-monochrome.png`) are superseded.
+- The original marks read from the repo (`assets/logo/custode-source.png`,
+  `custode-monochrome.png`) are superseded.
 
 ## Files
 
@@ -363,8 +363,8 @@ New state needed only for the two new features:
 | `support.js` | Runtime needed to open the `.dc.html` files |
 | `PIXEL_SPEC.md` | Every measurement: frames, paddings, component sizes, type scale, per-screen anchors, motion, a11y floor |
 | `ICONS.md` | App-mark geometry, export table, `pubspec.yaml` diff, extension badge states, the full Lucide mapping for `AppIcons` |
-| `icons/keyvault-mark.svg` | Vector master of the app mark (full bleed) |
-| `icons/keyvault-mark-foreground.svg` | Vector master, ink only — adaptive foreground / monochrome |
+| `icons/custode-mark.svg` | Vector master of the app mark (full bleed) |
+| `icons/custode-mark-foreground.svg` | Vector master, ink only — adaptive foreground / monochrome |
 | `screenshots/*.jpg` | Flat renders of each design file, for quick visual reference |
 
 **Read order for implementation:** this README → `PIXEL_SPEC.md` for numbers →

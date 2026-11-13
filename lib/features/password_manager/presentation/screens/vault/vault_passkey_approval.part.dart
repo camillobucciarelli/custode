@@ -253,7 +253,7 @@ Future<PasskeyCreationCandidate?> _showCreationTargetSheet(
   return KvBottomSheet.show<PasskeyCreationCandidate>(
     context: context,
     builder: (sheetContext) {
-      final colors = Theme.of(sheetContext).extension<KeyVaultColors>()!;
+      final colors = Theme.of(sheetContext).extension<CustodeColors>()!;
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -420,7 +420,7 @@ jobs:
           : "${PUBLISHER_ID:?Missing CHROME_WEB_STORE_PUBLISHER_ID secret}"
           : "${EXTENSION_ID:?Missing CHROME_WEB_STORE_EXTENSION_ID secret}"
           [[ "${EXTENSION_ID}" == "ogjmlkogmogijgpflnjifiobdmnmommh" ]] || {
-            echo "CHROME_WEB_STORE_EXTENSION_ID does not match the published KeyVault extension"
+            echo "CHROME_WEB_STORE_EXTENSION_ID does not match the published Custode extension"
             exit 1
           }
 

@@ -4,7 +4,7 @@
 // passkey cannot be used to sign in (FR-009, FR-011, FR-012).
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_entry.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_group.dart';

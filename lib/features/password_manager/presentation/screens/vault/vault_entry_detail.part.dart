@@ -241,7 +241,7 @@ class _EntryDetailPanelState extends State<_EntryDetailPanel> {
   @override
   Widget build(BuildContext context) {
     final entry = widget.entry;
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final databasePath = context.read<VaultBloc>().state.databasePath;
 
     final title = entry.title.isEmpty ? '(Untitled)' : entry.title;
@@ -663,7 +663,7 @@ class _DetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     // 2026-08-31: in the two/three-column layouts the detail carries no back
     // at all — the list beside it IS the navigation. But a pane opened wide
@@ -773,7 +773,7 @@ class _MoreChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -968,7 +968,7 @@ class _BiometricRevealGateSheetState extends State<_BiometricRevealGateSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 26),

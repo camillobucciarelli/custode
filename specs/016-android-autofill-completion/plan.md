@@ -42,7 +42,7 @@ complexity waiver is needed.
 | III — Design tokens | PASS | The picker's Android theme is a generated mirror of `AppColors`/`AppSpacing`/`AppRadii`, checked by T703 rather than hand-copied hex left to rot. No new hard-coded colour or metric. |
 | IV — Pixel fidelity is testable | PASS | The picker is native Android, so Flutter goldens cannot cover it; per Constitution IV the spec names the replacement — instrumented assertions on tap-target size, contrast pairs and focus indication (T702, T704), plus the Phase 0/8 manual evidence. No Flutter surface changes, so the existing golden inventory is untouched. |
 | V — Accessibility floor | PASS | T702 and T704 assert ≥ 44×44 targets, a 2 dp focus ring, ≥ 4.5:1 for every text/background pairing in light and dark, and TalkBack labels on every row and on the authentication prompt. |
-| VI — Copy preserved | PASS | Existing strings in `strings.xml` keep their values. New keys only: authentication prompt, no-device-lock refusal, save/update prompt, "Search KeyVault" inline entry. |
+| VI — Copy preserved | PASS | Existing strings in `strings.xml` keep their values. New keys only: authentication prompt, no-device-lock refusal, save/update prompt, "Search Custode" inline entry. |
 | VII — Destructive operations ask first and back up | PASS | The save in slice 3 asks before writing, states whether it creates or updates, preserves the previous password in entry history on update, and goes through the existing backup-before-write and `DatabasePathMutex` path (T506). |
 | VIII — Ship the smallest thing | PASS | Two AndroidX libraries replace hand-rolled equivalents (D1, D3); no new BLoC, no pending-capture store (D4), no provider abstraction, no new plugin. Slice 4 is four lines of XML plus tests. |
 | IX — Verification is local | PASS | T801 runs `dart format`, `flutter analyze`, the full `flutter test` and the Kotlin unit tests before commit. `pubspec.yaml: version:` untouched. |
@@ -106,9 +106,9 @@ outside the Keystore-sealed file and short-lived process memory.
   datasets are per-entry and each carries its own authentication `PendingIntent`
   into a new headless `AutofillAuthActivity`, so tapping a suggestion goes prompt
   → fill without the full-screen picker. The last available slot is always a
-  "Search KeyVault" suggestion pointing at the existing `AutofillPickerActivity`.
+  "Search Custode" suggestion pointing at the existing `AutofillPickerActivity`.
 - **D4 — No pending-capture store.** Spec decision SD2: a save
-  arriving while the vault is locked opens the KeyVault unlock screen. An
+  arriving while the vault is locked opens the Custode unlock screen. An
   encrypted queue would create a second at-rest secret surface for a case the
   unlock screen already covers (Constitution VIII).
 - **D5 — The captured credential never leaves process memory.** `onSaveRequest`
@@ -170,7 +170,7 @@ Tasks T102, T401–T404.
 - `android/app/build.gradle.kts` — add `androidx.autofill`.
 - `KeyVaultAutofillService.kt` — read `FillRequest.inlineSuggestionsRequest`
   (API 30+), rank matches with the existing matcher, emit one dataset per match
-  with an inline presentation plus a trailing "Search KeyVault" dataset; keep the
+  with an inline presentation plus a trailing "Search Custode" dataset; keep the
   current single authenticated dataset as the fallback when no inline request is
   present.
 - `AutofillAuthActivity.kt` *(new)* — headless: authenticate (shared gate from

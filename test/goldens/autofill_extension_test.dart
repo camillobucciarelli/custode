@@ -1,7 +1,7 @@
 // spec-006 T16: goldens for screens 6 (iOS autofill enablement), 7 (Link
 // AutoFill credential sheet), 8 (Browser setup, 3 steps) and 9
 // (Host-not-found diagnostic).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

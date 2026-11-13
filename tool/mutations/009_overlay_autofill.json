@@ -2443,7 +2443,7 @@
         "Found in review by measuring the tombstone rather than trusting it.",
         "`renderState` clears `listEl`'s children, but `generateEl` is a SIBLING",
         "inside the section, not a child \u2014 so it survived into the notice still",
-        "reading \"Generate a password \u2014 confirm the save in KeyVault.\", still",
+        "reading \"Generate a password \u2014 confirm the save in Custode.\", still",
         "`disabled=false`, still `aria-selected=true`.",
         "",
         "A control that looks live and does nothing is precisely the micro-failure",

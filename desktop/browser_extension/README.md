@@ -1,4 +1,4 @@
-# KeyVault Chrome/Edge extension (Native Messaging v2)
+# Custode Chrome/Edge extension (Native Messaging v2)
 
 MV3 extension for Chrome and Chromium-based Edge. Current scope: safe metadata
 search, pending-association requests, explicit popup-triggered fill for exact
@@ -15,7 +15,7 @@ Declared in `manifest.json`, intentionally minimal:
 
 | Permission | Why |
 |---|---|
-| `nativeMessaging` | Talk to the locally registered KeyVault native host. All credential flow goes through it; the extension holds no vault data. |
+| `nativeMessaging` | Talk to the locally registered Custode native host. All credential flow goes through it; the extension holds no vault data. |
 | `activeTab` | Let the popup read the current tab's origin and title after an explicit toolbar click. No `tabs` permission, no background tab access. |
 | `scripting` | Register the overlay content script while the overlay is on, and inject the one-shot fill function only after an explicit user action. |
 | `storage` | Persist the overlay's on/off switch and the toolbar badge state (host reachable / app unlocked / per-tab match *count*). Never credential data. Survives MV3 worker termination. |
@@ -59,7 +59,7 @@ and tears down every live overlay. See below.
 ## Passkey sign-in (spec 023)
 
 On granted sites the extension can answer a site's passkey sign-in request
-with a passkey stored in the open KeyVault database. It rides the same single
+with a passkey stored in the open Custode database. It rides the same single
 switch as the overlay: turning the overlay off unregisters the passkey scripts
 too.
 
@@ -71,7 +71,7 @@ permission is requested.
 
 **What the page world does and does not get.**
 
-- The private key never leaves the KeyVault app. The extension and the native
+- The private key never leaves the Custode app. The extension and the native
   host carry a challenge one way and a signature the other; neither ever holds
   a key. The page world holds neither.
 - The page cannot ask for another site's passkey. The origin the app checks
@@ -90,9 +90,9 @@ fields on it, not a real `PublicKeyCredential` — that constructor is not
 reachable from a content script. Sites that read the fields work; a site that
 checks `instanceof PublicKeyCredential` falls back to the browser.
 
-**Creating a passkey** works the same way, with two extra rules. KeyVault
+**Creating a passkey** works the same way, with two extra rules. Custode
 creates ES256 credentials only, so a site that will not accept ES256 goes
-straight to the browser and you never see a prompt for a registration KeyVault
+straight to the browser and you never see a prompt for a registration Custode
 could not have served. And a new passkey is always attached to a record that
 already exists with that site as its website: the app will not invent a record
 while the site is waiting, so if there is no matching record it says so and the
@@ -158,7 +158,7 @@ removing the host, aborting listeners/observers/timers, and restoring ARIA.
 - Restricted pages (`chrome://`, the Web Store, other extensions' pages,
   `file://` without explicit permission) cannot be injected. Where a limit is
   detectable the overlay shows an unsupported state directing the user to copy
-  manually from the KeyVault app. The extension has **no clipboard path**.
+  manually from the Custode app. The extension has **no clipboard path**.
 
 ## Worker cold-start recovery
 
@@ -191,10 +191,10 @@ path or the extension ID changes; a Chrome restart picks up manifest changes.
 
 ## Password generation (Slice B)
 
-The overlay's **Generate** row is active only when the running KeyVault app
+The overlay's **Generate** row is active only when the running Custode app
 advertises the `generatePendingEntryV1` capability through the native host
 (`hello`). With an older host or app the row stays disabled and reads "Open
-KeyVault to generate a password." — it directs the user to the app and never
+Custode to generate a password." — it directs the user to the app and never
 promises in-page generation; there is **no fallback** generation in the
 extension or native host, and no default settings.
 
@@ -206,7 +206,7 @@ How a generation actually works, and who owns what:
   extension cannot send, override, or even express settings: the request
   schema has no field for them.
 - The app creates an **app-owned pending entry** for the exact origin. The
-  user completes the save **inside the KeyVault app** through the normal
+  user completes the save **inside the Custode app** through the normal
   new-entry confirmation; the page and the extension cannot auto-save
   anything into the vault.
 - The pending entry **expires after at most 5 minutes** (or on lock, vault
@@ -220,11 +220,11 @@ How a generation actually works, and who owns what:
 
 ## Production setup
 
-1. Install KeyVault from Chrome Web Store. Published extension ID:
+1. Install Custode from Chrome Web Store. Published extension ID:
    `ogjmlkogmogijgpflnjifiobdmnmommh`.
-2. Open **Desktop browser extension** in the KeyVault app.
+2. Open **Desktop browser extension** in the Custode app.
 3. On Windows/Linux, click **Configure Chrome**. On macOS, download and run
-   the signed **KeyVault Chrome Support** package offered by the app.
+   the signed **Custode Chrome Support** package offered by the app.
 4. Restart the browser, unlock the vault, then open the extension popup.
 
 Users never need to copy the ID, enable Developer mode, install Dart, or run

@@ -10,7 +10,7 @@
 //
 // GitGuardian note: test values are assembled with join() and use neutral
 // names on purpose.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/features/password_manager/data/services/desktop_browser_pending_generation_service.dart';
 import 'package:password_manager/features/password_manager/data/services/vault_kdbx_service.dart';

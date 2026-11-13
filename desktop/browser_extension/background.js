@@ -2,7 +2,7 @@
 // overlay_routes.js read the security API off globalThis at load time.
 importScripts("overlay_security.js", "overlay_lifecycle.js", "overlay_routes.js");
 
-const overlayLifecycle = new globalThis.KeyVaultOverlayLifecycle.OverlayLifecycle({
+const overlayLifecycle = new globalThis.CustodeOverlayLifecycle.OverlayLifecycle({
   browser: chrome,
 });
 
@@ -384,7 +384,7 @@ const REPORTED_MESSAGE_MAX_CHARS = 200;
  * would fail — the sanitizer would just quietly stop redacting.
  */
 const REGISTRATION_PREFIX =
-  globalThis.KeyVaultOverlayLifecycle.REGISTRATION_PREFIX;
+  globalThis.CustodeOverlayLifecycle.REGISTRATION_PREFIX;
 
 const escapeForRegExp = (literal) =>
   literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -452,7 +452,7 @@ function sanitizeErrorMessage(error) {
  * @param {unknown} error The rejection value. Only its `message` is read.
  */
 function reportListenerFailure(context, error) {
-  console.error(`[keyvault] ${context}: ${sanitizeErrorMessage(error)}`);
+  console.error(`[custode] ${context}: ${sanitizeErrorMessage(error)}`);
 }
 
 // Re-derived on tab activation, tab navigation, extension (re)start — the
@@ -564,7 +564,7 @@ chrome.permissions.onRemoved.addListener(() => {
 // to guard them.
 // ---------------------------------------------------------------------------
 
-const overlayRouter = new globalThis.KeyVaultOverlayRoutes.OverlayRouter({
+const overlayRouter = new globalThis.CustodeOverlayRoutes.OverlayRouter({
   lifecycle: overlayLifecycle,
   runtimeId: chrome.runtime.id,
   native: sendOverlayNative,

@@ -10,7 +10,7 @@ Technical baseline: desktop browser autofill protocol v2 in
 
 ## Goal
 
-Reduce popup round-trips without turning KeyVault into an always-on page agent.
+Reduce popup round-trips without turning Custode into an always-on page agent.
 Delivery is split because current code supports metadata queries and explicit
 credential reveal, but does not support app-owned password generation or a
 pending new-entry secret.
@@ -81,7 +81,7 @@ Required contracts:
 - no generated secret persisted by extension or native-host cache.
 
 Until every contract exists, Slice A omits or disables Generate with text such as
-“Open KeyVault to generate a password.” It must not silently use
+“Open Custode to generate a password.” It must not silently use
 `PasswordGeneratorOptions.defaults()` and must not claim user settings are shared.
 Slice B work starts only after Slice A is complete and B0 settings/pending contracts
 pass. Extension never stores generator settings.
@@ -264,7 +264,7 @@ validation, exact origin, capability token, app unlock, and explicit user action
   injected there. Query/fill binds to frame origin, not top origin.
 - Otherwise no in-frame fill. Where top frame can detect iframe focus, show an
   unsupported state; detection is not guaranteed across origins. Popup directs
-  user to open KeyVault and copy manually. Slice A adds no clipboard permission
+  user to open Custode and copy manually. Slice A adds no clipboard permission
   and no cross-origin reveal shortcut.
 
 Never claim universal iframe support. Sandboxed, credentialless, fenced, browser

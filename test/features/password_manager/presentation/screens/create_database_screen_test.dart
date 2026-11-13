@@ -3,7 +3,7 @@
 // name blocking step 1, and a failure that keeps the wizard mounted with
 // its draft intact. These replace per-state goldens; the spec names the
 // omitted axes (1024x768, dark) in its golden inventory.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:password_manager/core/theme/app_icons.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/features/password_manager/presentation/screens/create_database_screen.dart';

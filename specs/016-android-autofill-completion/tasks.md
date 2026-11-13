@@ -214,7 +214,7 @@ Blocked by T001 `pass` and by Phase 3 (shares the gate).
   Files: `.../autofill/KeyVaultAutofillService.kt`,
   `android/app/src/main/res/values/strings.xml`.
   Acceptance: when matches exceed the IME's advertised slots, the last slot is a
-  "Search KeyVault" suggestion opening `AutofillPickerActivity` (FR-006).
+  "Search Custode" suggestion opening `AutofillPickerActivity` (FR-006).
   Verify: quickstart B step 4 on a form with more matches than slots.
 
 **Checkpoint**: US1 + US2 both work; API 29 and inline-less IMEs unchanged.
@@ -570,7 +570,7 @@ the framework logs `not adding inline request` and never asks), `topMatches` as 
 pure ordering over the existing strong/possible rules so the strip and the picker
 cannot disagree (T401), a headless `AutofillAuthActivity` that authenticates one
 already-chosen entry and shows no list (T402), one inline dataset per ranked match
-carrying title and username only (T403), and a last-slot "Search KeyVault"
+carrying title and username only (T403), and a last-slot "Search Custode"
 overflow when more entries match than fit (T404). The picker dataset is still
 emitted in every response, so API 29 and inline-less IMEs are untouched (FR-004).
 

@@ -558,7 +558,7 @@ app crashes on first launch after the upgrade.
 
 ### S2-6 · Apple autofill smoke (spec 011 FR-8)
 
-**Preconditions.** KeyVault enabled under Settings → General → Autofill &
+**Preconditions.** Custode enabled under Settings → General → Autofill &
 Passwords. Vault A unlocked at least once so credentials are published. A test
 site with a login form in Safari.
 
@@ -567,7 +567,7 @@ site with a login form in Safari.
 1. Unlock vault A, confirm at least one entry with a URL matching the test site.
 2. Background the app.
 3. In Safari, focus the username field on the test site.
-4. Choose KeyVault from the QuickType bar, authenticate.
+4. Choose Custode from the QuickType bar, authenticate.
 5. Confirm the filled username and password match the vault entry.
 6. Lock the vault in the app, then repeat steps 3–4.
 
@@ -1035,7 +1035,7 @@ trip from that frame returned `{enabled: true, frameSupport: "unsupported",
 topOrigin: null}`. On real focus of the password field inside the iframe, the
 closed-shadow overlay rendered — piercing the shadow root via CDP DOM confirmed
 the text — *"The overlay is not available in this frame. Copy your login from
-the KeyVault app."*, an empty suggestion list, and a disabled Generate control.
+the Custode app."*, an empty suggestion list, and a disabled Generate control.
 No `requestMatches` or `fill` message was ever sent.
 **Correction, made from that observation**: the step 4 expectation below
 previously said no overlay appears at all — that undersold it. A hint overlay
@@ -1059,7 +1059,7 @@ URL, never a child frame's.
 
 **Expected observation.** A hint overlay appears at step 4 — this is correct,
 not a failure — showing "The overlay is not available in this frame. Copy your
-login from the KeyVault app.", an empty option list, and a disabled Generate
+login from the Custode app.", an empty option list, and a disabled Generate
 row; no suggestion is offered and nothing is fillable. The popup at step 5 shows
 its ordinary no-origin copy (the same text any non-http(s) tab gets), not a
 frame-specific label. The content script is injected — this is not a "nothing
@@ -1141,7 +1141,7 @@ measured.
   `position: fixed` host `DIV`s), and piercing the closed shadow root via CDP
   `DOM.getDocument({pierce: true})` (the same technique
   `capture_runner.mjs`'s `collectTexts` helper uses) found the real overlay
-  text `"2 KeyVault suggestions"` and `"Open KeyVault to generate a
+  text `"2 Custode suggestions"` and `"Open Custode to generate a
   password."` — a screenshot confirmed the suggestion list rendered directly
   under GitHub's own password field. No CSP violation of any kind was
   logged, confirming the isolated world is unaffected by the page's CSP. The

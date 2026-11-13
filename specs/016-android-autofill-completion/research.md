@@ -55,7 +55,7 @@ cache clears it.
 
 **Decision**: `androidx.autofill`'s `InlineSuggestionUi` content builder,
 gated on `FillRequest.getInlineSuggestionsRequest()` being non-null (API 30+),
-with one dataset per ranked match plus a trailing "Search KeyVault" dataset.
+with one dataset per ranked match plus a trailing "Search Custode" dataset.
 
 **Rationale**: The platform's inline contract is a `Slice` with a specific,
 undocumented-by-hand structure; the AndroidX builder is the supported way to

@@ -183,7 +183,7 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
         // passkey, this provider cannot serve it. The distinction is what lets
         // the browser offer another provider instead of treating the ceremony
         // as abandoned.
-        self?.cancelWithError(.failed, message: "KeyVault creates passkeys in the app, not in AutoFill.")
+        self?.cancelWithError(.failed, message: "Custode creates passkeys in the app, not in AutoFill.")
       }
     )
 

@@ -134,7 +134,7 @@ reach each one after it.
 
 ### User Story 4 - The rail and tab bar say what they are (Priority: P2)
 
-The rail shows the KeyVault mark, and the four destinations use the glyphs the
+The rail shows the Custode mark, and the four destinations use the glyphs the
 icon specification assigns them. The destination the user is on is visibly
 filled, not merely tinted.
 
@@ -147,7 +147,7 @@ nothing today beyond a wrong first impression — the destinations work.
 **Acceptance Scenarios**:
 
 1. **Given** the vault at a width that shows the rail, **When** the user looks at
-   the top of the rail, **Then** it shows the KeyVault mark at 38 × 38 with a
+   the top of the rail, **Then** it shows the Custode mark at 38 × 38 with a
    13 px radius, not a generic glyph.
 2. **Given** the rail or the tab bar, **When** the destinations are rendered,
    **Then** Vault uses `lock`, Health uses `shield-check`, Sync uses
@@ -297,7 +297,7 @@ and its acceptance is folded into US1 and US2:
 
 #### The chrome
 
-- **FR-016**: The rail MUST show the KeyVault mark as the artwork itself, at
+- **FR-016**: The rail MUST show the Custode mark as the artwork itself, at
   38 × 38 with a 13 px radius.
 - **FR-017**: Destination glyphs MUST be `lock` (Vault), `shield-check`
   (Health), `refresh-cw` (Sync) and `settings` (Settings), per `ICONS.md` as
@@ -413,7 +413,7 @@ navigation the list provides, and this spec does not regress it.
 - `ICONS.md` is normative for glyph identity and the artboards for geometry
   (DQ-4). The vendored Lucide assets are already the real paths at stroke 2.75,
   so no asset work is required.
-- The KeyVault mark ships already (spec 007A); this spec consumes it and does
+- The Custode mark ships already (spec 007A); this spec consumes it and does
   not regenerate it.
 - The ordering behaviour is already correct in the vault; only its controls are
   missing, so no comparator changes and no new sort key is introduced.

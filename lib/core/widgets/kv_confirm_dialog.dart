@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart' show ValueListenable;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Title/body confirmation with one positive and (optionally) one negative
 /// action. A modal `AlertDialog` on every width (2026-09-05, user-directed):

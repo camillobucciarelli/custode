@@ -1,6 +1,6 @@
 {
   "name": "dev.camillobucciarelli.keyvault_native_host",
-  "description": "KeyVault Native Messaging v2 host (metadata search and explicit fill)",
+  "description": "Custode Native Messaging v2 host (metadata search and explicit fill)",
   "path": "__HOST_PATH__",
   "type": "stdio",
   "allowed_origins": [

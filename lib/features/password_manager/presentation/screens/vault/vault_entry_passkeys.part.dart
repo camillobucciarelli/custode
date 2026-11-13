@@ -17,7 +17,7 @@ class _PasskeySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Column(
       key: const ValueKey('entry-detail-passkeys'),
       mainAxisSize: MainAxisSize.min,
@@ -69,7 +69,7 @@ class _PasskeyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return ConstrainedBox(
       // Constitution V: a row is at least 44 dp tall.
       constraints: const BoxConstraints(minHeight: 44),
@@ -202,7 +202,7 @@ String _passkeyUnusableExplanation(VaultPasskeyUnusableReason reason) =>
             'read.',
       VaultPasskeyUnusableReason.unsupportedAlgorithm =>
         'This passkey cannot be used to sign in: its key uses an algorithm '
-            'KeyVault does not support.',
+            'Custode does not support.',
       VaultPasskeyUnusableReason.unsupportedOnPlatform =>
         'This passkey cannot be used to sign in on this platform.',
     };

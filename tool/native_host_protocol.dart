@@ -277,7 +277,7 @@ Future<Map<String, Object?>> handleNativeHostRequest(
       id: id,
       type: type ?? 'error',
       code: 'legacy_fields_rejected',
-      message: 'Native Messaging v2 rejects legacy secret-bearing fields. Open and unlock KeyVault in the desktop app instead.',
+      message: 'Native Messaging v2 rejects legacy secret-bearing fields. Open and unlock Custode in the desktop app instead.',
     );
   }
 
@@ -557,7 +557,7 @@ Future<Map<String, Object?>> _queryCredentialsResponse({
           .toList(growable: false),
       'message': bridgeAvailable
           ? 'Desktop browser v2 returned metadata. Exact strong matches can be filled after popup user action.'
-          : 'Desktop browser v2 returned metadata only. Unlock KeyVault desktop to enable one-shot fill.',
+          : 'Desktop browser v2 returned metadata only. Unlock Custode desktop to enable one-shot fill.',
     },
   );
 }
@@ -642,7 +642,7 @@ Future<Map<String, Object?>> _createPendingAssociationResponse({
       id: id,
       type: type,
       code: 'pending_association_failed',
-      message: 'Unable to create pending association. Open and unlock KeyVault, then try again.',
+      message: 'Unable to create pending association. Open and unlock Custode, then try again.',
     );
   }
 
@@ -651,7 +651,7 @@ Future<Map<String, Object?>> _createPendingAssociationResponse({
     type: type,
     data: {
       'pendingAssociation': pending.toJson(),
-      'message': 'Pending association saved. Confirm or reject it in the KeyVault desktop app.',
+      'message': 'Pending association saved. Confirm or reject it in the Custode desktop app.',
     },
   );
 }
@@ -724,7 +724,7 @@ Future<Map<String, Object?>> _revealForFillResponse({
       id: id,
       type: type,
       code: 'app_bridge_unavailable',
-      message: 'KeyVault reveal bridge is unavailable. Open and unlock the desktop app first.',
+      message: 'Custode reveal bridge is unavailable. Open and unlock the desktop app first.',
     );
   }
   if (descriptor.databaseId != cache.databaseId) {
@@ -732,7 +732,7 @@ Future<Map<String, Object?>> _revealForFillResponse({
       id: id,
       type: type,
       code: 'database_mismatch',
-      message: 'KeyVault database changed. Query the current site again.',
+      message: 'Custode database changed. Query the current site again.',
     );
   }
 
@@ -815,8 +815,7 @@ Future<Map<String, Object?>> _passkeyAssertResponse({
       id: id,
       type: type,
       code: 'app_bridge_unavailable',
-      message:
-          'KeyVault is unavailable. Open and unlock the desktop app first.',
+      message: 'Custode is unavailable. Open and unlock the desktop app first.',
     );
   }
   if (!descriptor.appCapabilities.contains(
@@ -829,7 +828,7 @@ Future<Map<String, Object?>> _passkeyAssertResponse({
       id: id,
       type: type,
       code: 'passkey_unavailable',
-      message: 'This KeyVault database has no passkey for this site.',
+      message: 'This Custode database has no passkey for this site.',
     );
   }
 
@@ -959,8 +958,7 @@ Future<Map<String, Object?>> _passkeyCreateResponse({
       id: id,
       type: type,
       code: 'app_bridge_unavailable',
-      message:
-          'KeyVault is unavailable. Open and unlock the desktop app first.',
+      message: 'Custode is unavailable. Open and unlock the desktop app first.',
     );
   }
   if (!descriptor.appCapabilities.contains(
@@ -1214,7 +1212,7 @@ Future<Map<String, Object?>> _overlayRevealForFillResponse({
       id: id,
       type: type,
       code: 'app_bridge_unavailable',
-      message: 'KeyVault reveal bridge is unavailable. Open and unlock the desktop app first.',
+      message: 'Custode reveal bridge is unavailable. Open and unlock the desktop app first.',
     );
   }
 
@@ -1376,7 +1374,7 @@ Future<Map<String, Object?>> _generatePendingEntryResponse({
       id: id,
       type: type,
       code: 'app_bridge_unavailable',
-      message: 'KeyVault reveal bridge is unavailable. Open and unlock the desktop app first.',
+      message: 'Custode reveal bridge is unavailable. Open and unlock the desktop app first.',
     );
   }
   // B007 negotiation: an app that does not declare the endpoint gets a hard
@@ -1389,7 +1387,7 @@ Future<Map<String, Object?>> _generatePendingEntryResponse({
       id: id,
       type: type,
       code: 'unsupported_capability',
-      message: 'KeyVault desktop does not support password generation yet.',
+      message: 'Custode desktop does not support password generation yet.',
     );
   }
 
@@ -1584,7 +1582,7 @@ Map<String, Object?> _staleSessionResponse({
     id: id,
     type: type,
     code: 'stale_session',
-    message: 'KeyVault session changed. Query the current site again.',
+    message: 'Custode session changed. Query the current site again.',
   );
 }
 
@@ -1647,8 +1645,8 @@ Future<Map<String, Object?>> _statusData(
     'message': status.revealBridgeAvailable
         ? 'Native Messaging v2 can fill exact strong matches after popup user action.'
         : status.cacheAvailable
-        ? 'Native Messaging v2 can read metadata, but reveal bridge is unavailable. Unlock KeyVault desktop.'
-        : 'Native Messaging v2 is running; open and unlock KeyVault to publish desktop browser metadata.',
+        ? 'Native Messaging v2 can read metadata, but reveal bridge is unavailable. Unlock Custode desktop.'
+        : 'Native Messaging v2 is running; open and unlock Custode to publish desktop browser metadata.',
   };
 }
 
@@ -1660,7 +1658,7 @@ Map<String, Object?> _cacheUnavailableResponse({
     id: id,
     type: type,
     code: 'app_bridge_unavailable',
-    message: 'KeyVault desktop metadata cache is unavailable. Open and unlock the desktop app first.',
+    message: 'Custode desktop metadata cache is unavailable. Open and unlock the desktop app first.',
   );
 }
 
@@ -2135,27 +2133,27 @@ String? _safeRequestType(Object? value) {
 
 String _publicRevealErrorMessage(String code) {
   return switch (code) {
-    'app_bridge_timeout' => 'KeyVault reveal bridge timed out.',
+    'app_bridge_timeout' => 'Custode reveal bridge timed out.',
     'app_bridge_unavailable' =>
-      'KeyVault reveal bridge is unavailable. Open and unlock the desktop app.',
+      'Custode reveal bridge is unavailable. Open and unlock the desktop app.',
     'app_bridge_invalid_response' =>
-      'KeyVault reveal bridge returned an invalid response.',
-    'database_mismatch' => 'KeyVault database changed. Query the site again.',
-    'stale_session' => 'KeyVault session changed. Query the site again.',
+      'Custode reveal bridge returned an invalid response.',
+    'database_mismatch' => 'Custode database changed. Query the site again.',
+    'stale_session' => 'Custode session changed. Query the site again.',
     'forbidden' => 'Overlay fill is not authorized for this site.',
-    'not_found' => 'KeyVault reveal bridge does not support this request.',
+    'not_found' => 'Custode reveal bridge does not support this request.',
     'credential_unavailable' => 'Requested credential is unavailable.',
     'strong_match_required' =>
       'Credential reveal requires an exact strong match for the current site.',
     'invalid_request' => 'Reveal request is invalid.',
-    'unauthorized' => 'KeyVault reveal bridge authentication failed.',
+    'unauthorized' => 'Custode reveal bridge authentication failed.',
     'rate_limited' => 'Too many generation requests. Try again shortly.',
     'unsupported_capability' =>
-      'KeyVault desktop does not support password generation yet.',
+      'Custode desktop does not support password generation yet.',
     'passkey_unavailable' =>
-      'This KeyVault database has no passkey for this site.',
-    'passkey_create_unavailable' => 'This KeyVault build cannot create passkeys. Open and unlock the desktop app.',
-    _ => 'KeyVault reveal bridge failed.',
+      'This Custode database has no passkey for this site.',
+    'passkey_create_unavailable' => 'This Custode build cannot create passkeys. Open and unlock the desktop app.',
+    _ => 'Custode reveal bridge failed.',
   };
 }
 

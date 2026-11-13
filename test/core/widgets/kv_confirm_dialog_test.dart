@@ -2,7 +2,7 @@
 // subject stops being true while the user is reading it must not stay on
 // screen. The passkey request behind such a dialog has its own deadline, and a
 // dialog whose positive action does nothing is worse than no dialog.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/widgets/kv_confirm_dialog.dart';
 

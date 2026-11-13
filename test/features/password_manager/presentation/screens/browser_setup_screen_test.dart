@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_theme.dart';
 import 'package:password_manager/features/password_manager/data/services/browser_setup_service.dart';
@@ -110,7 +110,7 @@ void main() {
 
       expect(service.installCalls, 0);
       expect(opened, [Uri.parse(BrowserSetupService.sideloadReleasesUrl)]);
-      expect(find.textContaining('Scarica lo zip di KeyVault'), findsOneWidget);
+      expect(find.textContaining('Scarica lo zip di Custode'), findsOneWidget);
     });
   });
 }

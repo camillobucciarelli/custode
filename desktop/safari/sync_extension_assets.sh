@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ "$#" -lt 1 ]]; then
   echo "Usage: $0 <path-to-generated-safari-web-extension-folder>"
-  echo "Example: $0 desktop/safari/generated/KeyVaultSafariAutofill/Shared (Extension)"
+  echo "Example: $0 desktop/safari/generated/CustodeSafariAutofill/Shared (Extension)"
   exit 1
 fi
 

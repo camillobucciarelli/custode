@@ -7,7 +7,7 @@
 //
 // Do not "update" an expectation here to make a build green. The whole value
 // of the file is that it predates the change.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

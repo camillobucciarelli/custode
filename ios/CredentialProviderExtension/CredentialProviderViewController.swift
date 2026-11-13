@@ -48,7 +48,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
   ///
   /// An empty list cancels with `credentialIdentityNotFound` rather than
   /// showing an empty sheet. The system then falls through to whatever else
-  /// can answer, which is what the user wants when KeyVault has nothing.
+  /// can answer, which is what the user wants when Custode has nothing.
   @available(iOS 17.0, *)
   override func prepareCredentialList(
     for serviceIdentifiers: [ASCredentialServiceIdentifier],
@@ -191,7 +191,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
         // passkey, this provider cannot serve it. The distinction is what lets
         // the browser offer another provider instead of treating the ceremony
         // as abandoned.
-        self?.cancelWithError(.failed, message: "KeyVault creates passkeys in the app, not in AutoFill.")
+        self?.cancelWithError(.failed, message: "Custode creates passkeys in the app, not in AutoFill.")
       }
     )
 

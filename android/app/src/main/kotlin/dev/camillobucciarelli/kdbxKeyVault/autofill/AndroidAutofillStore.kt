@@ -489,7 +489,7 @@ internal class AndroidAutofillStore(context: Context) {
             authSessionTtlMs = 0L,
             lastAuthenticatedAtEpochMs = null,
         )
-        private const val TAG = "KeyVaultAutofill"
+        private const val TAG = "CustodeAutofill"
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val KEY_ALIAS = "dev.camillobucciarelli.keyvault.android_autofill_v2"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"

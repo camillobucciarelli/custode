@@ -517,7 +517,7 @@ Stable non-secret error response:
   "ok": false,
   "type": "matchesResult",
   "focusNonce": "nonce",
-  "error": { "code": "locked", "message": "Open and unlock KeyVault." }
+  "error": { "code": "locked", "message": "Open and unlock Custode." }
 }
 ```
 
@@ -677,7 +677,7 @@ use A grant or receive delayed A reveal response -> stale_session, no B secret
 Conceptual closed-shadow tree:
 
 ```html
-<section class="kv-overlay" aria-label="KeyVault suggestions">
+<section class="kv-overlay" aria-label="Custode suggestions">
   <div id="kv-status" role="status" aria-live="polite"></div>
   <div id="kv-list" role="listbox" aria-activedescendant="kv-option-0">
     <button id="kv-option-0" type="button" role="option" aria-selected="true">

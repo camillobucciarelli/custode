@@ -1,7 +1,7 @@
 // spec-004 T23: acceptance-criteria checks that aren't goldens —
 // AC7 (canGenerate disables the primary action), AC8 (tablet metadata grid
 // has exactly 3 rows), AC9 (detail/editor push no route on tablet).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

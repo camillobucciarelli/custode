@@ -238,7 +238,7 @@ class _EntryHistoryDialogState extends State<_EntryHistoryDialog> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        final colors = Theme.of(dialogContext).extension<KeyVaultColors>()!;
+        final colors = Theme.of(dialogContext).extension<CustodeColors>()!;
         return AlertDialog(
           title: Row(
             children: [
@@ -332,7 +332,7 @@ class _EntryHistoryDialogState extends State<_EntryHistoryDialog> {
     VaultEntryHistory? history,
     VaultEntry? currentEntry,
   ) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     if (state.entryHistoryError != null &&
         state.entryHistoryEntryId == widget.entryId) {
@@ -429,7 +429,7 @@ class _EntryHistoryDialogState extends State<_EntryHistoryDialog> {
   }
 
   Widget _retentionLine(BuildContext context, VaultHistoryRetention retention) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Text(
       _retentionLabel(retention),
       key: const ValueKey('entry-history-retention'),
@@ -480,7 +480,7 @@ class _RevisionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final hasSecretChange =
         changedFields.contains(VaultEntryField.password) ||
         changedFields.contains(VaultEntryField.otpUri);

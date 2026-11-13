@@ -226,7 +226,7 @@ place, not before.
 
 | Item | Value |
 | --- | --- |
-| OAuth app name | `KeyVault Password Manager` |
+| OAuth app name | `Custode Password Manager` |
 | Logo | existing coloured logo, exported square and compliant |
 | Domain | `keyvault.camillobucciarelli.dev` |
 | Homepage | `/` |

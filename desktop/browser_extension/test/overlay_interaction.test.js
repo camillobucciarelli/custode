@@ -35,7 +35,7 @@ const FILL_VALUE_K = ["canary", "keyboard"].join("-");
 const FILL_VALUE_P = ["canary", "pointer"].join("-");
 
 const UNSUPPORTED_TEXT =
-  "The overlay is not available in this frame. Copy your login from the KeyVault app.";
+  "The overlay is not available in this frame. Copy your login from the Custode app.";
 
 async function pageWithRows(count = 2) {
   const ctx = await loginPage();
@@ -503,7 +503,7 @@ test("A037: Enter suppresses submit before a failed fill response settles", asyn
   assert.equal(enter.defaultPrevented, true);
   assert.equal(submits, 0);
   assert.equal(pwInput.value, "");
-  assert.equal(statusText(page), "KeyVault did not respond in time.");
+  assert.equal(statusText(page), "Custode did not respond in time.");
 });
 
 test("A037: trusted keydown at a non-anchor is not intercepted", async () => {

@@ -20,13 +20,13 @@ dependencies:
   # Held at 10.x: every 11.x needs win32 ^6 (via flutter_secure_storage_windows
   # 4.2.2), which only file_picker >=12 accepts. Moves together with file_picker.
   flutter_secure_storage: ^10.3.4
-  flutter_svg: ^2.3.2
+  flutter_svg: ^2.4.0
   google_sign_in: ^7.2.0
   get_it: ^9.3.0
   google_fonts: ^9.0.0
   crypto: ^3.0.8
   http: ^1.6.0
-  kdbx: ^2.5.0
+  kdbx: ^2.6.0
   local_auth: ^3.0.2
   loggy: ^2.0.3
   otp: ^3.2.1
@@ -49,8 +49,13 @@ dependencies:
   # AutoType) straight off the public, exported `KdbxNode.node`. Promoted from
   # `dev_dependencies` in Phase 3 slice 2, exactly as the note there said it
   # would be when the adapter landed in `lib/`.
-  # Held at 6.x: kdbx 2.5.0 (latest) constrains xml <7.0.0.
+  # Held at 6.x: kdbx 2.6.0 (latest) constrains xml <7.0.0.
   xml: ^6.6.1
+
+  # Flutter 3.50 deprecates package:flutter/material.dart and cupertino.dart
+  # in favour of these two packages, which now own the widgets.
+  cupertino_ui: ^1.1.6
+  material_ui: ^1.11.0
 
 dev_dependencies:
   flutter_test:
@@ -87,15 +92,15 @@ flutter:
   assets:
     - assets/fonts/OFL.txt
     - assets/icons/lucide/
-    - assets/logo/app_icon_family/keyvault-source-1024.png
+    - assets/logo/app_icon_family/custode-source-1024.png
     # spec-019 FR-016: the rail and tab bar show the app's own mark, not a
     # stand-in key glyph (C-SH-03).
-    - assets/logo/app_icon_family/keyvault-mark-monochrome.svg
+    - assets/logo/app_icon_family/custode-mark-monochrome.svg
     # Full-colour variant of the same mark (verbatim copy of
-    # specs/_design/keyvault-mark-foreground.svg, sha pinned there) for the
+    # specs/_design/custode-mark-foreground.svg, sha pinned there) for the
     # rail tile. Lives outside app_icon_family/, whose inventory the icon
     # build tool owns exactly.
-    - assets/logo/keyvault-mark-color.svg
+    - assets/logo/custode-mark-color.svg
   fonts:
     - family: Caprasimo
       fonts:
@@ -111,17 +116,17 @@ flutter:
           weight: 700
 
 flutter_launcher_icons:
-  image_path: assets/logo/app_icon_family/keyvault-source-1024.png
+  image_path: assets/logo/app_icon_family/custode-source-1024.png
   android: true
   ios: true
   remove_alpha_ios: true
   # Android adaptive icons (API 26+)
   adaptive_icon_background: "#FFE1D0"
-  adaptive_icon_foreground: assets/logo/app_icon_family/keyvault-adaptive-foreground-1024.png
-  adaptive_icon_monochrome: assets/logo/app_icon_family/keyvault-monochrome-1024.png
+  adaptive_icon_foreground: assets/logo/app_icon_family/custode-adaptive-foreground-1024.png
+  adaptive_icon_monochrome: assets/logo/app_icon_family/custode-monochrome-1024.png
   # iOS: dark/tinted variants for iOS 18+
-  image_path_ios_dark_transparent: assets/logo/app_icon_family/keyvault-adaptive-foreground-1024.png
-  image_path_ios_tinted_grayscale: assets/logo/app_icon_family/keyvault-monochrome-1024.png
+  image_path_ios_dark_transparent: assets/logo/app_icon_family/custode-adaptive-foreground-1024.png
+  image_path_ios_tinted_grayscale: assets/logo/app_icon_family/custode-monochrome-1024.png
   desaturate_tinted_to_grayscale_ios: true
   web:
     generate: false

@@ -9,7 +9,7 @@
 // Omitted axes per VR-002: light theme only, and the wide layout only — the
 // handler is shared, and the mobile path is pinned separately by
 // vault_navigation_mobile_characterisation_test.dart.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

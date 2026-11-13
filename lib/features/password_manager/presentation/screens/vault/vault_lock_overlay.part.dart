@@ -33,14 +33,14 @@ class PrivacyOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'KeyVault is backgrounded',
+      label: 'Custode is backgrounded',
       child: ColoredBox(
         color: AppColors.neutral900,
         child: Center(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: Image.asset(
-              'assets/logo/app_icon_family/keyvault-source-1024.png',
+              'assets/logo/app_icon_family/custode-source-1024.png',
               width: 76,
               height: 76,
               fit: BoxFit.cover,
@@ -149,7 +149,7 @@ class _LockOverlayState extends State<_LockOverlay> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: Image.asset(
-                    'assets/logo/app_icon_family/keyvault-source-1024.png',
+                    'assets/logo/app_icon_family/custode-source-1024.png',
                     width: 76,
                     height: 76,
                     fit: BoxFit.cover,

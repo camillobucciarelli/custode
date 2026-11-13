@@ -8,7 +8,7 @@
 
 ## Summary
 
-KeyVault already writes password history. Every edit through
+Custode already writes password history. Every edit through
 `VaultKdbxService` pushes the previous values into the KDBX entry's `<History>`
 record, because that is what the KDBX writer does; a test proves the previous
 password survives an update. The application reads that history for exactly one
@@ -192,7 +192,7 @@ confirm both are gone from the saved file, not only from the screen.
 ### Measurable Outcomes
 
 - **SC-001**: A user who has just made a wrong password change can see the
-  previous password and restore it without leaving KeyVault and without a second
+  previous password and restore it without leaving Custode and without a second
   KeePass client.
 - **SC-002**: Opening an entry whose history holds 200 revisions is no slower
   than opening one with none, because history loads only when requested.

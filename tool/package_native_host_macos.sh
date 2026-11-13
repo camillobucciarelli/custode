@@ -12,7 +12,7 @@ usage() {
   cat <<'EOF'
 Usage: bash tool/package_native_host_macos.sh [--output <path>] [--version <version>]
 
-Builds, signs, notarizes, and staples universal KeyVault Chrome native-host pkg.
+Builds, signs, notarizes, and staples universal Custode Chrome native-host pkg.
 
 Required environment:
   DEVELOPER_ID_APPLICATION

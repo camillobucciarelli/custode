@@ -27,10 +27,10 @@ EXPECTED_OUTPUTS = {
     Path("ext-16.png"),
     Path("ext-32.png"),
     Path("ext-48.png"),
-    Path("keyvault-adaptive-foreground-1024.png"),
-    Path("keyvault-mark-monochrome.svg"),
-    Path("keyvault-monochrome-1024.png"),
-    Path("keyvault-source-1024.png"),
+    Path("custode-adaptive-foreground-1024.png"),
+    Path("custode-mark-monochrome.svg"),
+    Path("custode-monochrome-1024.png"),
+    Path("custode-source-1024.png"),
     Path("review/app-icon-family-review.png"),
     Path("state/ext-16-locked.png"),
     Path("state/ext-16-nohost.png"),
@@ -58,9 +58,9 @@ def run_cli(*args: object, env: dict[str, str] | None = None) -> subprocess.Comp
 
 def rewrite_manifest(output: Path) -> None:
     entries = {
-        "specs/_design/keyvault-mark.svg": sha256(icons.REPO / "specs/_design/keyvault-mark.svg"),
-        "specs/_design/keyvault-mark-foreground.svg": sha256(
-            icons.REPO / "specs/_design/keyvault-mark-foreground.svg"
+        "specs/_design/custode-mark.svg": sha256(icons.REPO / "specs/_design/custode-mark.svg"),
+        "specs/_design/custode-mark-foreground.svg": sha256(
+            icons.REPO / "specs/_design/custode-mark-foreground.svg"
         ),
     }
     for relative in EXPECTED_OUTPUTS - {Path("SHA256SUMS")}:
@@ -331,8 +331,8 @@ class GeneratedTreeTest(unittest.TestCase):
             assert match is not None
             parsed[match.group(2)] = match.group(1)
         expected_paths = {
-            "specs/_design/keyvault-mark.svg",
-            "specs/_design/keyvault-mark-foreground.svg",
+            "specs/_design/custode-mark.svg",
+            "specs/_design/custode-mark-foreground.svg",
             *(
                 (Path("assets/logo/app_icon_family") / relative).as_posix()
                 for relative in EXPECTED_OUTPUTS - {Path("SHA256SUMS")}

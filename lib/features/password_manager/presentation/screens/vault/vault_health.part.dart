@@ -12,7 +12,7 @@ class _VaultHealthDestination extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return BlocBuilder<VaultBloc, VaultState>(
       // Compare score + per-category counts only, not `healthReport` itself
       // — its `HealthCategory.entryIds` lists make `Equatable.==` O(entries)
@@ -96,7 +96,7 @@ class _ScoreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final needsAttention = report.categories
         .where((c) => c.kind != HealthCategoryKind.duplicates)
         .fold<int>(0, (sum, c) => sum + c.count);
@@ -220,7 +220,7 @@ class _HealthCategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final info = _healthCategoryInfo[category.kind]!;
     final (background, foreground) = switch (info.variant) {
       KvTagVariant.attention => (colors.attentionTint, colors.attentionText),
@@ -301,7 +301,7 @@ class _HealthCategoryListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Scaffold(
       backgroundColor: colors.ground,
       body: SafeArea(

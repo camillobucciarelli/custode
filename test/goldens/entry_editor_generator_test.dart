@@ -6,7 +6,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -370,6 +371,11 @@ void main() {
       messenger.setMockMethodCallHandler(eventChannel, null);
       messenger.setMockMethodCallHandler(orientationChannel, null);
       messenger.setMockMethodCallHandler(methodChannel, null);
+      // From mobile_scanner 7.5.0 every start waits on one static session
+      // lock. The scanner-chrome golden never resolves its start, so without
+      // this reset it holds that lock for the rest of the file: later starts
+      // wait instead of failing, and the camera-denied screen never shows.
+      MobileScannerController.resetPlatformSessionOwner();
     }
 
     Future<void> openScanner(WidgetTester tester) async {

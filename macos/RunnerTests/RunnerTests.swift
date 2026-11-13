@@ -2,7 +2,7 @@ import AuthenticationServices
 import Cocoa
 import FlutterMacOS
 import XCTest
-@testable import KeyVault
+@testable import Custode
 
 class RunnerTests: XCTestCase {
 

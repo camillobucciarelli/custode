@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'app_colors.dart';
 
@@ -6,7 +6,7 @@ class AppBackgrounds {
   AppBackgrounds._();
 
   static LinearGradient gradient(BuildContext context) {
-    // Compatibility-only. Organic surfaces use KeyVaultColors.ground directly.
+    // Compatibility-only. Organic surfaces use CustodeColors.ground directly.
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colors = isDark
         ? [AppColors.darkGradientFrom, AppColors.darkGradientTo]

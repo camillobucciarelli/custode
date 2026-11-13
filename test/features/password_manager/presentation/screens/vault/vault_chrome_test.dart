@@ -4,7 +4,7 @@
 // showed a Lucide key instead of the app's mark (C-SH-03), two destinations
 // carried glyphs `ICONS.md` does not name (C-03-13), and the selected
 // destination was signalled by colour alone (C-03-14).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_colors.dart';
@@ -64,7 +64,7 @@ void main() {
 
     // 2026-08-30: the rail shows the full-colour mark (verbatim copy of the
     // design master), no longer the tinted monochrome silhouette.
-    expect(assets, contains('keyvault-mark-color.svg'));
+    expect(assets, contains('custode-mark-color.svg'));
 
     // `key-round` still has a home — the empty detail pane draws it — so the
     // assertion is scoped to the chrome, where it stood in for the mark.
@@ -93,7 +93,7 @@ void main() {
       isNot(contains('key-round.svg')),
       reason: 'the Lucide key stood in for the mark and no longer appears',
     );
-    expect(chromeAssets, contains('keyvault-mark-color.svg'));
+    expect(chromeAssets, contains('custode-mark-color.svg'));
   });
 
   for (final width in <double>[390, 1024]) {

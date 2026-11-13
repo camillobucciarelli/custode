@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_colors.dart';
 import 'package:password_manager/core/widgets/app_focus_ring.dart';

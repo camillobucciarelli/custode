@@ -426,7 +426,7 @@ class _AttachmentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
       decoration: BoxDecoration(

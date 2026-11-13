@@ -4,7 +4,7 @@
 **Created**: 2026-08-28
 **Depends on**: 002 (navigation shell), 004 (entry editor / detail surfaces)
 **Coordinates with**: 005 (health, sync destinations), 017 (password history opens from the detail surface)
-**Design source**: `docs/design_handoff_keyvault_restyle/03 Vault - modelli di navigazione.dc.html`
+**Design source**: `docs/design_handoff_custode_restyle/03 Vault - modelli di navigazione.dc.html`
 (option **1a**, the adopted model), `specs/_design/HANDOFF.md` §Structure and
 navigation, `specs/_design/PIXEL_SPEC.md` §1 (Tablet columns) and §2 (Selected row)
 
@@ -488,7 +488,7 @@ These keep the sources consistent with the decision and are recorded here so
 they are not lost:
 
 - `specs/_design/PIXEL_SPEC.md` §1 "Tablet columns" (and its identical copy in
-  `docs/design_handoff_keyvault_restyle/`) still reads
+  `docs/design_handoff_custode_restyle/`) still reads
   `72 (76 in the vault variant)` and `330–352`, and omits the generator row.
   It should be rewritten to the single values above.
 - In the design project: `03` rail `76 → 72`; `04-06` list `352 → 330` in both

@@ -126,8 +126,8 @@ journal, rollback, recovery CLI, or destructive directory automation exists.
 
 ### Read-only inputs
 
-- `specs/_design/keyvault-mark.svg`
-- `specs/_design/keyvault-mark-foreground.svg`
+- `specs/_design/custode-mark.svg`
+- `specs/_design/custode-mark-foreground.svg`
 
 ### New implementation/provision files
 
@@ -138,10 +138,10 @@ journal, rollback, recovery CLI, or destructive directory automation exists.
 
 ### Generated outputs: exactly 18
 
-- `assets/logo/app_icon_family/keyvault-mark-monochrome.svg`
-- `assets/logo/app_icon_family/keyvault-source-1024.png`
-- `assets/logo/app_icon_family/keyvault-adaptive-foreground-1024.png`
-- `assets/logo/app_icon_family/keyvault-monochrome-1024.png`
+- `assets/logo/app_icon_family/custode-mark-monochrome.svg`
+- `assets/logo/app_icon_family/custode-source-1024.png`
+- `assets/logo/app_icon_family/custode-adaptive-foreground-1024.png`
+- `assets/logo/app_icon_family/custode-monochrome-1024.png`
 - `assets/logo/app_icon_family/app-512.png`
 - `assets/logo/app_icon_family/app-192.png`
 - `assets/logo/app_icon_family/ext-128.png`

@@ -20,7 +20,7 @@ parallel flags because theme and `pubspec.yaml` changes overlap.
 
 ## Phase 2 · Tokens and theme
 
-- [x] **T3** Add Organic ramps to `app_colors.dart`, `KeyVaultColors`,
+- [x] **T3** Add Organic ramps to `app_colors.dart`, `CustodeColors`,
       `AppSpacing`, `AppRadii`, `AppElevation`, `AppMotion` and
       `AppTextStyles`. Keep every existing `AppColors` public constant and
       `AppBackgrounds.gradient` signature mapped to closest Organic values;
@@ -30,7 +30,7 @@ parallel flags because theme and `pubspec.yaml` changes overlap.
       every FR-2 text/background pairing, plus reduced-motion tests. Run
       `flutter analyze` and theme tests.
 - [x] **T4** Rebuild `app_theme.dart` with bundled Caprasimo/Figtree, register
-      `KeyVaultColors`, and style Material buttons, inputs, sheets, snackbars,
+      `CustodeColors`, and style Material buttons, inputs, sheets, snackbars,
       focus/hover/pressed/disabled states. Add the sole accessibility primitive
       `lib/core/widgets/app_focus_ring.dart`: caller-owned shared `FocusNode`,
       configurable radius, unclipped 2 px external gap plus 2 px ring, no added

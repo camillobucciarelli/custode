@@ -11,7 +11,7 @@
 // Uses the same deterministic-render harness pattern as
 // organic_theme_gallery_test.dart (spec-001): fixed physical size/DPR,
 // disabled animations, no text scaling, explicit font loading.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

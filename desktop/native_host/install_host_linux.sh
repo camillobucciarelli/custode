@@ -9,7 +9,7 @@ usage() {
   cat <<'USAGE'
 Usage: install_host_linux.sh [--browser chrome|chromium|edge] [extension-id]
 
-Installs the KeyVault native messaging host manifest for the current Linux user.
+Installs the Custode native messaging host manifest for the current Linux user.
 No sudo is required. Defaults: Google Chrome and the published extension ID.
 
 Examples:
@@ -124,14 +124,14 @@ JSON_HOST_PATH="${JSON_HOST_PATH//\"/\\\"}"
 TEMP_PATH="$(mktemp "${DEST_DIR}/.${HOST_NAME}.json.XXXXXX")"
 printf '{\n  "name": "%s",\n  "description": "%s",\n  "path": "%s",\n  "type": "stdio",\n  "allowed_origins": [\n    "chrome-extension://%s/"\n  ]\n}\n' \
   "${HOST_NAME}" \
-  "KeyVault Native Messaging v2 host (metadata search and explicit fill)" \
+  "Custode Native Messaging v2 host (metadata search and explicit fill)" \
   "${JSON_HOST_PATH}" \
   "${EXTENSION_ID}" >"${TEMP_PATH}"
 chmod 0600 "${TEMP_PATH}"
 mv -f -- "${TEMP_PATH}" "${DEST_PATH}"
 TEMP_PATH=""
 
-printf 'Installed KeyVault native messaging host for %s.\n' "${BROWSER}"
+printf 'Installed Custode native messaging host for %s.\n' "${BROWSER}"
 printf 'Manifest: %s\n' "${DEST_PATH}"
 printf 'Host: %s\n' "${HOST_PATH}"
 printf 'Allowed origin: chrome-extension://%s/\n' "${EXTENSION_ID}"

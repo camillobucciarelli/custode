@@ -4,7 +4,7 @@
 // (`AppleAutofillV2Credential.toChannelMap()`), not a hand-typed parallel
 // list that could silently drift out of sync (the risk plan.md calls out:
 // "The 'not passwords' claim on the iOS screen drifts from reality").
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_theme.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_entry.dart';

@@ -1,4 +1,4 @@
-# KeyVault Constitution
+# Custode Constitution
 
 Non-negotiable principles every spec, plan and task in `specs/` must respect.
 When a plan conflicts with this file, this file wins.

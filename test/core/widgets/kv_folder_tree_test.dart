@@ -3,7 +3,7 @@
 //
 // The tree has three hosts. These tests are what stops the second and third
 // host from quietly growing their own behaviour.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_colors.dart';
 import 'package:password_manager/core/theme/app_theme.dart';

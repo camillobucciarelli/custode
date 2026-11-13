@@ -32,7 +32,7 @@ class _VaultSyncDestinationState extends State<_VaultSyncDestination> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return BlocBuilder<VaultBloc, VaultState>(
       buildWhen: _syncStatusStripBuildWhen,
       builder: (context, state) {
@@ -233,7 +233,7 @@ class _RemoteFilePickerScreenState extends State<_RemoteFilePickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Scaffold(
       backgroundColor: colors.ground,
       body: SafeArea(
@@ -513,7 +513,7 @@ class _SyncConflictSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     // On wide layouts this surface is a pane, not a sheet — no drag handle,
     // and it needs its own back affordance (same fix as the generator).
     final isPane = _VaultPaneScope.of(context);
@@ -689,7 +689,7 @@ class _VersionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(

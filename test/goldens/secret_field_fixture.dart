@@ -1,6 +1,6 @@
 // spec 023 T104: the record the secret-field goldens photograph, and the
 // WCAG contrast helper they assert with.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_custom_field.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_entry.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_snapshot.dart';

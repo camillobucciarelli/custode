@@ -36,7 +36,7 @@ internal const val EXTRA_CAPTURE_TOKEN = "keyvault_autofill_capture_token"
  * Debug builds only, and not merely for noise: these lines name the hosts the
  * user is visiting, which has no business in a release device's logcat.
  */
-private const val LOG_TAG = "KeyVaultAutofill"
+private const val LOG_TAG = "CustodeAutofill"
 
 private fun AutofillService.isDebugBuild(): Boolean {
     return (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
@@ -295,7 +295,7 @@ class KeyVaultAutofillService : AutofillService() {
             val spec = specs.getOrNull(datasets.size) ?: specs.last()
             inlinePresentation(
                 spec = spec,
-                title = getString(R.string.autofill_inline_search_keyvault),
+                title = getString(R.string.autofill_inline_search_custode),
                 subtitle = "",
                 attribution = pickerPendingIntent,
             )?.let { overflow ->
@@ -437,7 +437,7 @@ class KeyVaultAutofillService : AutofillService() {
         return datasetPresentation(
             packageName = packageName,
             title = text,
-            subtitle = getString(R.string.autofill_dataset_subtitle_open_keyvault),
+            subtitle = getString(R.string.autofill_dataset_subtitle_open_custode),
         )
     }
 }

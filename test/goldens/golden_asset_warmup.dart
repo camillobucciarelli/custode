@@ -25,7 +25,7 @@ final _goldenImageProviders = <ImageProvider<Object>>[
   for (final size in [40, 76, 88])
     ResizeImage(
       AssetImage(
-        'assets/logo/app_icon_family/keyvault-source-1024.png',
+        'assets/logo/app_icon_family/custode-source-1024.png',
         bundle: rootBundle,
       ),
       width: size,

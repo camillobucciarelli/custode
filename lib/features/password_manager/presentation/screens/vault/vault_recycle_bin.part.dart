@@ -58,7 +58,7 @@ class _RecycleBinScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Scaffold(
       backgroundColor: colors.ground,
       body: SafeArea(
@@ -308,7 +308,7 @@ class _RecycleBinEntryListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return KvListRow(
       title: entry.title.isEmpty ? '(Untitled)' : entry.title,
       subtitle: entry.username.isNotEmpty
@@ -366,7 +366,7 @@ class _RecycleBinEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 30),

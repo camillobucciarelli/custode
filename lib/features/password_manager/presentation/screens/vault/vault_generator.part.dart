@@ -59,7 +59,7 @@ class _GeneratorPanelState extends State<_GeneratorPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final assessment = evaluatePasswordStrength(_result);
 
     return Column(
@@ -249,7 +249,7 @@ class _GeneratorErrorCard extends StatelessWidget {
   const _GeneratorErrorCard({required this.message, required this.colors});
 
   final String message;
-  final KeyVaultColors colors;
+  final CustodeColors colors;
 
   @override
   Widget build(BuildContext context) {

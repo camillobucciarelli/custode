@@ -150,7 +150,7 @@
     const result = await askExtension("passkey-get", request);
     // Every refusal — no passkey here, the user declined, the app is locked,
     // the extension never answered — falls through to the browser's own
-    // authenticator. KeyVault having nothing to offer must never stop a
+    // authenticator. Custode having nothing to offer must never stop a
     // security key or a platform passkey from working.
     if (!result || result.ok !== true) {
       return originalGet(options);
@@ -165,7 +165,7 @@
   // spec 023 US3 — registration.
   //
   // Wrapped for the same reason `get` is, and with the same fallthrough: a
-  // site whose registration KeyVault declines must still be able to register a
+  // site whose registration Custode declines must still be able to register a
   // platform passkey or a security key.
   if (originalCreate) {
     credentials.create = async function create(options) {
@@ -173,7 +173,7 @@
       if (!publicKey || !publicKey.challenge) return originalCreate(options);
       if (options?.signal?.aborted) return originalCreate(options);
 
-      // KeyVault creates ES256 credentials only. A site that will not accept
+      // Custode creates ES256 credentials only. A site that will not accept
       // ES256 is one this authenticator cannot serve, so it goes straight to
       // the browser rather than being refused after a confirmation the user
       // did not need to see.

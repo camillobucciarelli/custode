@@ -296,7 +296,7 @@ function renderMatchRow(result, kind, { onFill, onAsk } = {}) {
     // origin-bound reveal policy (scheme, port, or a domain-only entry on a
     // page the policy does not admit). Say so up front instead of offering a
     // Fill button that will be refused.
-    row.appendChild(el("span", "match-note", "Open KeyVault"));
+    row.appendChild(el("span", "match-note", "Open Custode"));
   } else if (kind === "strong" && onFill) {
     const button = el("button", "fill-btn", "Fill");
     button.type = "button";
@@ -358,7 +358,7 @@ function renderHostMissingState() {
     el(
       "p",
       "host-missing-text",
-      "The messaging host isn\u2019t registered for this browser. KeyVault\u2019s desktop app can walk you through it in Desktop browser extension."
+      "The messaging host isn\u2019t registered for this browser. Custode\u2019s desktop app can walk you through it in Desktop browser extension."
     )
   );
   const actions = el("div", "action-row");
@@ -389,7 +389,7 @@ function renderLockedState() {
   const warning = el("div", "locked-warning");
   warning.appendChild(lockIconSvg());
   const p = document.createElement("p");
-  p.textContent = "KeyVault is locked. Unlock the desktop app to search and fill.";
+  p.textContent = "Custode is locked. Unlock the desktop app to search and fill.";
   warning.appendChild(p);
   bodyElement.appendChild(warning);
 
@@ -469,7 +469,7 @@ async function createPendingAssociation(entryId, origin) {
       message.className = "status-message status-message--error";
       return;
     }
-    message.textContent = "Pending association saved. Confirm it in KeyVault desktop.";
+    message.textContent = "Pending association saved. Confirm it in Custode desktop.";
   } finally {
     inFlight = false;
   }
@@ -619,7 +619,7 @@ async function renderMatchesState(tab, origin, response) {
 // origin match). Understating a broad permission is the failure mode worth
 // engineering against here.
 
-const overlaySecurity = globalThis.KeyVaultOverlaySecurity;
+const overlaySecurity = globalThis.CustodeOverlaySecurity;
 
 // Transient, popup-lifetime only: a declined permission prompt is not durable
 // state and must never be persisted.
@@ -643,7 +643,7 @@ function overlayControlCopy(state) {
     case "enabled":
       return {
         title: OVERLAY_TITLE,
-        meta: "On for all sites. KeyVault still shows only exact matches.",
+        meta: "On for all sites. Custode still shows only exact matches.",
         action: "Turn off",
       };
     case "denied":
@@ -854,7 +854,7 @@ async function renderPopupState() {
       )
     );
     bodyElement.appendChild(
-      el("p", "host-missing-text", "Open an http(s) page to search KeyVault for this site.")
+      el("p", "host-missing-text", "Open an http(s) page to search Custode for this site.")
     );
     const { row: searchRow, input } = renderSearchRow("Search title, user, service");
     bodyElement.appendChild(searchRow);

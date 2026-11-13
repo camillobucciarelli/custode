@@ -7,7 +7,7 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID to authorise signing in with a stored passkey.</string>
 	<key>CFBundleDisplayName</key>
-	<string>KeyVault AutoFill</string>
+	<string>Custode AutoFill</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

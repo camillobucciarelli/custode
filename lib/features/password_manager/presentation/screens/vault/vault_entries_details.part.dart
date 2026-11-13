@@ -40,7 +40,7 @@ class _RecordListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final isPasswordWarning = _isPasswordUpdateOverdue(entry, DateTime.now());
 
     // spec-018 FR-004/FR-016: the accent-200 fill and accent-400 border below
@@ -369,7 +369,7 @@ class _EntryDetailEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     // spec-019 C-04-01: this state had no artboard and had drifted into its
     // own shape — a bare 46 px glyph and a panel title. The design's empty

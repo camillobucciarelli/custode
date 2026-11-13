@@ -65,6 +65,6 @@
   --shadow-lg: 0 12px 32px color-mix(in srgb, #2e2b25 22%, transparent);
 }
 
-/* Rounded frame variant used by every KeyVault screen:
+/* Rounded frame variant used by every Custode screen:
    cards/dialogs 28 * 1.15 ≈ 32; buttons, tags, segmented controls and inputs
    go full pill (999px); inputs get 14px inline padding. */

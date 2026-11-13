@@ -22,7 +22,7 @@ class _LinkAutofillCredentialDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return AlertDialog(
       title: const Text('Link AutoFill credential?'),
       content: Column(

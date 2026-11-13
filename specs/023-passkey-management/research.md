@@ -230,7 +230,7 @@ Read from `src/browser/BrowserService.cpp` and `BrowserPasskeys.cpp` on the
 
 **Decision**: parse the three required fields, treat the rest as optional,
 preserve everything, and accept both base64url variants.
-**Alternatives**: KeyVault-specific layout — rejected (interop is the point).
+**Alternatives**: Custode-specific layout — rejected (interop is the point).
 **Still to confirm on a real file** (fixture task): that `kdbx` 2.5.0 reads the
 `Protected="True"` attribute of these strings as `ProtectedValue` (expected —
 it does for `Password`).

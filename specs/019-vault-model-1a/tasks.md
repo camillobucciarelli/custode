@@ -167,7 +167,7 @@ tree went.
 
 **Independent test**: compare the rail against the artboard and `ICONS.md`.
 
-- [x] T051 [P] [US4] Replace the rail's `AppGlyph.key` tile child in `vault_shell.part.dart` with the KeyVault mark artwork at 38 × 38 / r13, adding the asset to `pubspec.yaml` if it is not already declared (FR-016, C-SH-03)
+- [x] T051 [P] [US4] Replace the rail's `AppGlyph.key` tile child in `vault_shell.part.dart` with the Custode mark artwork at 38 × 38 / r13, adding the asset to `pubspec.yaml` if it is not already declared (FR-016, C-SH-03)
 - [x] T052 [P] [US4] Correct `VaultDestination.glyph` in `vault_shell.part.dart`: Vault → `lock`, Sync → `refresh-cw`; Health and Settings are already right (FR-017, C-03-13, DQ-4)
 - [x] T053 [US4] Give the selected destination a filled tile in both `_VaultRail` and `_VaultTabBar`, keeping the existing `Semantics(selected:)` — the fill is in addition to it, never instead of it (FR-018, C-03-14, Constitution V)
 - [x] T054 [P] [US4] Write `test/features/password_manager/presentation/screens/vault/vault_chrome_test.dart`: the glyph asset name per destination (FR-017), the mark present in the rail (FR-016), the selected fill (FR-018), and the selected state still announced

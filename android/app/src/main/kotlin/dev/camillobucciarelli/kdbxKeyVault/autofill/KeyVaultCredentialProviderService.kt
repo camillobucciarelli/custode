@@ -22,7 +22,7 @@ import androidx.credentials.exceptions.GetCredentialException
 import org.json.JSONObject
 
 /**
- * spec 023 T403 — KeyVault as a passkey source for Credential Manager.
+ * spec 023 T403 — Custode as a passkey source for Credential Manager.
  *
  * API 34 and above only, which is where the platform first has a credential
  * provider to register with (FR-013). Below that the manifest's service is
@@ -55,7 +55,7 @@ class KeyVaultCredentialProviderService : CredentialProviderService() {
         }
         if (cancellationSignal.isCanceled) return
         // An empty response is the correct answer to "nothing here matches":
-        // the platform simply shows no KeyVault rows.
+        // the platform simply shows no Custode rows.
         callback.onResult(BeginGetCredentialResponse(credentialEntries = entries))
     }
 
@@ -120,7 +120,7 @@ class KeyVaultCredentialProviderService : CredentialProviderService() {
     ) {
         if (cancellationSignal.isCanceled) return
         callback.onError(
-            CreateCredentialUnknownException("KeyVault cannot create passkeys yet"),
+            CreateCredentialUnknownException("Custode cannot create passkeys yet"),
         )
     }
 
@@ -140,7 +140,7 @@ class KeyVaultCredentialProviderService : CredentialProviderService() {
     }
 
     companion object {
-        private const val TAG = "KeyVaultPasskey"
+        private const val TAG = "CustodePasskey"
 
         /** Extras shared with [PasskeyAuthActivity]. */
         const val EXTRA_ENTRY_ID = "dev.camillobucciarelli.keyvault.PASSKEY_ENTRY_ID"

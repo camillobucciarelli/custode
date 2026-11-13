@@ -7,7 +7,7 @@ HOST_BIN="${SCRIPT_DIR}/keyvault_native_host"
 HOST_DART="${REPO_ROOT}/tool/native_host.dart"
 
 log_error() {
-  printf '[KeyVault native host] %s\n' "$*" >&2
+  printf '[Custode native host] %s\n' "$*" >&2
 }
 
 run_dart_host() {

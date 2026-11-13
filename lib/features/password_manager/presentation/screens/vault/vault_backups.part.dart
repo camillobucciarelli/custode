@@ -12,7 +12,7 @@ class _VaultBackupsDestination extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return BlocBuilder<VaultBloc, VaultState>(
       buildWhen: (previous, current) =>
           previous.databasePath != current.databasePath,
@@ -79,7 +79,7 @@ class _VaultBackupsDestination extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'On mobile the database lives in app storage: if you '
-                        'delete KeyVault without a backup, the file goes '
+                        'delete Custode without a backup, the file goes '
                         'with it.',
                         style: AppTextStyles.secondary.copyWith(
                           color: colors.attentionText,
@@ -96,7 +96,7 @@ class _VaultBackupsDestination extends StatelessWidget {
     );
   }
 
-  Widget _actionIcon(KeyVaultColors colors, AppGlyph glyph) {
+  Widget _actionIcon(CustodeColors colors, AppGlyph glyph) {
     return Container(
       width: 40,
       height: 40,

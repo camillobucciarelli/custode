@@ -6,7 +6,7 @@
 // subtypes since both hierarchies are sealed to their declaring library.
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/features/password_manager/presentation/navigation/vault_shell_router.dart';
 

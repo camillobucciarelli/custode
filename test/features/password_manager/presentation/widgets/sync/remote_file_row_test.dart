@@ -1,6 +1,6 @@
 // FR-2 / T8: RemoteFileRow renders the real `RemoteFile.size` when
 // present, and omits it (no stray separator) when null.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_theme.dart';
 import 'package:password_manager/features/password_manager/domain/models/remote_file.dart';

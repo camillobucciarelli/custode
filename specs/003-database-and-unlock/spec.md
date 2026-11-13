@@ -243,7 +243,7 @@ approved:
 - `Your vault, in a file you own.`
 - metadata subtitles defined in C-1 and Drive-account fallback in C-2;
 - `Locate` and locate mismatch guidance;
-- `Step 1 of 3`, `Step 2 of 3`, `Step 3 of 3`, `KeyVault app storage`;
+- `Step 1 of 3`, `Step 2 of 3`, `Step 3 of 3`, `Custode app storage`;
 - duplicate consequence lines:
   `Save this file as another database.`,
   `Back up, then replace the existing file.`,
@@ -300,7 +300,7 @@ Omitted size/theme axes have these mandatory widget tests:
 - **Dark roles**: pump welcome, recent, all create steps, Drive loading/empty,
   invalid/corrupt/duplicate sheets, unlock ready/wrong-password/missing-key/key-selected/
   decrypting, key manager and Face ID prompt under dark `AppTheme`; assert each
-  text/fill resolves to its declared `KeyVaultColors` role and every used
+  text/fill resolves to its declared `CustodeColors` role and every used
   text/background pair is in spec-001 contrast matrix.
 - **Tablet/card widths**: at 599 selection is single-column; at 600 and 1024 it is
   two-column without overflow. At 1024 unlock card width is ≤600 and centred.
