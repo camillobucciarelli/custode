@@ -469,7 +469,14 @@ const capturePass = async (chromeBinary, flags, extensionDir, passLabel) => {
     cdp.close();
   } finally {
     child.kill("SIGKILL");
-    fs.rmSync(profileDir, { recursive: true, force: true });
+    // The profile is throwaway and the container is removed after the run.
+    // Chrome's child processes can still be writing here just after the
+    // kill, so a failed cleanup must not fail a capture that succeeded.
+    try {
+      fs.rmSync(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch (error) {
+      console.error(`  [pass ${passLabel}] profile cleanup skipped: ${error.code ?? error}`);
+    }
   }
   return shots;
 };
