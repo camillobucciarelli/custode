@@ -55,7 +55,9 @@ jobs:
             echo "Images that differ:"
             echo
             echo '```'
-            ls test/goldens/failures 2>/dev/null | sed -n 's/_masterImage\.png$//p' | sort -u
+            # No failures folder means no image differs; `ls` then exits 2,
+            # which must not fail the step under pipefail.
+            { ls test/goldens/failures 2>/dev/null || true; } | sed -n 's/_masterImage\.png$//p' | sort -u
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
