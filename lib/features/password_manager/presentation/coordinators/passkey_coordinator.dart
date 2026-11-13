@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../data/services/passkey_generator.dart';
 import '../../data/services/vault_kdbx_service.dart';
 import '../../domain/errors/passkey_errors.dart';
+import '../../domain/models/vault_passkey.dart';
 import '../../domain/repositories/database_file_repository.dart';
 import 'dated_backup_path.dart';
 import 'session_secret_holder.dart';
@@ -81,6 +82,69 @@ class PasskeyCoordinator {
     required String username,
     Uint8List? userHandle,
     bool replaceExisting = false,
+  }) => _create(
+    databasePath: databasePath,
+    relyingPartyId: relyingPartyId,
+    username: username,
+    userHandle: userHandle,
+    write: (passkey) => vaultKdbxService.createPasskey(
+      databasePath: databasePath,
+      password: sessionSecretHolder.read(),
+      keyFilePath: keyFilePath,
+      entryId: entryId,
+      passkey: passkey,
+      replaceExisting: replaceExisting,
+    ),
+  );
+
+  /// spec 023 slice 4 — the same sequence for a platform registration, where
+  /// no one can choose the record: the service picks it (D12) and creates one
+  /// when the vault has none for the site.
+  Future<PasskeyCreateResult> createPasskeyForSite({
+    required String databasePath,
+    String? keyFilePath,
+    required String relyingPartyId,
+    required String username,
+    Uint8List? userHandle,
+    bool replaceExisting = false,
+  }) => _create(
+    databasePath: databasePath,
+    relyingPartyId: relyingPartyId,
+    username: username,
+    userHandle: userHandle,
+    write: (passkey) => vaultKdbxService.createPasskeyForSite(
+      databasePath: databasePath,
+      password: sessionSecretHolder.read(),
+      keyFilePath: keyFilePath,
+      passkey: passkey,
+      replaceExisting: replaceExisting,
+    ),
+  );
+
+  /// Whether the open vault holds a passkey for this site and account. False
+  /// on a locked session: the caller reports the lock from its own check.
+  Future<bool> hasPasskeyFor({
+    required String databasePath,
+    String? keyFilePath,
+    required String relyingPartyId,
+    required Uint8List? userHandle,
+  }) async {
+    if (!sessionSecretHolder.hasSecret) return false;
+    return vaultKdbxService.hasPasskeyFor(
+      databasePath: databasePath,
+      password: sessionSecretHolder.read(),
+      keyFilePath: keyFilePath,
+      relyingPartyId: relyingPartyId,
+      userHandle: userHandle,
+    );
+  }
+
+  Future<PasskeyCreateResult> _create({
+    required String databasePath,
+    required String relyingPartyId,
+    required String username,
+    required Uint8List? userHandle,
+    required Future<Object?> Function(VaultPasskey passkey) write,
   }) async {
     if (!sessionSecretHolder.hasSecret) {
       return const PasskeyCreateResult(PasskeyOutcome.vaultLocked);
@@ -105,14 +169,7 @@ class PasskeyCoordinator {
       createdAt: DateTime.now(),
     );
     try {
-      await vaultKdbxService.createPasskey(
-        databasePath: databasePath,
-        password: sessionSecretHolder.read(),
-        keyFilePath: keyFilePath,
-        entryId: entryId,
-        passkey: created.passkey,
-        replaceExisting: replaceExisting,
-      );
+      await write(created.passkey);
       return PasskeyCreateResult(
         PasskeyOutcome.done,
         created: created,

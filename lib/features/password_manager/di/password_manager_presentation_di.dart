@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,6 +14,9 @@ import '../presentation/coordinators/desktop_browser_autofill_coordinator.dart';
 import '../presentation/coordinators/duplicate_merge_coordinator.dart';
 import '../presentation/coordinators/entry_history_coordinator.dart';
 import '../presentation/coordinators/passkey_coordinator.dart';
+import '../presentation/coordinators/platform_passkey_registration_coordinator.dart';
+import '../data/services/apple_autofill_v2_method_channel_client.dart';
+import '../data/services/desktop_passkey_approval_service.dart';
 import '../presentation/coordinators/google_drive_reconnect_coordinator.dart';
 import '../presentation/coordinators/otpauth_deep_link_coordinator.dart';
 import '../presentation/coordinators/session_secret_holder.dart';
@@ -52,6 +57,9 @@ void registerPasswordManagerPresentationDependencies(GetIt sl) {
         currentKeyFilePath: () =>
             sl<VaultSessionCoordinator>().getSelectedKeyFilePath(),
       ),
+      // spec 023 slice 4: learns which vault is open, for registrations that
+      // start on the platform side.
+      sl<PlatformPasskeyRegistrationCoordinator>(),
     ]),
   );
 
@@ -145,6 +153,26 @@ void registerPasswordManagerPresentationDependencies(GetIt sl) {
       databaseFileRepository: sl(),
     ),
   );
+
+  // spec 023 slice 4: Android Credential Manager and the macOS AutoFill
+  // extension create passkeys through the running app. The handler is
+  // attached on those two platforms only; elsewhere nothing calls it.
+  sl.registerLazySingleton<PlatformPasskeyRegistrationCoordinator>(() {
+    final coordinator = PlatformPasskeyRegistrationCoordinator(
+      passkeyCoordinator: sl(),
+      currentKeyFilePath: () =>
+          sl<VaultSessionCoordinator>().getSelectedKeyFilePath(),
+      onPasskeyWritten: sl<DesktopPasskeyApprovalService>().notePasskeyWritten,
+    );
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
+      coordinator.attach(
+        const MethodChannel(AppleAutofillV2MethodChannelClient.channelName),
+      );
+    }
+    return coordinator;
+  });
 
   sl.registerFactory(
     () => DatabaseSelectionBloc(databaseSessionCoordinator: sl()),

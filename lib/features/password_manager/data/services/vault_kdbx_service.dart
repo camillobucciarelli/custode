@@ -631,6 +631,138 @@ class VaultKdbxService {
     });
   }
 
+  /// spec 023 slice 4 (D12) — write [passkey] where a platform registration
+  /// belongs, in one save, and return the id of the record that holds it.
+  ///
+  /// The platform surfaces (Android activity, macOS extension) cannot ask the
+  /// user which record to use, so the rule is fixed and applied under the
+  /// lock, against the file as it is at the write:
+  ///
+  /// 1. a record that holds a passkey for the same relying party and user
+  ///    handle is the target; without [replaceExisting] that is
+  ///    [PasskeyAlreadyExists] and nothing is written;
+  /// 2. else exactly one record for the site (URL host equal to the relying
+  ///    party or a subdomain of it) with the passkey's username is the target;
+  /// 3. else a new record is created in the root group.
+  ///
+  /// Records in the recycle bin are never a target.
+  Future<String> createPasskeyForSite({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required VaultPasskey passkey,
+    bool replaceExisting = false,
+  }) {
+    return _mutex.withDatabaseLock([databasePath], () async {
+      final file = await _openFile(
+        databasePath: databasePath,
+        password: password,
+        keyFilePath: keyFilePath,
+      );
+      final recycleBinUuid = file.recycleBin?.uuid.uuid;
+      final entries = file.body.rootGroup
+          .getAllEntries()
+          .where((entry) => !_isInsideRecycleBin(entry, recycleBinUuid))
+          .toList(growable: false);
+
+      KdbxEntry? target;
+      for (final entry in entries) {
+        final clash = _mapPasskeys(entry).where((candidate) {
+          return candidate.relyingPartyId == passkey.relyingPartyId &&
+              _sameHandle(candidate.userHandle, passkey.userHandle);
+        }).firstOrNull;
+        if (clash == null) continue;
+        if (!replaceExisting) {
+          throw PasskeyAlreadyExists(
+            entryId: entry.uuid.uuid,
+            relyingPartyId: passkey.relyingPartyId,
+          );
+        }
+        _removePasskeyGroup(entry, clash.fieldSuffix);
+        target = entry;
+        break;
+      }
+
+      if (target == null) {
+        final sameSite = entries
+            .where((entry) {
+              final username =
+                  entry.getString(KdbxKeyCommon.USER_NAME)?.getText() ?? '';
+              final url = entry.getString(KdbxKeyCommon.URL)?.getText() ?? '';
+              return username == passkey.username &&
+                  _hostBelongsTo(url, passkey.relyingPartyId);
+            })
+            .toList(growable: false);
+        if (sameSite.length == 1) target = sameSite.single;
+      }
+
+      if (target == null) {
+        target = KdbxEntry.create(file, file.body.rootGroup);
+        target.setString(
+          KdbxKeyCommon.TITLE,
+          PlainValue(passkey.relyingPartyId),
+        );
+        target.setString(KdbxKeyCommon.USER_NAME, PlainValue(passkey.username));
+        target.setString(KdbxKeyCommon.PASSWORD, ProtectedValue.fromString(''));
+        target.setString(
+          KdbxKeyCommon.URL,
+          PlainValue('https://${passkey.relyingPartyId}'),
+        );
+        file.body.rootGroup.addEntry(target);
+      }
+
+      final suffix = _nextPasskeySuffix(target);
+      for (final field in passkeyFieldsFor(passkey, suffix: suffix).entries) {
+        target.setString(
+          KdbxKey(field.key),
+          field.value.isProtected
+              ? ProtectedValue.fromString(field.value.value)
+              : PlainValue(field.value.value),
+        );
+      }
+
+      await _save(databasePath, file);
+      return target.uuid.uuid;
+    });
+  }
+
+  /// Whether a passkey for this relying party and user handle is held by a
+  /// record outside the recycle bin (spec 023 slice 4: the warning a platform
+  /// surface shows before it asks for the write).
+  Future<bool> hasPasskeyFor({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String relyingPartyId,
+    required Uint8List? userHandle,
+  }) async {
+    final entries = await loadAllEntries(
+      databasePath: databasePath,
+      password: password,
+      keyFilePath: keyFilePath,
+    );
+    return entries.any(
+      (entry) => entry.passkeys.any(
+        (candidate) =>
+            candidate.relyingPartyId == relyingPartyId &&
+            _sameHandle(candidate.userHandle, userHandle),
+      ),
+    );
+  }
+
+  /// True when [url]'s host is [relyingPartyId] or a subdomain of it. A URL
+  /// with no scheme is read as a host.
+  static bool _hostBelongsTo(String url, String relyingPartyId) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return false;
+    final uri = Uri.tryParse(
+      trimmed.contains('://') ? trimmed : 'https://$trimmed',
+    );
+    final host = uri?.host.toLowerCase() ?? '';
+    final rpId = relyingPartyId.toLowerCase();
+    return host == rpId || host.endsWith('.$rpId');
+  }
+
   /// The `KPEX_PASSKEY_*` fields for [passkey], in the KeePassXC layout, with
   /// the protection flags KeePassXC itself uses.
   ///

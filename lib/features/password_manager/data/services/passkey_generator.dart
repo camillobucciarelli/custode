@@ -13,6 +13,8 @@ class GeneratedPasskey {
     required this.passkey,
     required this.attestationObject,
     required this.publicKeyCose,
+    required this.authenticatorData,
+    required this.publicKeySpki,
   });
 
   /// What goes into the entry's `KPEX_PASSKEY_*` fields.
@@ -26,6 +28,14 @@ class GeneratedPasskey {
   /// because some relying parties read it from `getPublicKey()` rather than
   /// out of the attestation object.
   final Uint8List publicKeyCose;
+
+  /// The authenticator data inside [attestationObject]. Android's registration
+  /// response JSON carries it as a field of its own.
+  final Uint8List authenticatorData;
+
+  /// The public key as DER `SubjectPublicKeyInfo`, which is what
+  /// `getPublicKey()` returns to a page.
+  final Uint8List publicKeySpki;
 }
 
 /// spec 023 US3 — creates ES256 passkeys.
@@ -86,6 +96,8 @@ class PasskeyGenerator {
       ),
       attestationObject: _attestationObject(authData),
       publicKeyCose: publicKeyCose,
+      authenticatorData: authData,
+      publicKeySpki: _spkiFor(public),
     );
   }
 
@@ -136,6 +148,19 @@ class PasskeyGenerator {
       credentialId.length & 0xff,
       ...credentialId,
       ...publicKeyCose,
+    ]);
+  }
+
+  /// `SubjectPublicKeyInfo` for a P-256 key: the fixed algorithm header, then
+  /// the uncompressed point `04 ‖ x ‖ y`.
+  Uint8List _spkiFor(ECPublicKey key) {
+    final q = key.Q!;
+    return Uint8List.fromList([
+      0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, //
+      0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+      0x42, 0x00, 0x04,
+      ..._fixedLength(q.x!.toBigInteger()!, 32),
+      ..._fixedLength(q.y!.toBigInteger()!, 32),
     ]);
   }
 

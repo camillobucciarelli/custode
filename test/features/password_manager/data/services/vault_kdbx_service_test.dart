@@ -1125,6 +1125,145 @@ void main() {
       );
     });
 
+    group('createPasskeyForSite (slice 4, D12)', () {
+      Future<List<VaultEntry>> entries() => service.loadAllEntries(
+        databasePath: databasePath,
+        password: password,
+      );
+
+      test('with no record for the site, one save creates the record and '
+          'its passkey', () async {
+        await createPasskeyEntry();
+
+        final id = await service.createPasskeyForSite(
+          databasePath: databasePath,
+          password: password,
+          passkey: newPasskey(),
+        );
+
+        final created = (await entries()).singleWhere((e) => e.id == id);
+        expect(created.title, 'example.org');
+        expect(created.url, 'https://example.org');
+        expect(created.username, newPasskey().username);
+        expect(created.password, isEmpty);
+        expect(created.passkeys.single.relyingPartyId, 'example.org');
+        expect(created.passkeys.single.usable, isTrue);
+        expect(await entries(), hasLength(2));
+      });
+
+      test(
+        'the one record for the site and username takes the passkey',
+        () async {
+          final passkey = newPasskey();
+          final existing = await service.createEntry(
+            databasePath: databasePath,
+            password: password,
+            groupId: (await service.loadVault(
+              databasePath: databasePath,
+              password: password,
+            )).rootGroupId,
+            title: 'Example',
+            username: passkey.username,
+            entryPassword: 'pw',
+            url: 'https://login.example.org/start',
+            notes: '',
+          );
+
+          final id = await service.createPasskeyForSite(
+            databasePath: databasePath,
+            password: password,
+            passkey: passkey,
+          );
+
+          expect(id, existing);
+          final entry = (await entries()).single;
+          expect(entry.password, 'pw');
+          expect(entry.passkeys, hasLength(1));
+        },
+      );
+
+      test('a look-alike host is not the site', () async {
+        final passkey = newPasskey();
+        await service.createEntry(
+          databasePath: databasePath,
+          password: password,
+          groupId: (await service.loadVault(
+            databasePath: databasePath,
+            password: password,
+          )).rootGroupId,
+          title: 'Other',
+          username: passkey.username,
+          entryPassword: 'pw',
+          url: 'https://notexample.org',
+          notes: '',
+        );
+
+        await service.createPasskeyForSite(
+          databasePath: databasePath,
+          password: password,
+          passkey: passkey,
+        );
+
+        expect(await entries(), hasLength(2));
+      });
+
+      test('a clash anywhere in the vault throws and writes nothing', () async {
+        await createPasskeyEntry();
+        final before = await File(databasePath).readAsBytes();
+
+        await expectLater(
+          service.createPasskeyForSite(
+            databasePath: databasePath,
+            password: password,
+            passkey: newPasskey(
+              relyingPartyId: 'webauthn.io',
+              userHandle: const [4, 5, 6],
+            ),
+          ),
+          throwsA(isA<PasskeyAlreadyExists>()),
+        );
+        expect(await File(databasePath).readAsBytes(), before);
+      });
+
+      test(
+        'replaceExisting replaces the clashing passkey in its record',
+        () async {
+          final entryId = await createPasskeyEntry();
+
+          final id = await service.createPasskeyForSite(
+            databasePath: databasePath,
+            password: password,
+            passkey: newPasskey(
+              relyingPartyId: 'webauthn.io',
+              userHandle: const [4, 5, 6],
+              credentialId: const [9, 9, 9],
+            ),
+            replaceExisting: true,
+          );
+
+          expect(id, entryId);
+          final stored = (await entries()).single.passkeys;
+          expect(stored.single.credentialId, Uint8List.fromList([9, 9, 9]));
+        },
+      );
+
+      test('hasPasskeyFor answers for the site and the account', () async {
+        await createPasskeyEntry();
+
+        Future<bool> has(String rpId, List<int> handle) =>
+            service.hasPasskeyFor(
+              databasePath: databasePath,
+              password: password,
+              relyingPartyId: rpId,
+              userHandle: Uint8List.fromList(handle),
+            );
+
+        expect(await has('webauthn.io', const [4, 5, 6]), isTrue);
+        expect(await has('webauthn.io', const [1, 1, 1]), isFalse);
+        expect(await has('example.org', const [4, 5, 6]), isFalse);
+      });
+    });
+
     test('a passkey with no user handle writes no handle field', () async {
       final entryId = await createPlainEntry(url: '');
 
