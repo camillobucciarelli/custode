@@ -176,7 +176,7 @@ Ordinary requests use GitHub Issues. A roadmap spec is also a GitHub issue, labe
 
 ### Triage labels
 
-Ordinary issues use the seven default triage labels: `bug` and `enhancement` for category, `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix` for state. Generated `spec` issues are excluded. See `docs/agents/triage-labels.md`.
+Ordinary issues use the seven default triage labels: `bug` and `enhancement` for category, `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix` for state. Issues labelled `spec` are excluded. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
