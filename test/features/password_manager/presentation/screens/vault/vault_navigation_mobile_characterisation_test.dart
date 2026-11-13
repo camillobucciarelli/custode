@@ -156,9 +156,10 @@ void main() {
       // Edit is its own header button; the rest live in the overflow.
       expect(find.byTooltip('Edit'), findsOneWidget);
       // FR-011 as amended by spec 020: attachments are a permanent body
-      // section with a Manage action, not an overflow item.
+      // section, not an overflow item. Amended 2026-11-13: the section lists
+      // the files; the `Manage` dialog is retired.
       expect(find.text('Attachments'), findsOneWidget);
-      expect(find.text('Manage'), findsOneWidget);
+      expect(find.text('No attachments'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Record actions'));
       await tester.pumpAndSettle();

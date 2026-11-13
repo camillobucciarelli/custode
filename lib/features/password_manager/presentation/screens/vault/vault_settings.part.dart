@@ -703,7 +703,7 @@ const _kApplicationName = 'KeyVault';
 /// `.github/workflows/release.yml` only bumps the build number after the `+`,
 /// so this string changes only on a deliberate release bump. Kept literal so
 /// no runtime dependency (e.g. `package_info_plus`) has to be added.
-const _kApplicationVersion = '0.6.0';
+const _kApplicationVersion = '0.6.1';
 
 const _kApplicationLegalese =
     'Copyright (C) 2026 Camillo Bucciarelli - AGPL-3.0';

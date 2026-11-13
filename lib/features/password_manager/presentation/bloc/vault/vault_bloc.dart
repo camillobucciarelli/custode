@@ -105,8 +105,6 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
     on<EmptyRecycleBin>(_onEmptyRecycleBin);
     on<ReportVaultActionAbandoned>(_onReportVaultActionAbandoned);
     on<ClearVaultError>(_onClearVaultError);
-    on<AddVaultAttachment>(_onAddVaultAttachment);
-    on<RemoveVaultAttachment>(_onRemoveVaultAttachment);
     on<ExportVaultAttachment>(_onExportVaultAttachment);
     on<ImportVaultEntriesFromCsv>(_onImportVaultEntriesFromCsv);
     on<ClearVaultInfo>(_onClearVaultInfo);
@@ -639,12 +637,44 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
         notes: event.notes,
         customFields: event.customFields,
       );
+      // The editor stages attachment changes and they land with the save.
+      // The fields are already written at this point, so a failure here must
+      // not be reported as "nothing was saved": reload what the file now
+      // holds and say which part did not go through.
+      String? attachmentError;
+      try {
+        for (final attachmentKey in event.removedAttachmentKeys) {
+          await vaultKdbxService.removeAttachment(
+            databasePath: state.databasePath,
+            password: _password,
+            keyFilePath: _keyFilePath,
+            entryId: event.entryId,
+            attachmentKey: attachmentKey,
+          );
+        }
+        for (final attachmentPath in event.attachmentPaths) {
+          await vaultKdbxService.addAttachment(
+            databasePath: state.databasePath,
+            password: _password,
+            keyFilePath: _keyFilePath,
+            entryId: event.entryId,
+            filePath: attachmentPath,
+          );
+        }
+      } catch (e, st) {
+        logError('Failed updating vault entry attachments.', e, st);
+        attachmentError =
+            'Record saved, but its attachments could not be updated. $e';
+      }
       await _reload(
         emit,
         currentGroupId: state.currentGroupId,
         keepLoadingFlag: false,
       );
       await _loadRecycleBinEntries(emit, isInitialLoad: true);
+      if (attachmentError != null) {
+        _safeEmit(emit, state.copyWith(errorMessage: attachmentError));
+      }
       _scheduleAutoSync();
     } catch (e, st) {
       logError('Failed updating vault entry.', e, st);
@@ -1435,76 +1465,6 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
 
   void _onClearVaultError(ClearVaultError event, Emitter<VaultState> emit) {
     _safeEmit(emit, state.copyWith(clearError: true));
-  }
-
-  Future<void> _onAddVaultAttachment(
-    AddVaultAttachment event,
-    Emitter<VaultState> emit,
-  ) async {
-    _safeEmit(
-      emit,
-      state.copyWith(isSaving: true, clearError: true, clearInfo: true),
-    );
-    try {
-      await vaultKdbxService.addAttachment(
-        databasePath: state.databasePath,
-        password: _password,
-        keyFilePath: _keyFilePath,
-        entryId: event.entryId,
-        filePath: event.filePath,
-      );
-      await _reload(
-        emit,
-        currentGroupId: state.currentGroupId,
-        keepLoadingFlag: false,
-      );
-      _safeEmit(emit, state.copyWith(infoMessage: 'Attachment added.'));
-      _scheduleAutoSync();
-    } catch (e, st) {
-      logError('Failed adding attachment.', e, st);
-      _safeEmit(
-        emit,
-        state.copyWith(
-          isSaving: false,
-          errorMessage: 'Unable to add attachment. $e',
-        ),
-      );
-    }
-  }
-
-  Future<void> _onRemoveVaultAttachment(
-    RemoveVaultAttachment event,
-    Emitter<VaultState> emit,
-  ) async {
-    _safeEmit(
-      emit,
-      state.copyWith(isSaving: true, clearError: true, clearInfo: true),
-    );
-    try {
-      await vaultKdbxService.removeAttachment(
-        databasePath: state.databasePath,
-        password: _password,
-        keyFilePath: _keyFilePath,
-        entryId: event.entryId,
-        attachmentKey: event.attachmentKey,
-      );
-      await _reload(
-        emit,
-        currentGroupId: state.currentGroupId,
-        keepLoadingFlag: false,
-      );
-      _safeEmit(emit, state.copyWith(infoMessage: 'Attachment removed.'));
-      _scheduleAutoSync();
-    } catch (e, st) {
-      logError('Failed removing attachment.', e, st);
-      _safeEmit(
-        emit,
-        state.copyWith(
-          isSaving: false,
-          errorMessage: 'Unable to remove attachment.',
-        ),
-      );
-    }
   }
 
   Future<void> _onExportVaultAttachment(

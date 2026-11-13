@@ -26,6 +26,7 @@ final class EntryEditResult extends VaultRouteResult {
     required this.otpUri,
     required this.customFields,
     required this.attachmentPaths,
+    this.removedAttachmentKeys = const [],
   });
 
   final String title;
@@ -35,7 +36,13 @@ final class EntryEditResult extends VaultRouteResult {
   final String notes;
   final String otpUri;
   final List<VaultCustomField> customFields;
+
+  /// Files picked in the editor, to attach when the record is saved.
   final List<String> attachmentPaths;
+
+  /// Keys of attachments the record already held that the user removed in
+  /// the editor. Always empty for a new record.
+  final List<String> removedAttachmentKeys;
 
   @override
   List<Object?> get props => [
@@ -47,13 +54,15 @@ final class EntryEditResult extends VaultRouteResult {
     const _RedactedRouteValue(),
     customFields,
     attachmentPaths,
+    removedAttachmentKeys,
   ];
 
   @override
   String toString() =>
       'EntryEditResult(title: $title, username: $username, password: <redacted>, '
       'url: $url, notes: <redacted>, otpUri: <redacted>, '
-      'customFields: $customFields, attachmentPaths: $attachmentPaths)';
+      'customFields: $customFields, attachmentPaths: $attachmentPaths, '
+      'removedAttachmentKeys: $removedAttachmentKeys)';
 }
 
 final class GeneratedPasswordResult extends VaultRouteResult {
@@ -270,11 +279,6 @@ final class MoveTargetSurface<R extends VaultRouteResult>
   const MoveTargetSurface({required super.builder});
 }
 
-final class AttachmentsSurface<R extends VaultRouteResult>
-    extends VaultSurface<R> {
-  const AttachmentsSurface({required super.builder});
-}
-
 final class RecycleBinSurface<R extends VaultRouteResult>
     extends VaultSurface<R> {
   const RecycleBinSurface({required super.builder});
@@ -381,7 +385,6 @@ VaultSurfacePresentation presentationFor<R extends VaultRouteResult>(
   return switch (surface) {
     EntrySurface() ||
     OtpScannerSurface() ||
-    AttachmentsSurface() ||
     HealthCategorySurface() ||
     SyncLinkSurface() ||
     DatabaseSettingsSurface() =>

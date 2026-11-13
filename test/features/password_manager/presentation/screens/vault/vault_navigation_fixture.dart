@@ -172,6 +172,49 @@ class NavigationFixtureVaultKdbxService implements VaultKdbxService {
       url: url,
       notes: notes,
       customFields: customFields,
+      // An update of the fields leaves the record's files alone.
+      attachments: base.attachments,
+    );
+  }
+
+  @override
+  Future<void> addAttachment({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String entryId,
+    required String filePath,
+  }) async {
+    calls.add(RecordedVaultCall('addAttachment', entryId, {'path': filePath}));
+  }
+
+  /// The next `loadVault` omits the attachment, so the detail the user lands
+  /// on after a save shows what the file now holds.
+  @override
+  Future<void> removeAttachment({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String entryId,
+    required String attachmentKey,
+  }) async {
+    calls.add(
+      RecordedVaultCall('removeAttachment', entryId, {'key': attachmentKey}),
+    );
+    final base = entries.firstWhere((entry) => entry.id == entryId);
+    _updated[entryId] = VaultEntry(
+      id: base.id,
+      groupId: base.groupId,
+      title: base.title,
+      username: base.username,
+      password: base.password,
+      url: base.url,
+      notes: base.notes,
+      customFields: base.customFields,
+      attachments: [
+        for (final attachment in base.attachments)
+          if (attachment.key != attachmentKey) attachment,
+      ],
     );
   }
 

@@ -62,7 +62,7 @@ handed in is the window width; no caller substitutes its own
 
 | Surface | narrow* | wide* |
 |---|---|---|
-| `EntrySurface`, `OtpScannerSurface`, `AttachmentsSurface`, `HealthCategorySurface`, `SyncLinkSurface`, `DatabaseSettingsSurface` | route | pane |
+| `EntrySurface`, `OtpScannerSurface`, `HealthCategorySurface`, `SyncLinkSurface`, `DatabaseSettingsSurface` | route | pane — amended 2026-11-13 (user-directed): `AttachmentsSurface` left this row and the codebase; the record detail lists attachments and the editor adds and removes them, so no separate surface opens |
 | `RecycleBinSurface`, `DuplicatesSurface`, `MergePreviewSurface` | route | route — amended 2026-08-31 (user-directed): full-screen pushed routes at every width; the earlier dialog-plus-sheet stack on wide layouts was hard to read |
 | `GroupEditSurface`, `MoveTargetSurface` | sheet | dialog (bare) — amended 2026-08-30: pane-hosting rendered them behind the spec-019 Manage dialog and replaced the record detail with a floating card |
 | `SyncConflictSurface` | sheet | pane |

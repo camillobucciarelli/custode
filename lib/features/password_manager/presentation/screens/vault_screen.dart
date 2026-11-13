@@ -62,6 +62,7 @@ import '../../domain/services/password_generator_service.dart';
 import '../../domain/models/sync_conflict.dart';
 import '../../domain/usecases/load_sync_merge_field_display_usecase.dart';
 import '../widgets/sync/sync_merge_screen.dart';
+import '../../domain/models/vault_attachment.dart';
 import '../../domain/models/vault_custom_field.dart';
 import '../../domain/models/vault_entry.dart';
 import '../../domain/models/vault_entry_revision.dart';
