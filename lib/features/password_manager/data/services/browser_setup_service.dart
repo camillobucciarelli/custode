@@ -59,7 +59,7 @@ class BrowserSetupService {
   static const chromeStoreListingUrl =
       'https://chromewebstore.google.com/detail/$chromeExtensionId';
   static const macOSChromeSupportPackageUrl =
-      'https://github.com/camillobucciarelli/key-vault-password-manager/'
+      'https://github.com/camillobucciarelli/custode/'
       'releases/latest/download/keyvault-chrome-support-macos.pkg';
 
   /// Where a build that does not bundle the native host (the Microsoft Store
@@ -67,7 +67,7 @@ class BrowserSetupService {
   /// file writes from Chrome/Edge) sends the user to get the sideload zip,
   /// which does bundle it.
   static const sideloadReleasesUrl =
-      'https://github.com/camillobucciarelli/key-vault-password-manager/'
+      'https://github.com/camillobucciarelli/custode/'
       'releases/latest';
 
   final DesktopBrowserAutofillCacheStore _cacheStore;

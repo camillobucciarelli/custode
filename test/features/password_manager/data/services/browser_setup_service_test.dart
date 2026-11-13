@@ -23,7 +23,7 @@ void main() {
       );
       expect(
         BrowserSetupService.macOSChromeSupportPackageUrl,
-        'https://github.com/camillobucciarelli/key-vault-password-manager/'
+        'https://github.com/camillobucciarelli/custode/'
         'releases/latest/download/keyvault-chrome-support-macos.pkg',
       );
     });

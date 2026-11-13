@@ -703,7 +703,7 @@ const _kApplicationName = 'Custode';
 /// `.github/workflows/release.yml` only bumps the build number after the `+`,
 /// so this string changes only on a deliberate release bump. Kept literal so
 /// no runtime dependency (e.g. `package_info_plus`) has to be added.
-const _kApplicationVersion = '0.6.1';
+const _kApplicationVersion = '0.7.0';
 
 const _kApplicationLegalese =
     'Copyright (C) 2026 Camillo Bucciarelli - AGPL-3.0';
@@ -712,7 +712,7 @@ const _kPrivacyPolicyUrl =
     'https://github.com/camillobucciarelli/key-vault-password-manager/blob/main/PRIVACY.md';
 
 const _kAppLicenceUrl =
-    'https://github.com/camillobucciarelli/key-vault-password-manager/blob/main/LICENSE';
+    'https://github.com/camillobucciarelli/custode/blob/main/LICENSE';
 
 /// `Lock vault`, verbatim from the retired overflow sheet: drop the session
 /// and land on the unlock screen for the same file.

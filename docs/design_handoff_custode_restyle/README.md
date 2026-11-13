@@ -3,7 +3,7 @@
 ## Overview
 
 A full restyle of **Custode** — the cross-platform Flutter password manager in
-`camillobucciarelli/key-vault-password-manager` — aimed at a simpler UX and a
+`camillobucciarelli/custode` — aimed at a simpler UX and a
 cleaner UI. The package covers all twelve functional journeys of the app, in
 mobile (390×844) and tablet/desktop (1024×768) layouts, in light and dark, plus
 the Chrome extension popup and a new app-icon family.
