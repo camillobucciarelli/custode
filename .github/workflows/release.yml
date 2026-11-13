@@ -549,3 +549,101 @@ jobs:
           name: ${{ needs.version.outputs.tag }}
           prerelease: ${{ inputs.channel == 'beta' }}
           files: dist/prod_packages/*/password_manager-windows-release.zip
+
+  # The download site, https://custode.camillobucciarelli.dev: an R2 bucket
+  # behind a custom domain. This job copies the sideloadable builds from the
+  # GitHub release into the bucket (a versioned key plus a "latest" key each)
+  # and publishes docs/download/index.html as the bucket's index.html.
+  #
+  # iOS and macOS are not here: those builds are App Store packages, which
+  # install only through TestFlight or the App Store. That also keeps this
+  # job independent of the self-hosted runner.
+  #
+  # Only a `release` dispatched from the default branch moves "latest" and
+  # the page: a beta is not what the page should offer, and a maintenance
+  # line (release/X.Y.x) must not move "latest" back to an older version.
+  #
+  # The root `/` is served by a Cloudflare Transform Rule (Rewrite URL: path
+  # exactly `/` -> static `/index.html`) set by hand in the dashboard: R2's
+  # custom domain serves no directory index, so without it only /index.html
+  # works.
+  download:
+    needs: [ version, android, linux, windows ]
+    if: inputs.channel == 'release'
+    runs-on: ubuntu-latest
+    env:
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+
+      # Until the bucket and its four secrets exist, the site is simply not
+      # published: the builds above are already released on GitHub, so a
+      # missing site must not turn the release red.
+      - name: Check the R2 secrets
+        id: r2
+        run: |
+          for name in R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ACCOUNT_ID R2_BUCKET; do
+            if [[ -z "${!name}" ]]; then
+              echo "::warning::Secret $name is not set: the download site was not published."
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Check the download page
+        if: steps.r2.outputs.ready == 'true'
+        run: |
+          command -v xmllint > /dev/null || { sudo apt-get update -q && sudo apt-get install -y libxml2-utils; }
+          tool/release/download_check.sh
+
+      - name: Download the builds from the GitHub release
+        if: steps.r2.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          gh release download "$TAG" --dir build/site \
+            --pattern password_manager-android-release.apk \
+            --pattern password_manager-windows-release.zip \
+            --pattern password_manager-linux-release.zip
+
+      - name: Upload the builds and the page to R2
+        if: steps.r2.outputs.ready == 'true'
+        env:
+          # X.Y.Z.N: the "+" of X.Y.Z+N needs escaping in a URL.
+          VERSION: ${{ needs.version.outputs.version_name }}.${{ needs.version.outputs.build_number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          forever='public, max-age=31536000, immutable'
+          short='public, max-age=300'
+          latest=false
+          [[ "$GITHUB_REF_NAME" == "$DEFAULT_BRANCH" ]] && latest=true
+
+          # put <file> <content type> <versioned key> <latest key>
+          put() {
+            tool/release/r2_upload.sh "build/site/$1" "$3" "$2" "$forever"
+            if [[ "$latest" == true ]]; then
+              tool/release/r2_upload.sh "build/site/$1" "$4" "$2" "$short"
+            fi
+          }
+          put password_manager-android-release.apk application/vnd.android.package-archive \
+            "android/$VERSION/Custode-$VERSION.apk" android/latest/Custode.apk
+          put password_manager-windows-release.zip application/zip \
+            "windows/$VERSION/Custode-$VERSION-windows.zip" windows/latest/Custode-windows.zip
+          put password_manager-linux-release.zip application/zip \
+            "linux/$VERSION/Custode-$VERSION-linux.zip" linux/latest/Custode-linux.zip
+
+          if [[ "$latest" != true ]]; then
+            echo "Dispatched from $GITHUB_REF_NAME, not $DEFAULT_BRANCH: \"latest\" and the page are left as they are."
+            exit 0
+          fi
+          # The page goes last, so its links never point at a file that is not there yet.
+          sed "s/__VERSION__/$VERSION/g" docs/download/index.html > build/site/index.html
+          tool/release/r2_upload.sh build/site/index.html index.html 'text/html; charset=utf-8' "$short"
+          echo "- Download site: https://custode.camillobucciarelli.dev/ ($VERSION)" >> "$GITHUB_STEP_SUMMARY"
