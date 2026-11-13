@@ -89,6 +89,7 @@ internal object PasskeyAssertionBuilder {
         challenge: String,
         origin: String,
         androidPackageName: String?,
+        browserClientDataHash: ByteArray? = null,
     ): Assertion {
         val authData = authenticatorData(
             rpId = passkey.rpId,
@@ -96,7 +97,12 @@ internal object PasskeyAssertionBuilder {
             backupState = passkey.backupState,
         )
         val clientData = clientDataJson(challenge, origin, androidPackageName)
-        val clientDataHash = MessageDigest.getInstance("SHA-256").digest(clientData)
+        // A privileged browser builds its own clientDataJSON and hands over
+        // its hash (GetPublicKeyCredentialOption.clientDataHash). The
+        // signature must cover that hash: the browser discards the
+        // clientDataJSON returned here and sends its own to the site.
+        val clientDataHash = browserClientDataHash
+            ?: MessageDigest.getInstance("SHA-256").digest(clientData)
         val message = authData + clientDataHash
 
         val der = derFromPem(passkey.privateKeyPem) ?: throw BadKey()

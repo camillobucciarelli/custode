@@ -8,17 +8,19 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.credentials.provider.BeginCreateCredentialRequest
 import androidx.credentials.provider.BeginCreateCredentialResponse
+import androidx.credentials.provider.BeginCreatePublicKeyCredentialRequest
 import androidx.credentials.provider.BeginGetCredentialOption
 import androidx.credentials.provider.BeginGetCredentialRequest
 import androidx.credentials.provider.BeginGetCredentialResponse
 import androidx.credentials.provider.BeginGetPublicKeyCredentialOption
+import androidx.credentials.provider.CreateEntry
 import androidx.credentials.provider.CredentialProviderService
 import androidx.credentials.provider.ProviderClearCredentialStateRequest
 import androidx.credentials.provider.PublicKeyCredentialEntry
 import androidx.credentials.exceptions.ClearCredentialException
 import androidx.credentials.exceptions.CreateCredentialException
-import androidx.credentials.exceptions.CreateCredentialUnknownException
 import androidx.credentials.exceptions.GetCredentialException
+import dev.camillobucciarelli.kdbxKeyVault.R
 import org.json.JSONObject
 
 /**
@@ -31,7 +33,8 @@ import org.json.JSONObject
  * The service answers from the **plaintext metadata** alone: rp ids and
  * credential ids, no unsealing, no key. Nothing here can sign — that happens
  * in [PasskeyAuthActivity], behind a biometric prompt, after the user has
- * chosen an entry from the system sheet.
+ * chosen an entry from the system sheet. Nothing here can create a passkey
+ * either: that is [PasskeyCreateActivity] asking the running app (T805).
  *
  * Passwords are untouched by this class. The autofill service of spec 016
  * keeps serving them; adding them here as well would put the same credential
@@ -109,18 +112,39 @@ class KeyVaultCredentialProviderService : CredentialProviderService() {
     }
 
     /**
-     * Creating a passkey through Credential Manager is US3, which this spec
-     * does not build. Answering with an explicit failure rather than leaving
-     * the callback hanging is what keeps the system's create sheet responsive.
+     * spec 023 T805 — offers Custode as a place to create a passkey.
+     *
+     * One entry, for a public key request whose site accepts ES256 (the only
+     * algorithm Custode creates). Nothing is checked against the vault here:
+     * whether it is open is [PasskeyCreateActivity]'s question, asked after
+     * the user chose the entry. Any other request gets an empty response,
+     * which is "no Custode row" to the platform, not a failure of the site.
      */
     override fun onBeginCreateCredentialRequest(
         request: BeginCreateCredentialRequest,
         cancellationSignal: CancellationSignal,
         callback: android.os.OutcomeReceiver<BeginCreateCredentialResponse, CreateCredentialException>,
     ) {
+        val entries = try {
+            buildCreateEntries(request)
+        } catch (error: Exception) {
+            Log.w(TAG, "begin create failed: ${error.javaClass.simpleName}")
+            emptyList()
+        }
         if (cancellationSignal.isCanceled) return
-        callback.onError(
-            CreateCredentialUnknownException("Custode cannot create passkeys yet"),
+        callback.onResult(BeginCreateCredentialResponse(createEntries = entries))
+    }
+
+    private fun buildCreateEntries(request: BeginCreateCredentialRequest): List<CreateEntry> {
+        if (request !is BeginCreatePublicKeyCredentialRequest) return emptyList()
+        if (!PasskeyCreationRequest.supportsEs256(request.requestJson)) return emptyList()
+        return listOf(
+            // The builder, not the constructor: the library has two
+            // constructors that differ only in a trailing defaulted parameter.
+            CreateEntry.Builder(
+                getString(R.string.passkey_create_entry_account),
+                PasskeyCreateActivity.pendingIntent(applicationContext),
+            ).build(),
         )
     }
 

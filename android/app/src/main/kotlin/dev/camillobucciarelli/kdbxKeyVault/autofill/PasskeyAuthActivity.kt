@@ -96,11 +96,15 @@ class PasskeyAuthActivity : FragmentActivity() {
         }
 
         val assertion = try {
+            // Origin and package name are worked out by the same code the
+            // registration path uses (PasskeyCallerIdentity).
+            val caller = PasskeyCallerIdentity.resolve(this, request.callingAppInfo, rpId)
             PasskeyAssertionBuilder.assert(
                 passkey = passkey,
                 challenge = challenge,
-                origin = effectiveOrigin(request, rpId),
-                androidPackageName = androidPackageName(request),
+                origin = caller.origin,
+                androidPackageName = caller.androidPackageName,
+                browserClientDataHash = option.clientDataHash,
             )
         } catch (error: Exception) {
             Log.w(TAG, "assertion failed: ${error.javaClass.simpleName}")
@@ -119,67 +123,6 @@ class PasskeyAuthActivity : FragmentActivity() {
         )
         setResult(RESULT_OK, response)
         finish()
-    }
-
-    /**
-     * What goes into `clientDataJSON.origin`.
-     *
-     * A browser passes its page origin through `callingAppInfo`, and the
-     * relying party checks exactly that string. A native app has no web
-     * origin, so WebAuthn's Android binding uses the caller's signing
-     * certificate hash instead; when even that is unavailable the rp id's own
-     * https origin is the honest remaining answer.
-     */
-    private fun effectiveOrigin(request: ProviderGetCredentialRequest, rpId: String): String {
-        browserOrigin(request)?.let { return it }
-
-        val fingerprint = signingCertificateSha256(request)
-        return if (fingerprint != null) "android:apk-key-hash:$fingerprint" else "https://$rpId"
-    }
-
-    private fun androidPackageName(request: ProviderGetCredentialRequest): String? {
-        // Set only for a native caller: a web sign-in must not carry it, or
-        // the relying party sees client data it did not expect.
-        return if (browserOrigin(request) == null) request.callingAppInfo.packageName else null
-    }
-
-    /**
-     * The web origin a privileged browser vouched for, or null.
-     *
-     * Any app can put an origin in its request, so it is trusted only when
-     * the caller's package and signing certificate are on the privileged
-     * allowlist (`res/raw/passkey_privileged_apps.json`, refreshed by
-     * `tool/update_passkey_privileged_apps.sh`). Anyone else is treated as
-     * the native app it is: an unlisted app claiming `https://bank.example`
-     * must not get a signature that bank would accept.
-     */
-    private fun browserOrigin(request: ProviderGetCredentialRequest): String? {
-        val callingAppInfo = request.callingAppInfo
-        if (!callingAppInfo.isOriginPopulated()) return null
-        val origin = try {
-            callingAppInfo.getOrigin(privilegedAllowlist())
-        } catch (error: Exception) {
-            // Thrown for a caller that is not on the list, or a list that
-            // does not parse; both mean "no trusted origin".
-            Log.i(TAG, "origin not trusted: ${error.javaClass.simpleName}")
-            null
-        }
-        return origin?.takeIf { it.isNotEmpty() }
-    }
-
-    private fun privilegedAllowlist(): String =
-        resources.openRawResource(R.raw.passkey_privileged_apps)
-            .bufferedReader()
-            .use { it.readText() }
-
-    private fun signingCertificateSha256(request: ProviderGetCredentialRequest): String? {
-        val certificate = request.callingAppInfo.signingInfo
-            .apkContentsSigners
-            .firstOrNull()
-            ?.toByteArray()
-            ?: return null
-        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(certificate)
-        return PasskeyAssertionBuilder.base64Url(digest)
     }
 
     private fun finishWith(error: androidx.credentials.exceptions.GetCredentialException) {

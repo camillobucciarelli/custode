@@ -51,6 +51,19 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:theme="@style/AutofillAuthTheme" />
+        <!-- spec 023 T805: confirms and creates one passkey for a site that
+             asked Credential Manager. Launched only through the PendingIntent
+             of the create entry, so it is never exported. Same transparent
+             theme as PasskeyAuthActivity; its layout draws its own panel.
+             `configChanges` keeps one instance across a rotation: a recreated
+             activity would lose the answer of a vault write already under
+             way. -->
+        <activity
+            android:name=".autofill.PasskeyCreateActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:theme="@style/AutofillAuthTheme" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

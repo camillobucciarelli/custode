@@ -2,6 +2,7 @@ package dev.camillobucciarelli.kdbxKeyVault.autofill
 
 import android.app.KeyguardManager
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -19,7 +20,11 @@ import dev.camillobucciarelli.kdbxKeyVault.R
  * `BIOMETRIC_STRONG or DEVICE_CREDENTIAL`, so a user whose fingerprint fails
  * can still sign in with the device credential rather than being locked out.
  */
-internal class PasskeyUserPresence(private val activity: FragmentActivity) {
+internal class PasskeyUserPresence(
+    private val activity: FragmentActivity,
+    /** What the prompt says is about to happen: signing in, or creating a passkey. */
+    @StringRes private val subtitle: Int = R.string.passkey_auth_prompt_subtitle,
+) {
 
     fun require(onResult: (Boolean) -> Unit) {
         if (!hasAuthenticator()) {
@@ -50,7 +55,7 @@ internal class PasskeyUserPresence(private val activity: FragmentActivity) {
     private fun promptInfo(): BiometricPrompt.PromptInfo {
         val builder = BiometricPrompt.PromptInfo.Builder()
             .setTitle(activity.getString(R.string.passkey_auth_prompt_title))
-            .setSubtitle(activity.getString(R.string.passkey_auth_prompt_subtitle))
+            .setSubtitle(activity.getString(subtitle))
             .setConfirmationRequired(false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             builder.setAllowedAuthenticators(

@@ -16,6 +16,26 @@
     <!-- spec 023 FR-015: shown before every passkey signature. -->
     <string name="passkey_auth_prompt_title">Confirm it\'s you</string>
     <string name="passkey_auth_prompt_subtitle">Custode is about to sign in with one of your saved passkeys.</string>
+    <!-- spec 023 T805: creating a passkey from Credential Manager. -->
+    <string name="passkey_create_entry_account">Custode</string>
+    <string name="passkey_create_title">Create a passkey</string>
+    <string name="passkey_create_checking">Checking that Custode is ready…</string>
+    <string name="passkey_create_blocked_message">Custode must be open and unlocked to create a passkey</string>
+    <string name="passkey_create_open_custode">Open Custode</string>
+    <string name="passkey_create_excluded_message">Custode already holds a passkey for this account on this site.</string>
+    <string name="passkey_create_close">Close</string>
+    <string name="passkey_create_ready_message">Custode will save a new passkey in your open vault.</string>
+    <string name="passkey_create_saving">Saving the passkey…</string>
+    <string name="passkey_create_site_label">Site</string>
+    <string name="passkey_create_account_label">Account</string>
+    <string name="passkey_create_replace_warning">This replaces the passkey Custode already holds for this account</string>
+    <string name="passkey_create_confirm">Create</string>
+    <string name="passkey_create_cancel">Cancel</string>
+    <string name="passkey_create_prompt_subtitle">Custode is about to create a passkey for this site.</string>
+    <string name="passkey_create_auth_cancelled">Passkey not created. Authentication was not completed.</string>
+    <string name="passkey_create_already_exists">Passkey not created. Custode already holds one for this account.</string>
+    <string name="passkey_create_locked">Passkey not created. Custode was locked or closed.</string>
+    <string name="passkey_create_failed">Passkey not created. Custode could not save it.</string>
     <string name="autofill_auth_required_error">Set a screen lock, PIN or biometric on this device to fill saved passwords.</string>
     <string name="autofill_auth_cancelled">Not filled. Authentication was not completed.</string>
     <!-- spec-016 T702: picker accessibility labels and the two row strings that

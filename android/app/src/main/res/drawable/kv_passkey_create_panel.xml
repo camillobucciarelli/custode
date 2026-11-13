@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- spec 023 T805: the panel of PasskeyCreateActivity, anchored to the bottom
+     of a transparent window. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/kv_picker_ground" />
+    <corners
+        android:topLeftRadius="@dimen/kv_picker_radius"
+        android:topRightRadius="@dimen/kv_picker_radius" />
+</shape>

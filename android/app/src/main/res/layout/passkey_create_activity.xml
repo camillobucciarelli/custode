@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- spec 023 T805: PasskeyCreateActivity. The window is transparent
+     (AutofillAuthTheme), so the frame draws the scrim and the panel sits at
+     the bottom, over the app or page that asked for the passkey. Colours and
+     metrics are the picker's mirrored tokens; the theme itself has no night
+     variant, so nothing here relies on a theme colour. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#99000000"
+    android:fitsSystemWindows="true">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom"
+    android:orientation="vertical"
+    android:background="@drawable/kv_passkey_create_panel"
+    android:padding="@dimen/kv_picker_screen_padding">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/passkey_create_title"
+        android:textSize="@dimen/kv_picker_title_text"
+        android:textColor="@color/kv_picker_text_primary"
+        android:fontFamily="@font/caprasimo_regular"
+        android:letterSpacing="-0.015"
+        android:accessibilityHeading="true"
+        android:textAlignment="viewStart" />
+
+    <TextView
+        android:id="@+id/passkey_create_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/kv_picker_gap_small"
+        android:textSize="@dimen/kv_picker_body_text"
+        android:textColor="@color/kv_picker_text_secondary"
+        android:fontFamily="@font/figtree_regular"
+        android:lineSpacingMultiplier="1.45"
+        android:accessibilityLiveRegion="polite"
+        android:textAlignment="viewStart" />
+
+    <LinearLayout
+        android:id="@+id/passkey_create_details"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/kv_picker_gap"
+        android:orientation="vertical"
+        android:background="@drawable/kv_picker_search_background"
+        android:paddingStart="@dimen/kv_picker_row_padding_horizontal"
+        android:paddingEnd="@dimen/kv_picker_row_padding_horizontal"
+        android:paddingTop="@dimen/kv_picker_row_padding_vertical"
+        android:paddingBottom="@dimen/kv_picker_row_padding_vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/passkey_create_site_label"
+            android:labelFor="@+id/passkey_create_site"
+            android:textSize="@dimen/kv_picker_row_subtitle_text"
+            android:textColor="@color/kv_picker_text_secondary"
+            android:fontFamily="@font/figtree_regular"
+            android:textAlignment="viewStart" />
+
+        <TextView
+            android:id="@id/passkey_create_site"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/kv_picker_row_title_text"
+            android:textColor="@color/kv_picker_text_primary"
+            android:fontFamily="@font/figtree_semibold"
+            android:textAlignment="viewStart" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/kv_picker_gap_small"
+            android:text="@string/passkey_create_account_label"
+            android:labelFor="@+id/passkey_create_account"
+            android:textSize="@dimen/kv_picker_row_subtitle_text"
+            android:textColor="@color/kv_picker_text_secondary"
+            android:fontFamily="@font/figtree_regular"
+            android:textAlignment="viewStart" />
+
+        <TextView
+            android:id="@id/passkey_create_account"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/kv_picker_row_title_text"
+            android:textColor="@color/kv_picker_text_primary"
+            android:fontFamily="@font/figtree_semibold"
+            android:textAlignment="viewStart" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/passkey_create_warning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/kv_picker_gap"
+        android:text="@string/passkey_create_replace_warning"
+        android:textSize="@dimen/kv_picker_body_text"
+        android:textColor="@color/kv_picker_text_primary"
+        android:fontFamily="@font/figtree_semibold"
+        android:lineSpacingMultiplier="1.45"
+        android:textAlignment="viewStart"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/kv_picker_gap"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/passkey_create_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/kv_picker_touch_target"
+            android:minWidth="@dimen/kv_picker_touch_target"
+            android:paddingStart="@dimen/kv_picker_row_padding_horizontal"
+            android:paddingEnd="@dimen/kv_picker_row_padding_horizontal"
+            android:background="?android:attr/selectableItemBackground"
+            android:stateListAnimator="@null"
+            android:text="@string/passkey_create_cancel"
+            android:textAllCaps="false"
+            android:textSize="@dimen/kv_picker_row_title_text"
+            android:textColor="@color/kv_picker_focus"
+            android:fontFamily="@font/figtree_semibold" />
+
+        <Button
+            android:id="@+id/passkey_create_primary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/kv_picker_gap_small"
+            android:minHeight="@dimen/kv_picker_touch_target"
+            android:minWidth="@dimen/kv_picker_touch_target"
+            android:paddingStart="@dimen/kv_picker_gap"
+            android:paddingEnd="@dimen/kv_picker_gap"
+            android:background="@drawable/kv_passkey_create_primary_button"
+            android:stateListAnimator="@null"
+            android:text="@string/passkey_create_confirm"
+            android:textAllCaps="false"
+            android:textSize="@dimen/kv_picker_row_title_text"
+            android:textColor="@color/kv_picker_ground"
+            android:fontFamily="@font/figtree_semibold" />
+    </LinearLayout>
+</LinearLayout>
+</FrameLayout>

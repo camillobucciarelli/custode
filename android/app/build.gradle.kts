@@ -99,6 +99,10 @@ dependencies {
     // (FR-013).
     implementation("androidx.credentials:credentials:1.6.0")
     testImplementation("junit:junit:4.13.2")
+    // The JVM unit tests run against the SDK's stub android.jar, where
+    // org.json throws "not mocked". The real library stands in for it so the
+    // request parsing of spec 023 T805 is testable off-device.
+    testImplementation("org.json:json:20240303")
 }
 
 play {
