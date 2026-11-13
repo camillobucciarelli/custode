@@ -255,8 +255,10 @@ struct PasskeyRegistrationUnavailableView: View {
     open. This AutoFill extension cannot write it, so it will not tell \(site) \
     that a passkey exists when it does not.
 
-    To add a passkey\(account), open Custode on a computer, unlock the vault, \
-    and register on \(site) from a browser with the Custode extension.
+    To add a passkey\(account), register on \(site) where Custode can write \
+    the vault: on Windows or Linux from a browser with the Custode extension, \
+    on a Mac from Safari, or on Android 14 or later. Custode must be open and \
+    unlocked there.
     """
   }
 }
