@@ -11,7 +11,7 @@ front.
 
 ## Technical Context
 
-Dark values live in `lib/core/theme/keyvault_colors.dart` (`KeyVaultColors.dark`)
+Dark values live in `lib/core/theme/custode_colors.dart` (`CustodeColors.dark`)
 and `app_colors.dart`; `ThemeCubit` switches Light / Dark / System. Contrast
 and role tables are already pinned by `test/core/theme/app_theme_test.dart`.
 Dark goldens exist for 20 screens (`test/goldens/*_dark.png`), none at
@@ -21,7 +21,7 @@ Dark goldens exist for 20 screens (`test/goldens/*_dark.png`), none at
 
 | Principle | Status |
 |---|---|
-| III tokens | any fix reads tokens only; a wrong dark value is fixed in `KeyVaultColors.dark`, not at the call site |
+| III tokens | any fix reads tokens only; a wrong dark value is fixed in `CustodeColors.dark`, not at the call site |
 | IV pixel fidelity | each fix names the dark golden it re-records; missing 1024 dark goldens are listed, not silently skipped |
 | V a11y | any changed dark pair re-runs the contrast test |
 | VI copy | none |

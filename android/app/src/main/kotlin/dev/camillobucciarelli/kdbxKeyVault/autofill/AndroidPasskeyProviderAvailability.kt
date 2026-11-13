@@ -17,7 +17,7 @@ import android.util.Log
  * a setting that silently does nothing (FR-013).
  */
 internal object AndroidPasskeyProviderAvailability {
-    private const val TAG = "KeyVaultPasskey"
+    private const val TAG = "CustodePasskey"
 
     /** API 34. */
     const val MINIMUM_API_LEVEL = Build.VERSION_CODES.UPSIDE_DOWN_CAKE

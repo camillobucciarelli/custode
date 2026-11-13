@@ -294,7 +294,7 @@ test("A032: a vault switch between metadata and fill yields stale_session and th
   assertNoSecretIn(observableSurfaces(stack), "after stale vault switch");
   // The content script renders the stale state rather than tearing down.
   const status = stack.page.allElements().find((el) => el.id === "kv-status");
-  assert.equal(status.textContent, "KeyVault session changed.");
+  assert.equal(status.textContent, "Custode session changed.");
 });
 
 test("B012: after an explicit generate the secret exists in the password input value and in no other captured surface — pending id nowhere at all", async () => {

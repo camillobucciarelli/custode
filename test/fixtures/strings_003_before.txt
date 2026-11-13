@@ -14,7 +14,7 @@
 #   - "Locate" and locate-mismatch guidance
 #     ("Selected file does not match the missing database. Use \"Open
 #     existing database\" instead.")
-#   - "Step 1 of 3", "Step 2 of 3", "Step 3 of 3", "KeyVault app storage"
+#   - "Step 1 of 3", "Step 2 of 3", "Step 3 of 3", "Custode app storage"
 #   - duplicate consequence lines: "Save this file as another database.",
 #     "Back up, then replace the existing file.",
 #     "Discard this import and open the existing database."

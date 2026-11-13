@@ -130,7 +130,7 @@ Lucide's own path, not the artboard's redraw. `refresh-cw` and `shield-check`
 likewise. So C-03-13 is `VaultDestination.glyph` (`vault_shell.part.dart:891`)
 and nothing else.
 
-C-SH-03 needs the mark as artwork: `specs/_design/keyvault-mark.svg` ships, and
+C-SH-03 needs the mark as artwork: `specs/_design/custode-mark.svg` ships, and
 `ICONS.md` §1 fixes it at 38 × 38 / r13 in the rail. The rail currently draws
 `AppGlyph.key` in a tile of the right size, so the change is the child, not the
 container.

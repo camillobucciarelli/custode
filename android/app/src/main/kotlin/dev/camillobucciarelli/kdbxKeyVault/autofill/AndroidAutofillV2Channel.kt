@@ -236,7 +236,7 @@ internal class AndroidAutofillV2Channel(context: Context) {
     companion object {
         const val CHANNEL_NAME = "dev.camillobucciarelli.keyvault/apple_autofill_v2"
         const val CAPTURE_MISSING = "android_autofill_capture_missing"
-        private const val TAG = "KeyVaultAutofill"
+        private const val TAG = "CustodeAutofill"
         private val RESOLVE_OUTCOMES = setOf("saved", "updated", "declined", "cancelled", "failed")
     }
 }

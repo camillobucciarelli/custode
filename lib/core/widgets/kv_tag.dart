@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_text_styles.dart';
-import '../theme/keyvault_colors.dart';
+import '../theme/custode_colors.dart';
 
 /// PIXEL_SPEC "Tags / badges": padding 3/9, radius 999, size 10-11/600.
 /// Reused across spec-005's remote-file "linked" warning, the duplicates
@@ -20,7 +20,7 @@ class KvTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final (background, foreground, border) = switch (variant) {
       KvTagVariant.attention => (
         colors.attentionTint,

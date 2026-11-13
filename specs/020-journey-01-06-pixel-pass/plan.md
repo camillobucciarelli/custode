@@ -26,7 +26,7 @@ Export action per row; the editor adds and removes them with the save.
 |---|---|
 | I secrets | untouched |
 | II layering | untouched — presentation only |
-| III tokens | section uses `AppTextStyles.labelUpper`, `KeyVaultColors`, existing pill; no hex |
+| III tokens | section uses `AppTextStyles.labelUpper`, `CustodeColors`, existing pill; no hex |
 | IV pixel fidelity | goldens named in SC-003; 1024 dark for entry detail was never recorded — pre-existing gap, not widened |
 | V a11y | `Manage` reuses an existing ≥ 44 px pill; count is text, not colour |
 | VI copy | changes named in FR-007 |

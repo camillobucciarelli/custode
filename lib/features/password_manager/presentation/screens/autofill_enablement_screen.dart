@@ -3,7 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_glyph.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/theme/keyvault_colors.dart';
+import '../../../../core/theme/custode_colors.dart';
 import '../../../../core/widgets/kv_icon.dart';
 import '../../../../core/widgets/kv_pill_button.dart';
 import 'browser_setup_screen.dart';
@@ -116,7 +116,7 @@ class _AutofillEnablementScreenState extends State<AutofillEnablementScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final enabled = _extensionEnabled ?? false;
 
     return Scaffold(
@@ -212,7 +212,7 @@ class _AutofillEnablementScreenState extends State<AutofillEnablementScreen>
                                     ),
                                     Text(
                                       enabled
-                                          ? 'KeyVault fills passwords in '
+                                          ? 'Custode fills passwords in '
                                                 'Safari and apps'
                                           : 'iOS asks you once, in Settings',
                                       style: AppTextStyles.metaLarge.copyWith(
@@ -240,7 +240,7 @@ class _AutofillEnablementScreenState extends State<AutofillEnablementScreen>
                             const SizedBox(height: 8),
                             _EnablementStep(
                               number: 3,
-                              text: 'Pick KeyVault in the list',
+                              text: 'Pick Custode in the list',
                             ),
                             const SizedBox(height: 14),
                             KvPillButton(
@@ -318,7 +318,7 @@ class _AutofillEnablementScreenState extends State<AutofillEnablementScreen>
                       ),
                     const SizedBox(height: 14),
                     Text(
-                      'KeyVault never fills a field without you choosing the '
+                      'Custode never fills a field without you choosing the '
                       'record first.',
                       style: AppTextStyles.meta.copyWith(
                         color: colors.textSecondary,
@@ -343,7 +343,7 @@ class _EnablementStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Row(
       children: [
         Container(
@@ -380,7 +380,7 @@ class _DesktopBrowsersRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Material(
       color: colors.surface,
       borderRadius: BorderRadius.circular(22),

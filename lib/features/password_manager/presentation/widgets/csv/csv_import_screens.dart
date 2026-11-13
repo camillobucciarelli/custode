@@ -4,7 +4,7 @@ import 'package:path/path.dart' as path;
 import '../../../../../core/theme/app_glyph.dart';
 import '../../../../../core/theme/app_radii.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../../../core/utils/format_bytes.dart';
 import '../../../../../core/widgets/kv_icon.dart';
 import '../../../../../core/widgets/kv_list_row.dart';
@@ -47,7 +47,7 @@ class _CsvImportPreviewScreenState extends State<CsvImportPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final preview = widget.preview;
     final formatLabel = _csvSourceFormatLabel(preview.format);
     final valid = preview.items.length;
@@ -236,7 +236,7 @@ class _CsvImportPreviewScreenState extends State<CsvImportPreviewScreen> {
   }
 
   Widget _summaryRow(
-    KeyVaultColors colors,
+    CustodeColors colors,
     String label,
     String value, {
     Color? valueColor,
@@ -270,7 +270,7 @@ class CsvImportOutcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Scaffold(
       backgroundColor: colors.ground,
       body: SafeArea(
@@ -409,7 +409,7 @@ class _IgnoredColumnTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
@@ -445,7 +445,7 @@ class _SkippedRowTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(

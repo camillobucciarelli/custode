@@ -12,7 +12,7 @@ class _UnlockLoading extends StatelessWidget {
 /// FR-5: full-screen dark biometric gate — circle 104 / glyph 50, centred
 /// text, two stacked pills. Always dark regardless of app theme: wraps its
 /// subtree in `AppTheme.darkTheme` so every descendant (including
-/// `KvPillButton`) resolves `KeyVaultColors.dark` roles through the theme
+/// `KvPillButton`) resolves `CustodeColors.dark` roles through the theme
 /// extension instead of duplicating literal hex values.
 class _BiometricGate extends StatelessWidget {
   const _BiometricGate({
@@ -36,7 +36,7 @@ class _BiometricGate extends StatelessWidget {
       data: AppTheme.darkTheme,
       child: Builder(
         builder: (context) {
-          final colors = Theme.of(context).extension<KeyVaultColors>()!;
+          final colors = Theme.of(context).extension<CustodeColors>()!;
           return ColoredBox(
             color: colors.ground,
             child: SafeArea(
@@ -106,7 +106,7 @@ class _DecryptingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
     return Center(
@@ -160,7 +160,7 @@ class _UnlockFailureView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
@@ -234,7 +234,7 @@ class _UnlockReadyForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final basename = state.databaseLabel;
     final hasKeyFile =
         state.keyFilePath != null && state.keyFilePath!.trim().isNotEmpty;
@@ -416,7 +416,7 @@ class _PendingCaptureNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return SafeArea(
       bottom: false,
@@ -481,7 +481,7 @@ class _UnlockLinkRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     Widget link(IconData icon, String label, VoidCallback onTap) {
       return InkWell(
@@ -534,7 +534,7 @@ class _UnlockCaptionLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return InkWell(
       onTap: onTap,
       child: Text(
@@ -565,7 +565,7 @@ class _KeyFileSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final basename = kIsWeb ? keyFilePath : p.basename(keyFilePath);
     // spec 014 FR-3: a managed key rests under an opaque identifier; the
     // real name is recorded by `MobileFileStorage` and looked up here.

@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:password_manager/core/theme/keyvault_colors.dart';
+import 'package:password_manager/core/theme/custode_colors.dart';
 import 'package:password_manager/core/widgets/kv_switch.dart';
 import 'package:password_manager/features/password_manager/presentation/screens/vault_screen.dart';
 
@@ -77,7 +77,7 @@ void main() {
       // The toggle label reads at 4.5:1 or better on its card.
       final label = find.text('Secret').first;
       final colors = Theme.of(tester.element(label))
-          .extension<KeyVaultColors>()!;
+          .extension<CustodeColors>()!;
       final style = tester.widget<Text>(label).style!;
       expect(
         contrastRatio(style.color!, colors.surface),

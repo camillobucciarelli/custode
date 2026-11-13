@@ -73,7 +73,7 @@ call sites; 001 never fixes unrelated screens merely to satisfy a sweep.
 
 ### FR-2 · Semantic colours
 
-`KeyVaultColors extends ThemeExtension<KeyVaultColors>` exposes roles, not ramp
+`CustodeColors extends ThemeExtension<CustodeColors>` exposes roles, not ramp
 indices:
 
 | Role | Light | Dark |

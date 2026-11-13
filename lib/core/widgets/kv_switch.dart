@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
-import '../theme/keyvault_colors.dart';
+import '../theme/custode_colors.dart';
 
 /// Toggle switch (PIXEL_SPEC "Switch / radio / checkbox"): 44 x 26, radius
 /// 999, knob 20 with 3 px inset; on `accent-2-400`, off `neutral-300`.
@@ -21,7 +21,7 @@ class KvSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Semantics(
       label: semanticLabel,
       toggled: value,

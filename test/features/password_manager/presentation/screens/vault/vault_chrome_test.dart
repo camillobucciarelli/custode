@@ -64,7 +64,7 @@ void main() {
 
     // 2026-08-30: the rail shows the full-colour mark (verbatim copy of the
     // design master), no longer the tinted monochrome silhouette.
-    expect(assets, contains('keyvault-mark-color.svg'));
+    expect(assets, contains('custode-mark-color.svg'));
 
     // `key-round` still has a home — the empty detail pane draws it — so the
     // assertion is scoped to the chrome, where it stood in for the mark.
@@ -93,7 +93,7 @@ void main() {
       isNot(contains('key-round.svg')),
       reason: 'the Lucide key stood in for the mark and no longer appears',
     );
-    expect(chromeAssets, contains('keyvault-mark-color.svg'));
+    expect(chromeAssets, contains('custode-mark-color.svg'));
   });
 
   for (final width in <double>[390, 1024]) {

@@ -68,7 +68,7 @@ golden added, removed or re-recorded (VR-003); no new BLoC (Constitution II);
 |---|---|---|---|
 | I | Secrets never leak into the shell | **PASS** | The shell-owned selection holds an entry **id**, never an entry or a secret. `RevealController` and its biometric gate stay inside `_EntryDetailPanel`, unchanged. No new value enters `props`/`toString`. |
 | II | Clean architecture layering holds | **PASS** | Presentation-only. No new BLoC - the selected record is shell widget state, not vault state, because it is a view concern with no persistence. No new coordinator: this is not a multi-step workflow. |
-| III | Design tokens are the only source | **PASS** | Column widths and the selected-row treatment come from `PIXEL_SPEC`; the row treatment maps to `KeyVaultColors` accent roles. New numbers are layout metrics with a stated derivation, not colours. |
+| III | Design tokens are the only source | **PASS** | Column widths and the selected-row treatment come from `PIXEL_SPEC`; the row treatment maps to `CustodeColors` accent roles. New numbers are layout metrics with a stated derivation, not colours. |
 | IV | Pixel fidelity is testable | **PASS** | VR-001 names three new golden pairs at 1024x768 light and dark; VR-002 names the widget assertions replacing pixels and states the omitted axes. |
 | V | Accessibility floor | **PASS** | FR-004a keeps a non-colour selection cue; FR-002e forbids dimming the records list. Focus ring and 44px targets unchanged. |
 | VI | Existing behaviour and copy preserved | **PASS** | FR-013 freezes navigation and action strings. No user-facing string is added or altered. |

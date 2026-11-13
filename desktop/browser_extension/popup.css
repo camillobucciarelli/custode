@@ -42,7 +42,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* docs/design_handoff_keyvault_restyle/14 Dark mode.dc.html lines
+    /* docs/design_handoff_custode_restyle/14 Dark mode.dc.html lines
        244-280: "fondi 800 su ground 900" — same two status-card colours,
        same `strong` tag, dark ramp step swapped in one place. */
     --pop-header-bg: var(--color-neutral-800);

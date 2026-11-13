@@ -48,7 +48,7 @@ class _DuplicatesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Scaffold(
       backgroundColor: colors.ground,
       body: SafeArea(
@@ -150,7 +150,7 @@ class _DuplicateGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final primary = group.entries.first;
     final secondaries = group.entries.skip(1).toList(growable: false);
     final service = di.sl<VaultDuplicateService>();
@@ -252,7 +252,7 @@ class _DuplicateGroupCard extends StatelessWidget {
 class _CopyNoticeStrip extends StatelessWidget {
   const _CopyNoticeStrip({required this.colors});
 
-  final KeyVaultColors colors;
+  final CustodeColors colors;
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +289,7 @@ class _DuplicateEntryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final modifiedAt = entry.updatedAt ?? entry.createdAt;
     final meta = <String>[
       if (modifiedAt != null) 'Modified ${_formatEntryDateTime(modifiedAt)}',
@@ -386,7 +386,7 @@ class _MergePreviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final primary = previews.first.primary;
     final primaryLabel = primary.title.isEmpty ? 'Untitled' : primary.title;
     final secondaryLabel = previews.length == 1
@@ -559,7 +559,7 @@ class _MergePreviewFlagRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Opacity(
       opacity: active ? 1 : 0.55,
       child: Container(
@@ -603,7 +603,7 @@ class _DuplicatesEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -636,7 +636,7 @@ class _DuplicatesEmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'No two records share the same credentials, or the same site '
-              'and username. KeyVault checks again every time you open the '
+              'and username. Custode checks again every time you open the '
               'vault.',
               style: AppTextStyles.body.copyWith(color: colors.textSecondary),
             ),

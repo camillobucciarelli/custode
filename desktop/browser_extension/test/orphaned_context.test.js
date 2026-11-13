@@ -44,7 +44,7 @@ const { FakePage } = require("./fake_page.js");
 // deliberate edit in two places: it promises NO automatic retry (an orphan has
 // no way back to the worker) and names the one action that actually works.
 const EXTENSION_LOST_TEXT =
-  "This page lost its connection to KeyVault. Reload the page to use autofill.";
+  "This page lost its connection to Custode. Reload the page to use autofill.";
 
 // Both shapes an orphan is observed in. A guard is only proven if it survives
 // both: "runtime-undefined" THROWS on access (the QA trace), "id-undefined"
@@ -286,7 +286,7 @@ for (const mode of MODES) {
     // No field is focused, so there is no session and nothing on screen.
     page.invalidateExtensionContext(mode);
     await assert.doesNotReject(async () => {
-      await page.deliver({ channel: "keyvault-overlay", type: "teardown" });
+      await page.deliver({ channel: "custode-overlay", type: "teardown" });
     });
 
     // Nothing was shown, so nothing was promised.
@@ -443,7 +443,7 @@ test("F3: every ordinary state swap also drops the IDREF", async () => {
   handlers.matches = (message) => errorResult("matchesResult", "timeout", message);
   await page.focus(username);
   await page.focus(password);
-  assert.equal(statusText(page), "KeyVault did not respond in time.");
+  assert.equal(statusText(page), "Custode did not respond in time.");
 
   // Scoped to the LIVE listbox: `allElements()` is a harness x-ray that also
   // reports the shadow roots of already-removed overlays, so the first
@@ -515,7 +515,7 @@ test("orphan (runtime-undefined): the surviving runtime listener is provably ine
   // Real Chrome could not deliver this at all; driving it anyway is strictly
   // stronger than assuming it cannot arrive.
   await assert.doesNotReject(async () => {
-    await page.deliver({ channel: "keyvault-overlay", type: "teardown" });
+    await page.deliver({ channel: "custode-overlay", type: "teardown" });
   });
   assert.deepEqual(
     sentSince(page, mark),

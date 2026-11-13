@@ -4,7 +4,7 @@ import 'package:path/path.dart' as path;
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_glyph.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/theme/keyvault_colors.dart';
+import '../../../../core/theme/custode_colors.dart';
 import '../../../../core/utils/mobile_file_storage.dart';
 import '../../../../core/widgets/kv_icon.dart';
 import '../../../../core/widgets/kv_pill_button.dart';
@@ -156,7 +156,7 @@ class _ChangeMasterPasswordScreenState
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final assessment = evaluatePasswordStrength(_newCtrl.text);
 
     return Scaffold(
@@ -288,7 +288,7 @@ class _PasswordFieldRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -344,7 +344,7 @@ class _StrengthBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final filled = switch (assessment.level) {
       PasswordStrengthLevel.weak => 1,
       PasswordStrengthLevel.fair => 2,
@@ -394,7 +394,7 @@ class _ConfirmSecurityChangesDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return AlertDialog(
       title: const Text('Confirm security changes'),
       content: Column(
@@ -463,7 +463,7 @@ class _ChangeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Opacity(
       opacity: dimmed ? 0.7 : 1,
       child: Container(

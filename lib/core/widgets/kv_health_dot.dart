@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
-import '../theme/keyvault_colors.dart';
+import '../theme/custode_colors.dart';
 
 enum KvHealthState { good, warning }
 
@@ -22,7 +22,7 @@ class KvHealthDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final color = state == KvHealthState.warning
         ? AppColors.warning
         : colors.positiveFill;

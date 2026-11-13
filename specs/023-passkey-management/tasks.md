@@ -613,7 +613,7 @@ registration cannot be completed by any design. That transport is T709.
   `desktop/browser_extension/test/passkey_routes.test.js`.
   Acceptance: the page-world wrapper falls through to the browser when the
   site will not accept ES256, so a user never sees a confirmation for a
-  registration KeyVault could not have served; resolves a registration-shaped
+  registration Custode could not have served; resolves a registration-shaped
   object with `getPublicKey`, `getPublicKeyAlgorithm`, `getTransports` and
   `getAuthenticatorData`; the worker route takes its origin from `sender.url`
   and answers `{ok:false}` to every refusal, so no reason reaches the page.

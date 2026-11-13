@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../core/theme/app_glyph.dart';
-import '../../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../../core/theme/custode_colors.dart';
 import '../../../../../../core/widgets/kv_context_menu.dart';
 import '../../../../../../core/widgets/kv_icon.dart';
 
@@ -26,7 +26,7 @@ class DatabaseActionMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return SizedBox(
       width: 44,
       height: 44,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_radii.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 
 /// FR-3: Drive picker loading state — row-shaped skeletons, never a
 /// spinner.
@@ -10,7 +10,7 @@ class DrivePickerSkeletonRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       height: 62,
       margin: const EdgeInsets.only(bottom: 8),

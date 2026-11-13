@@ -7,7 +7,7 @@ import '../../../../../core/utils/format_bytes.dart';
 import '../../../../../core/widgets/kv_icon.dart';
 import '../../../../../core/widgets/kv_circle_icon_button.dart';
 import '../../../../../core/widgets/kv_tag.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../domain/models/remote_file.dart';
 
 /// FR-2 / T8: one row per `RemoteFile` — name, `modifiedTime`, `size`,
@@ -46,7 +46,7 @@ class _RemoteFileRowState extends State<RemoteFileRow> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final selected = widget.selected;
     final file = widget.file;
     final subtitleParts = <String>[

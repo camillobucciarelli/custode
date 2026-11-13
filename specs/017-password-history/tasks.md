@@ -67,7 +67,7 @@ checked. Tick a box only when its own acceptance holds and its tests pass.
   by a label and never by colour alone (Constitution V).
   Verify: widget tests for the three states; quickstart A steps 1, 3 and 4 —
   together these are the first half of SC-001, seeing the previous password
-  without leaving KeyVault.
+  without leaving Custode.
 
 - [x] **T203** [US1] Reveal a revision through the existing gate — owner: `senior-flutter-dev`
   Files: `lib/features/password_manager/presentation/screens/vault/vault_entry_history.part.dart`.
@@ -128,7 +128,7 @@ checked. Tick a box only when its own acceptance holds and its tests pass.
   string edited (Constitution VI).
   Verify: widget test — dismissing writes nothing; confirming calls the
   coordinator once. Quickstart B steps 2 and 3, which complete SC-001: the user
-  both sees and recovers the previous password inside KeyVault.
+  both sees and recovers the previous password inside Custode.
 
 ---
 

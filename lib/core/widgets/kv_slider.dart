@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
-import '../theme/keyvault_colors.dart';
+import '../theme/custode_colors.dart';
 
 /// Generator length slider (PIXEL_SPEC "Generator" / "Core components ·
 /// Slider"): track height 8 radius 999 `neutral-200`, filled `accent-400`,
@@ -25,7 +25,7 @@ class KvSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return SliderTheme(
       data: SliderThemeData(
         trackHeight: 8,

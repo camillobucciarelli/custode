@@ -90,11 +90,14 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "dev.camillobucciarelli" "\0"
-            VALUE "FileDescription", "KeyVault" "\0"
+            VALUE "FileDescription", "Custode" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "password_manager" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 dev.camillobucciarelli. All rights reserved." "\0"
             VALUE "OriginalFilename", "password_manager.exe" "\0"
+            // Keep "KeyVault": path_provider_windows builds the app data
+            // directory from CompanyName\ProductName, so renaming it would
+            // strand existing vault settings.
             VALUE "ProductName", "KeyVault" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END

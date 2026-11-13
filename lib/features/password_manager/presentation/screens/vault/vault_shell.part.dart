@@ -1307,7 +1307,7 @@ class _VaultVerticalDivider extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     width: 1,
     child: ColoredBox(
-      color: Theme.of(context).extension<KeyVaultColors>()!.divider,
+      color: Theme.of(context).extension<CustodeColors>()!.divider,
     ),
   );
 }
@@ -1327,7 +1327,7 @@ class _VaultTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return ColoredBox(
       key: const ValueKey('vault-tab-bar'),
       color: colors.surface,
@@ -1453,7 +1453,7 @@ class _VaultRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     Widget button(VaultDestination destination) {
       final isSelected = destination == selected;
       final showsBadge =
@@ -1657,7 +1657,7 @@ class _VaultNameHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return BlocBuilder<VaultBloc, VaultState>(
       buildWhen: (previous, current) =>
@@ -1692,7 +1692,7 @@ class _VaultNameHeader extends StatelessWidget {
   }
 }
 
-/// spec-019 T051 / FR-016 — the KeyVault mark, as artwork.
+/// spec-019 T051 / FR-016 — the Custode mark, as artwork.
 ///
 /// The rail used to show `AppGlyph.key`, a Lucide glyph standing in for the
 /// app's own mark (C-SH-03). The mark is a real asset and this renders it,
@@ -1701,9 +1701,9 @@ class _VaultAppMark extends StatelessWidget {
   const _VaultAppMark({required this.size});
 
   /// The full-colour mark (verbatim copy of the design master
-  /// `specs/_design/keyvault-mark-foreground.svg`), rendered untinted so the
+  /// `specs/_design/custode-mark-foreground.svg`), rendered untinted so the
   /// rail shows the app's actual identity, not a silhouette.
-  static const String assetPath = 'assets/logo/keyvault-mark-color.svg';
+  static const String assetPath = 'assets/logo/custode-mark-color.svg';
 
   final double size;
 
@@ -1713,7 +1713,7 @@ class _VaultAppMark extends StatelessWidget {
       assetPath,
       width: size,
       height: size,
-      semanticsLabel: 'KeyVault',
+      semanticsLabel: 'Custode',
     );
   }
 }

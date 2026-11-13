@@ -68,7 +68,7 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
           .sl<AppleAutofillV2Client>()
           .getPasskeyProviderAvailability();
       label = availability.available
-          ? 'Available — turn KeyVault on in Android\u2019s passkey settings'
+          ? 'Available — turn Custode on in Android\u2019s passkey settings'
           : 'Needs Android 14 or later '
                 '(this device runs API ${availability.apiLevel})';
     } catch (_) {
@@ -409,7 +409,7 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
   /// `LicensePage` content, themed to the app's ground/surface palette.
   void _openLicences(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.extension<KeyVaultColors>()!;
+    final colors = theme.extension<CustodeColors>()!;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => Theme(
@@ -451,7 +451,7 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return BlocBuilder<VaultBloc, VaultState>(
       buildWhen: (previous, current) =>
           previous.databasePath != current.databasePath,
@@ -697,7 +697,7 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
   }
 }
 
-const _kApplicationName = 'KeyVault';
+const _kApplicationName = 'Custode';
 
 /// Marketing version, mirrored by hand from `pubspec.yaml` `version:`.
 /// `.github/workflows/release.yml` only bumps the build number after the `+`,
@@ -750,7 +750,7 @@ class _InactivityTimeoutSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 26),
       child: Column(
@@ -790,7 +790,7 @@ class _SettingsGroupLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Text(
       label,
       style: AppTextStyles.labelUpper.copyWith(color: colors.textSecondary),
@@ -815,7 +815,7 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final resolvedTrailing = onTap == null
         ? null
         : KvIcon(
@@ -913,7 +913,7 @@ class _SettingsSwitchRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
@@ -1011,7 +1011,7 @@ class _ThemePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Material(
       color: selected ? colors.actionFill : Colors.transparent,
       borderRadius: BorderRadius.circular(999),
@@ -1054,7 +1054,7 @@ class _SettingsCardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Row(
       children: [
         Container(
@@ -1085,7 +1085,7 @@ class _AppearanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(

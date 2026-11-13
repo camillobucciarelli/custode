@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/theme/keyvault_colors.dart';
+import '../../../../core/theme/custode_colors.dart';
 import '../../../../core/utils/mobile_file_storage.dart';
 import '../../../../injection_container.dart' as di;
 import '../../domain/repositories/database_file_repository.dart';
@@ -205,7 +205,7 @@ class _InternalKeyFileManagerSheetState
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),

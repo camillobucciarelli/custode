@@ -43,7 +43,7 @@ says so in the section copy rather than pretending otherwise.
 - **D1 — Detection, not tags.** An entry holds a passkey when
   `KPEX_PASSKEY_RELYING_PARTY`, `KPEX_PASSKEY_CREDENTIAL_ID` and
   `KPEX_PASSKEY_PRIVATE_KEY_PEM` are all present. KeePassXC's tag is
-  `tr("Passkey")` — localized — so it is never a detection input; KeyVault
+  `tr("Passkey")` — localized — so it is never a detection input; Custode
   neither adds nor removes tags.
 - **D2 — Protection flag is data the user owns.** `VaultCustomField.isProtected`
   is read from the file (`StringValue is ProtectedValue`), shown as a per-field

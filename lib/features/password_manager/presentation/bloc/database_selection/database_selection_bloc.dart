@@ -16,7 +16,7 @@ String failureMessage(DatabaseAccessFailure failure) => switch (failure) {
         ? 'Database file was not found.'
         : 'Database file "$basename" was not found.',
   InvalidDatabaseFileFailure(:final basename) =>
-    '"$basename" is not a valid KeyVault database file.',
+    '"$basename" is not a valid Custode database file.',
   CorruptDatabaseFailure(:final basename) =>
     '"$basename" could not be read. The file may be corrupted.',
   KeyFileMissingFailure() =>

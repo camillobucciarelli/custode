@@ -32,7 +32,7 @@ const securityModule =
   typeof module !== "undefined" &&
   typeof module.exports === "object"
     ? require("./overlay_security.js")
-    : globalThis.KeyVaultOverlaySecurity;
+    : globalThis.CustodeOverlaySecurity;
 
 // Mirrors `overlayMatchPolicy` / `overlayExactOriginCapability` in
 // `lib/features/password_manager/data/services/browser_exact_origin.dart`.
@@ -68,15 +68,15 @@ const PUBLIC_ERROR_CODE_SET = new Set(PUBLIC_ERROR_CODES);
 // One public sentence per code. Deliberately generic: no origin beyond the
 // canonical one the caller already knows, no entry id, no native detail.
 const PUBLIC_ERROR_MESSAGES = Object.freeze({
-  disabled: "The KeyVault overlay is turned off.",
+  disabled: "The Custode overlay is turned off.",
   unsupported_frame: "The overlay is not available in this frame.",
-  unsupported_capability: "Update the KeyVault native host to use the overlay.",
-  locked: "Open and unlock KeyVault.",
-  no_host: "KeyVault native host is unavailable.",
-  timeout: "KeyVault did not respond in time.",
+  unsupported_capability: "Update the Custode native host to use the overlay.",
+  locked: "Open and unlock Custode.",
+  no_host: "Custode native host is unavailable.",
+  timeout: "Custode did not respond in time.",
   invalid_request: "Overlay request is invalid.",
   forbidden: "Overlay request is not authorized.",
-  stale_session: "KeyVault session changed. Query the site again.",
+  stale_session: "Custode session changed. Query the site again.",
   internal_error: "Overlay request failed.",
 });
 
@@ -473,7 +473,7 @@ class OverlayRouter {
 
     // The same gate the overlay passes: the global switch must be on and the
     // broad host permission still held. A wrapper left running in a page
-    // after the user turned KeyVault off must not be able to sign.
+    // after the user turned Custode off must not be able to sign.
     const auth = await this._lifecycle.authorizePasskeyRequest({
       sender,
       runtimeId: this._runtimeId,
@@ -1059,7 +1059,7 @@ const API = {
 if (typeof module !== "undefined" && typeof module.exports === "object") {
   module.exports = API;
 } else {
-  globalThis.KeyVaultOverlayRoutes = API;
+  globalThis.CustodeOverlayRoutes = API;
 }
 
 })();

@@ -4,6 +4,8 @@
 
 A cross-platform Flutter password manager (Android, iOS, macOS, Windows, Linux, web) storing vaults in the KeePass `.kdbx` format, with Android/Apple autofill integration and a desktop browser autofill bridge.
 
+The app is named **Custode** (formerly KeyVault). The old name survives only in identifiers that are already published or persisted on users' devices, and those must not be renamed: bundle IDs and `applicationId` (`dev.camillobucciarelli.kdbxKeyVault*`), the App Group and keychain groups, method channels and intent extras (`dev.camillobucciarelli.keyvault*`), the native host name, binary and install directories (`keyvault_native_host`, `Application Support/KeyVault`, `%LOCALAPPDATA%\KeyVault`, `~/.local/share/keyvault`), the Android autofill and credential provider component classes (`KeyVaultAutofillService`, `KeyVaultCredentialProviderService`, which Android stores as the user's chosen provider), the Windows `ProductName` (it names the app data directory), on-disk paths such as `.keyvault_autofill` and `KeyVault/AutofillBrowserV2`, the extension wire protocol and page globals (`KEYVAULT_V2_*`, `keyvault-overlay-v1`, `keyvault-passkey`, `__keyvault*`), release asset names the app downloads (`keyvault-chrome-support-macos.pkg`), and the privacy policy URL. Use Custode everywhere else.
+
 ## Project Structure & Module Organization
 
 Cross-feature infrastructure lives in `lib/core/`. Keep one Password Manager feature under `lib/features/password_manager/{data,domain,presentation,di}`; do not split cloud sync, autofill, or vault workflows into new top-level features without an approved spec.

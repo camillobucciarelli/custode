@@ -1222,7 +1222,7 @@ bool _constantTimeEquals(String left, String right) {
 String _publicErrorMessage(String code) {
   return switch (code) {
     'unauthorized' => 'Reveal bridge authentication failed.',
-    'database_mismatch' => 'KeyVault database changed. Query again.',
+    'database_mismatch' => 'Custode database changed. Query again.',
     'credential_unavailable' => 'Requested credential is unavailable.',
     'strong_match_required' =>
       'Credential is not an exact match for this site.',

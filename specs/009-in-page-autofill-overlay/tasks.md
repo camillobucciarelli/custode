@@ -307,7 +307,7 @@ teardown, origin/port/scheme, and frame behavior before visual UI work.
 - [x] **A035** Implement frame policy exactly: top and injected same-origin frames
       supported; cross-origin frame only with child origin separately enabled,
       permitted, injected, and sender-validated; otherwise fail closed. Where
-      detectable show unsupported state directing manual copy from KeyVault app.
+      detectable show unsupported state directing manual copy from Custode app.
       Add no extension clipboard path.
 - [x] **A036** Add `role=listbox`, `role=option`, `aria-selected`, stable option
       ids, `aria-activedescendant`, anchor combobox expanded state, and
@@ -654,9 +654,9 @@ teardown, origin/port/scheme, and frame behavior before visual UI work.
           a `file://` top; and on real focus of the password field inside that
           iframe, the closed-shadow overlay rendered the honest hint, piercing
           the shadow root via CDP DOM confirmed the exact text: *"The overlay
-          is not available in this frame. Copy your login from the KeyVault
+          is not available in this frame. Copy your login from the Custode
           app."*, an empty suggestion list, and a disabled Generate control
-          ("Open KeyVault to generate a password."). No `requestMatches` or
+          ("Open Custode to generate a password."). No `requestMatches` or
           `fill` message was ever sent from that frame.
           **Correction to `docs/manual-qa.md` S3-12 made alongside this**: its
           steps say "No overlay appears in the iframe" — that undersells what
@@ -702,8 +702,8 @@ teardown, origin/port/scheme, and frame behavior before visual UI work.
           ...; script-src github.githubassets.com; ...`): zero CSP violations,
           zero console/log/exception events, and focusing the page's real
           `#password` field mounted the real overlay — piercing the closed
-          shadow root via CDP confirmed the live text `"2 KeyVault
-          suggestions"` and `"Open KeyVault to generate a password."`,
+          shadow root via CDP confirmed the live text `"2 Custode
+          suggestions"` and `"Open Custode to generate a password."`,
           screenshot-verified rendered under GitHub's own field. The two
           suggestions are the harness's synthetic fixture data, not real vault
           data — no live app/vault was involved. Two ordinary sites

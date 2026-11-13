@@ -27,7 +27,7 @@
 "use strict";
 
 (() => {
-  const security = globalThis.KeyVaultOverlaySecurity;
+  const security = globalThis.CustodeOverlaySecurity;
   if (!security) return;
 
   // Idempotent startup: the browser can run the registered script and an
@@ -152,25 +152,25 @@
   // keyed by the stable code; the worker's `error.message` is deliberately
   // never rendered, so no upstream component can inject copy into the page.
   const STATE_TEXT = Object.freeze({
-    loading: "Loading KeyVault suggestions…",
-    "no-fillable": "Matches exist but cannot be filled here. Open KeyVault.",
-    "no-matches": "No KeyVault entries for this site.",
-    locked: "Open and unlock KeyVault.",
-    no_host: "KeyVault native host is unavailable.",
-    timeout: "KeyVault did not respond in time.",
+    loading: "Loading Custode suggestions…",
+    "no-fillable": "Matches exist but cannot be filled here. Open Custode.",
+    "no-matches": "No Custode entries for this site.",
+    locked: "Open and unlock Custode.",
+    no_host: "Custode native host is unavailable.",
+    timeout: "Custode did not respond in time.",
     unsupported_frame:
-      "The overlay is not available in this frame. Copy your login from the KeyVault app.",
+      "The overlay is not available in this frame. Copy your login from the Custode app.",
     // Neutral on purpose: the missing capability can be an old native host OR
     // an old app (B007 advertises generation only when the app declares it).
-    unsupported_capability: "Update KeyVault to use this feature.",
-    stale_session: "KeyVault session changed.",
+    unsupported_capability: "Update Custode to use this feature.",
+    stale_session: "Custode session changed.",
     // MV3 orphan (see extensionContextLost). Deliberately cause-neutral: a
     // reload, an update and a disable/enable cycle all produce it, and this
     // world cannot tell which. It promises NO automatic retry, because there
     // is none — an orphan has no way back to the worker — and names the one
     // action that actually fixes it.
     extension_lost:
-      "This page lost its connection to KeyVault. Reload the page to use autofill.",
+      "This page lost its connection to Custode. Reload the page to use autofill.",
   });
 
   // B010/B013 — honest copy for both Generate states. The row is ACTIVE only
@@ -178,11 +178,11 @@
   // `generatePendingEntryV1` capability AND carries a one-shot generate
   // token; an old host/app peer keeps the disabled text, which directs the
   // user to the app and never promises in-page generation. The active copy
-  // says who owns the save: KeyVault, after the user confirms there — the
+  // says who owns the save: Custode, after the user confirms there — the
   // extension neither saves nor remembers the generated password.
-  const GENERATE_TEXT = "Open KeyVault to generate a password.";
+  const GENERATE_TEXT = "Open Custode to generate a password.";
   const GENERATE_ACTIVE_TEXT =
-    "Generate a password — confirm the save in KeyVault.";
+    "Generate a password — confirm the save in Custode.";
 
   // Codes that render an A030 state. Anything else — disabled, forbidden,
   // invalid_request, internal_error, an unknown code — is an authorization or
@@ -443,7 +443,7 @@
   //
   // 009 polish — aligned to the app design system (lib/core/theme). Every
   // value below is a verbatim copy of an app token, never a computed one:
-  //   surfaces   KeyVaultColors.light/dark ground  #f9f4ed / #2e2b25
+  //   surfaces   CustodeColors.light/dark ground  #f9f4ed / #2e2b25
   //   text       AppColors.text #201e1d / neutral100 #f9f4ed (62% secondary)
   //   divider    AppColors.divider rgba(32,30,29,0.16) / 22% neutral100
   //   selection  attentionTint accent-200 #ffe1d0 (+ selectionBorder
@@ -705,7 +705,7 @@
 
     const sectionEl = document.createElement("section");
     sectionEl.setAttribute("class", "kv-overlay");
-    sectionEl.setAttribute("aria-label", "KeyVault suggestions");
+    sectionEl.setAttribute("aria-label", "Custode suggestions");
     // A038 — pending-action protocol; see markPendingAction. The controls are
     // all `type=button` inside this shadow section, OUTSIDE every page form,
     // so no pointer or keyboard action can ever become a submit.
@@ -778,7 +778,7 @@
       const lightListbox = document.createElement("div");
       lightListbox.id = "kv-light-listbox";
       lightListbox.setAttribute("role", "listbox");
-      lightListbox.setAttribute("aria-label", "KeyVault suggestions");
+      lightListbox.setAttribute("aria-label", "Custode suggestions");
       // WCAG 3.1.2 — this listbox is a SIBLING of the host, not a shadow
       // descendant, so it does NOT inherit `lang` from it; it inherits from
       // the host PAGE instead, which may be any language. Its rows are fixed
@@ -843,7 +843,7 @@
     // description. `generateEl` is a SIBLING of the list inside the section,
     // not a child of it, so clearing the rows above does not touch it: without
     // this it survives into the notice still reading "Generate a password —
-    // confirm the save in KeyVault.", still `aria-selected`, still enabled. A
+    // confirm the save in Custode.", still `aria-selected`, still enabled. A
     // control that looks live and does nothing is the precise micro-failure
     // this state exists to abolish, so it must not appear inside the warning
     // about it. Removed rather than disabled: a disabled control still
@@ -1121,7 +1121,7 @@
       return;
     }
     renderState("matches");
-    setStatusText(`${session.items.length} KeyVault suggestions`);
+    setStatusText(`${session.items.length} Custode suggestions`);
     renderItems();
   };
 

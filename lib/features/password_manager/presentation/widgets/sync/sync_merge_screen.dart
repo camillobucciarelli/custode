@@ -15,7 +15,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/theme/app_glyph.dart';
 import '../../../../../core/theme/app_radii.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../../../core/widgets/kv_circle_icon_button.dart';
 import '../../../../../core/widgets/kv_icon.dart';
 import '../../../../../core/widgets/kv_pill_button.dart';
@@ -56,7 +56,7 @@ class _SyncMergeScreenState extends State<SyncMergeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Scaffold(
       backgroundColor: colors.ground,
       body: SafeArea(
@@ -226,7 +226,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 12, 14, 0),
       child: Row(
@@ -290,7 +290,7 @@ class _Status extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Semantics(
       readOnly: true,
       liveRegion: liveRegion,
@@ -333,7 +333,7 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
       child: Semantics(
@@ -435,7 +435,7 @@ class _ReviewPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final conflicts = review.decisions
         .where((d) => d.kind == MergeDecisionKind.fieldConflict)
         .toList();
@@ -568,7 +568,7 @@ class _DecisionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Semantics(
       container: true,
       label: 'Conflict section: $title',
@@ -602,7 +602,7 @@ class _DecisionRow extends StatelessWidget {
   final RedactedMergeDecision decision;
   final bool selected;
   final VoidCallback onTap;
-  final KeyVaultColors colors;
+  final CustodeColors colors;
 
   @override
   Widget build(BuildContext context) {
@@ -697,7 +697,7 @@ class _FieldPaneState extends State<_FieldPane> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final d = widget.decision;
     final deletion = _isDeletion(d);
     return Column(
@@ -859,7 +859,7 @@ class _ChoiceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final group = RadioGroup.maybeOf<MergeChoice>(context)?.groupValue;
     return Material(
       color: value == group ? colors.surfaceNested : colors.surface,
@@ -907,7 +907,7 @@ class _SideTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final group = RadioGroup.maybeOf<MergeChoice>(context)?.groupValue;
     final String body;
     final bool mono;
@@ -962,7 +962,7 @@ class _DetailPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Center(
       child: Text(
         'Select a decision to compare both sides',
@@ -993,7 +993,7 @@ class _ReadyPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final local = review.decisions
         .where((d) => d.choice == MergeChoice.local)
         .length;

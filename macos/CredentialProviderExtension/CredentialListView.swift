@@ -103,7 +103,7 @@ private struct EmptyCredentialsView: View {
         .foregroundColor(.secondary)
       Text("No matching credentials")
         .font(.headline)
-      Text("Open KeyVault, unlock your vault, and publish the encrypted AutoFill cache before filling.")
+      Text("Open Custode, unlock your vault, and publish the encrypted AutoFill cache before filling.")
         .font(.footnote)
         .foregroundColor(.secondary)
         .multilineTextAlignment(.center)
@@ -206,7 +206,7 @@ private struct CredentialBadgeView: View {
 /// spec 023 T708 — what the extension shows when a site asks it to CREATE a
 /// passkey.
 ///
-/// The decision this screen implements: a passkey is created by the KeyVault
+/// The decision this screen implements: a passkey is created by the Custode
 /// app, never by this extension. The extension is a plugin of the app and
 /// holds no logic the app does not know about — and here that is not a
 /// preference but the only correct behaviour. Creating a credential means
@@ -231,7 +231,7 @@ struct PasskeyRegistrationUnavailableView: View {
       Image(systemName: "key.horizontal")
         .font(.system(size: 48))
         .foregroundColor(.secondary)
-      Text("Create this passkey in KeyVault")
+      Text("Create this passkey in Custode")
         .font(.headline)
         .multilineTextAlignment(.center)
       Text(detail)
@@ -250,12 +250,12 @@ struct PasskeyRegistrationUnavailableView: View {
     let site = relyingPartyId.isEmpty ? "this site" : relyingPartyId
     let account = userName.isEmpty ? "" : " for \(userName)"
     return """
-    A passkey is written into your vault, which only the KeyVault app can \
+    A passkey is written into your vault, which only the Custode app can \
     open. This AutoFill extension cannot write it, so it will not tell \(site) \
     that a passkey exists when it does not.
 
-    To add a passkey\(account), open KeyVault on a computer, unlock the vault, \
-    and register on \(site) from a browser with the KeyVault extension.
+    To add a passkey\(account), open Custode on a computer, unlock the vault, \
+    and register on \(site) from a browser with the Custode extension.
     """
   }
 }

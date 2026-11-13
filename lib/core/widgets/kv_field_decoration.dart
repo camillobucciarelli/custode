@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/keyvault_colors.dart';
+import '../theme/custode_colors.dart';
 
 /// The design's text field (PIXEL_SPEC "Field"): surface fill, no border at
 /// rest, radius 22, `selectionBorder` ring on focus, `accent700` ring on
 /// error. One recipe shared by the entry editor and the unlock form, so a
 /// form never draws a field the rest of the app does not.
 InputDecoration kvFieldDecoration(
-  KeyVaultColors colors, {
+  CustodeColors colors, {
   String? hint,
   Widget? suffixIcon,
   String? errorText,
@@ -55,7 +55,7 @@ InputDecoration kvFieldDecoration(
 }
 
 /// The 11 px uppercase label that sits 7 px above a [kvFieldDecoration] field.
-Widget kvFieldLabel(String label, KeyVaultColors colors) => Padding(
+Widget kvFieldLabel(String label, CustodeColors colors) => Padding(
   padding: const EdgeInsets.only(bottom: 7),
   child: Text(
     label,

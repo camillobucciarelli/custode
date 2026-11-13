@@ -301,7 +301,7 @@ Plain bullets on purpose. Not scheduled work; never convert these to checkboxes.
   platforms are required.
 - HACS publication or Home Assistant Core inclusion. Initial distribution is a
   versioned archive with manual custom-component install.
-- Multiple Home Assistant instances in one KeyVault installation.
+- Multiple Home Assistant instances in one Custode installation.
 - Automatic Google-to-Home-Assistant migration or provider switching.
 - Remote delete, rename, folders, sharing, browser editing and public download
   links.

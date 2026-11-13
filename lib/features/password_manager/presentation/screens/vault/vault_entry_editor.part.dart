@@ -296,7 +296,7 @@ class _EntryDialogState extends State<_EntryDialog> {
   @override
   Widget build(BuildContext context) {
     VaultOperationScope.maybeOf(context)?.registerDiscardGuard(_confirmDiscard);
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     // spec-018 FR-002e: the generator becomes a column from the derived 995,
     // not from `Breakpoints.tablet`. The editor used its own threshold here —
     // a third component deciding layout from a fourth number, which is the
@@ -574,7 +574,7 @@ class _EntryEditorForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return Form(
       key: formKey,
@@ -903,7 +903,7 @@ class _OptionalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1001,7 +1001,7 @@ class _CustomFieldRowEditorState extends State<_CustomFieldRowEditor> {
     final enabled = widget.enabled;
     final onChanged = widget.onChanged;
     final onRemove = widget.onRemove;
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1125,7 +1125,7 @@ class _EditorHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     // spec-004 QA fix: the editor has no Scaffold/SafeArea of its own, so
     // the header must add the status bar/notch inset itself, same pattern
     // as _VaultDestinationScaffold in vault_shell.part.dart.
@@ -1176,7 +1176,7 @@ class _SavingOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Positioned.fill(
       child: Container(
         color: AppColors.neutral900.withValues(alpha: 0.22),
@@ -1516,7 +1516,7 @@ class _CameraDeniedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return ColoredBox(
       color: colors.ground,
@@ -1543,7 +1543,7 @@ class _CameraDeniedScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                'Camera is off for KeyVault',
+                'Camera is off for Custode',
                 style: AppTextStyles.sheetTitleLarge.copyWith(
                   color: colors.textPrimary,
                 ),
@@ -1576,7 +1576,7 @@ class _CameraDeniedScreen extends StatelessWidget {
                 onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
-                      'Enable the camera for KeyVault in your system '
+                      'Enable the camera for Custode in your system '
                       'settings, then come back.',
                     ),
                   ),

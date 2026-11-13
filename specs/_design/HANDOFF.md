@@ -1,13 +1,13 @@
-# Handoff: KeyVault UX/UI restyle (Flutter app + Chrome extension + app icon)
+# Handoff: Custode UX/UI restyle (Flutter app + Chrome extension + app icon)
 
 > Source: Claude Design project `5151eacb-bbf2-44aa-921c-6a0e2d231d12`,
-> folder `design_handoff_keyvault_restyle/`. Imported 2026-08-05.
+> folder `design_handoff_custode_restyle/`. Imported 2026-08-05.
 > The `.dc.html` files stay in the design project and are the visual record;
 > this file, `PIXEL_SPEC.md` and `ICONS.md` are the numeric record.
 
 ## Overview
 
-A full restyle of **KeyVault** — the cross-platform Flutter password manager in
+A full restyle of **Custode** — the cross-platform Flutter password manager in
 `camillobucciarelli/key-vault-password-manager` — aimed at a simpler UX and a
 cleaner UI. The package covers all twelve functional journeys of the app, in
 mobile (390×844) and tablet/desktop (1024×768) layouts, in light and dark, plus
@@ -150,7 +150,7 @@ Journey 01 — database selection (`DatabaseSelectionBloc`,
    Open/Export/Remove popup menu — keep those actions in the row's overflow.
    *Proposal*: the "file not found → Locate" row.
 3. **Create database, steps 1–3** — progress = three 4 px bars; step 1 name +
-   storage note ("KeyVault app storage"), step 2 master password with a 4-notch
+   storage note ("Custode app storage"), step 2 master password with a 4-notch
    strength meter and confirm field, step 3 optional locks: generate key file,
    Face ID, auto-lock (accepted). Field labels match the real dialog.
 4. **Drive picker, loading** — skeleton rows shaped like the final rows.
@@ -324,14 +324,14 @@ New state needed only for the two new features:
 
 ## Assets
 
-- `assets/keyvault-icon.png` — the new mark used as app chrome in the mockups.
+- `assets/custode-icon.png` — the new mark used as app chrome in the mockups.
 - `icons/*` — the generated icon family (see `ICONS.md`), drawn from the chosen
   direction, not from the previous PNG.
 - Fonts: Caprasimo and Figtree (Google Fonts).
 - Icons: Lucide (https://lucide.dev), stroke-width 2.75. Not bundled — add the
   Lucide Flutter package or export the SVGs you need.
-- The original marks read from the repo (`assets/logo/keyvault-source.png`,
-  `keyvault-monochrome.png`) are superseded.
+- The original marks read from the repo (`assets/logo/custode-source.png`,
+  `custode-monochrome.png`) are superseded.
 
 ## Source design files (in the Claude Design project)
 

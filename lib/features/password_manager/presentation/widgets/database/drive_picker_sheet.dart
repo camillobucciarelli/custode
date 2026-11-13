@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_radii.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../../../core/widgets/kv_bottom_sheet.dart';
 import '../../../../../core/widgets/kv_pill_button.dart';
 import '../../../domain/models/cloud_storage_error.dart';
@@ -165,7 +165,7 @@ class _DrivePickerSheetContentState extends State<_DrivePickerSheetContent> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final data = _data;
     final error = _error;
     final requiresReconnect =
@@ -281,7 +281,7 @@ class _DriveEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final label = account.email ?? account.displayLabel;
 
     return Column(

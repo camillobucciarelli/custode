@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/keyvault_colors.dart';
+import '../theme/custode_colors.dart';
 import 'app_focus_ring.dart';
 
 /// spec-019 T016 — one chip of the phone's folder row (FR-014).
@@ -50,7 +50,7 @@ class _KvFilterChipState extends State<KvFilterChip> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final selected = widget.selected;
     final radius = BorderRadius.circular(AppRadii.pill);
 

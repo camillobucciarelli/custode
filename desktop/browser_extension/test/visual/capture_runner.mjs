@@ -55,16 +55,16 @@ const fail = (message) => {
 // ---------------------------------------------------------------------------
 
 const STATUS = Object.freeze({
-  matches: "2 KeyVault suggestions",
-  possible: "Matches exist but cannot be filled here. Open KeyVault.",
-  "no-matches": "No KeyVault entries for this site.",
-  locked: "Open and unlock KeyVault.",
-  "no-host": "KeyVault native host is unavailable.",
+  matches: "2 Custode suggestions",
+  possible: "Matches exist but cannot be filled here. Open Custode.",
+  "no-matches": "No Custode entries for this site.",
+  locked: "Open and unlock Custode.",
+  "no-host": "Custode native host is unavailable.",
   "unsupported-frame":
-    "The overlay is not available in this frame. Copy your login from the KeyVault app.",
-  loading: "Loading KeyVault suggestions\u2026",
-  "stale-retry": "KeyVault session changed.",
-  timeout: "KeyVault did not respond in time.",
+    "The overlay is not available in this frame. Copy your login from the Custode app.",
+  loading: "Loading Custode suggestions\u2026",
+  "stale-retry": "Custode session changed.",
+  timeout: "Custode did not respond in time.",
 });
 
 const s = (file, scenario, theme, width, height, dpr, anchor) => ({
@@ -222,7 +222,7 @@ const assembleExtension = (workDir) => {
     JSON.stringify(
       {
         manifest_version: 3,
-        name: "KeyVault visual harness (test only, never packaged)",
+        name: "Custode visual harness (test only, never packaged)",
         version: "1.0",
         background: { service_worker: "background_stub.js" },
         content_scripts: [

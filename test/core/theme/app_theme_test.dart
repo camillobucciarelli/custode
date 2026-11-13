@@ -13,7 +13,7 @@ import 'package:password_manager/core/theme/app_radii.dart';
 import 'package:password_manager/core/theme/app_spacing.dart';
 import 'package:password_manager/core/theme/app_text_styles.dart';
 import 'package:password_manager/core/theme/app_theme.dart';
-import 'package:password_manager/core/theme/keyvault_colors.dart';
+import 'package:password_manager/core/theme/custode_colors.dart';
 import 'package:password_manager/core/widgets/kv_icon.dart';
 
 void main() {
@@ -180,15 +180,15 @@ void main() {
       'iconNeutral': AppColors.neutral100.withValues(alpha: 0.72),
     };
 
-    expect(_semanticRoles(KeyVaultColors.light), expectedLight);
-    expect(_semanticRoles(KeyVaultColors.dark), expectedDark);
+    expect(_semanticRoles(CustodeColors.light), expectedLight);
+    expect(_semanticRoles(CustodeColors.dark), expectedDark);
     expect(expectedLight, hasLength(19));
     expect(expectedDark, hasLength(19));
   });
 
-  for (final theme in <({String name, KeyVaultColors colors})>[
-    (name: 'light', colors: KeyVaultColors.light),
-    (name: 'dark', colors: KeyVaultColors.dark),
+  for (final theme in <({String name, CustodeColors colors})>[
+    (name: 'light', colors: CustodeColors.light),
+    (name: 'dark', colors: CustodeColors.dark),
   ]) {
     test('${theme.name} declared text/background pairs meet 4.5:1', () {
       final colors = theme.colors;
@@ -450,9 +450,9 @@ void main() {
     expect(find.bySemanticsLabel('Add entry'), findsNothing);
   });
 
-  for (final theme in <({String name, ThemeData data, KeyVaultColors colors})>[
-    (name: 'light', data: AppTheme.lightTheme, colors: KeyVaultColors.light),
-    (name: 'dark', data: AppTheme.darkTheme, colors: KeyVaultColors.dark),
+  for (final theme in <({String name, ThemeData data, CustodeColors colors})>[
+    (name: 'light', data: AppTheme.lightTheme, colors: CustodeColors.light),
+    (name: 'dark', data: AppTheme.darkTheme, colors: CustodeColors.dark),
   ]) {
     test('${theme.name} ThemeData registers Organic primitives', () {
       final data = theme.data;
@@ -463,7 +463,7 @@ void main() {
       final text = data.textButtonTheme.style!;
       final icon = data.iconButtonTheme.style!;
 
-      expect(data.extension<KeyVaultColors>(), same(colors));
+      expect(data.extension<CustodeColors>(), same(colors));
       expect(data.textTheme.bodyMedium!.fontFamily, 'Figtree');
       expect(data.textTheme.headlineMedium!.fontFamily, 'Caprasimo');
       expect(data.colorScheme.primary, colors.linkText);
@@ -666,7 +666,7 @@ void main() {
     addTearDown(mouse.removePointer);
     await mouse.addPointer(location: tester.getCenter(button));
     await tester.pump(AppMotion.button);
-    expect(material().color, KeyVaultColors.dark.actionEmphasis);
+    expect(material().color, CustodeColors.dark.actionEmphasis);
 
     await mouse.down(tester.getCenter(button));
     await tester.pump(AppMotion.button);
@@ -749,7 +749,7 @@ void main() {
   });
 }
 
-Map<String, Color> _semanticRoles(KeyVaultColors colors) => <String, Color>{
+Map<String, Color> _semanticRoles(CustodeColors colors) => <String, Color>{
   'ground': colors.ground,
   'surface': colors.surface,
   'surfaceNested': colors.surfaceNested,

@@ -1,7 +1,7 @@
 // spec-003 T19: omitted size/theme axes widget matrix — four groups from
 // spec.md "Omitted size/theme axes":
 //   1. Dark roles: every named state family under AppTheme.darkTheme;
-//      text/fill resolves to a declared KeyVaultColors role and every used
+//      text/fill resolves to a declared CustodeColors role and every used
 //      text/background pair is in the spec-001 contrast matrix (>=4.5:1).
 //   2. Tablet/card widths: selection single-column at 599, two-column at
 //      600/1024 without overflow; unlock card <=600 and centred at 1024.
@@ -20,7 +20,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:password_manager/core/theme/app_radii.dart';
-import 'package:password_manager/core/theme/keyvault_colors.dart';
+import 'package:password_manager/core/theme/custode_colors.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_security_profile.dart';
 import 'package:password_manager/features/password_manager/domain/errors/database_access_failure.dart';
@@ -53,7 +53,7 @@ double _contrastRatio(Color foreground, Color background) {
 }
 
 void _expectDeclaredPair(
-  KeyVaultColors colors,
+  CustodeColors colors,
   Color foreground,
   Color background,
 ) {
@@ -113,11 +113,11 @@ void main() {
         find.text('Your vault, in a file you own.'),
       );
       _expectDeclaredPair(
-        KeyVaultColors.dark,
+        CustodeColors.dark,
         headline.style!.color!,
-        KeyVaultColors.dark.ground,
+        CustodeColors.dark.ground,
       );
-      expect(headline.style!.color, KeyVaultColors.dark.textPrimary);
+      expect(headline.style!.color, CustodeColors.dark.textPrimary);
     });
 
     testWidgets('recent: title resolves to textPrimary on ground', (
@@ -142,9 +142,9 @@ void main() {
       expect(tester.takeException(), isNull);
 
       final title = tester.widget<Text>(find.text('Databases'));
-      expect(title.style!.color, KeyVaultColors.dark.textPrimary);
+      expect(title.style!.color, CustodeColors.dark.textPrimary);
       final rowTitle = tester.widget<Text>(find.text('personal.kdbx'));
-      expect(rowTitle.style!.color, KeyVaultColors.dark.textPrimary);
+      expect(rowTitle.style!.color, CustodeColors.dark.textPrimary);
     });
 
     testWidgets('create steps 1-2: title resolves to textPrimary', (
@@ -158,14 +158,14 @@ void main() {
 
       expect(
         tester.widget<Text>(find.text('Name your database')).style!.color,
-        KeyVaultColors.dark.textPrimary,
+        CustodeColors.dark.textPrimary,
       );
 
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
       expect(
         tester.widget<Text>(find.text('Choose your credentials')).style!.color,
-        KeyVaultColors.dark.textPrimary,
+        CustodeColors.dark.textPrimary,
       );
       expect(tester.takeException(), isNull);
     });
@@ -194,7 +194,7 @@ void main() {
       expect(tester.takeException(), isNull);
 
       final title = tester.widget<Text>(find.text('Open from Google Drive'));
-      expect(title.style!.color, KeyVaultColors.dark.textPrimary);
+      expect(title.style!.color, CustodeColors.dark.textPrimary);
     });
 
     testWidgets('invalid sheet resolves declared roles', (tester) async {
@@ -213,7 +213,7 @@ void main() {
             .text
             .style!
             .color,
-        KeyVaultColors.dark.textPrimary,
+        CustodeColors.dark.textPrimary,
       );
     });
 
@@ -235,7 +235,7 @@ void main() {
             .text
             .style!
             .color,
-        KeyVaultColors.dark.textPrimary,
+        CustodeColors.dark.textPrimary,
       );
     });
 
@@ -259,7 +259,7 @@ void main() {
             .widget<Text>(find.text('Duplicate database detected'))
             .style!
             .color,
-        KeyVaultColors.dark.textPrimary,
+        CustodeColors.dark.textPrimary,
       );
     });
 
@@ -292,7 +292,7 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(
         tester.widget<Text>(find.text('personal.kdbx')).style!.color,
-        KeyVaultColors.dark.textPrimary,
+        CustodeColors.dark.textPrimary,
       );
     });
 
@@ -317,9 +317,9 @@ void main() {
         find.text('Incorrect master password or key file.'),
       );
       _expectDeclaredPair(
-        KeyVaultColors.dark,
-        errorText.style!.color ?? KeyVaultColors.dark.textPrimary,
-        KeyVaultColors.dark.ground,
+        CustodeColors.dark,
+        errorText.style!.color ?? CustodeColors.dark.textPrimary,
+        CustodeColors.dark.ground,
       );
     });
 
@@ -347,11 +347,11 @@ void main() {
       final buttonStyle = tester.widget<ElevatedButton>(buttonFinder).style!;
       expect(
         buttonStyle.foregroundColor?.resolve(const {}),
-        KeyVaultColors.dark.actionText,
+        CustodeColors.dark.actionText,
       );
       expect(
         buttonStyle.backgroundColor?.resolve(const {}),
-        KeyVaultColors.dark.actionFill,
+        CustodeColors.dark.actionFill,
       );
     });
 
@@ -381,7 +381,7 @@ void main() {
             )
             .style!
             .color,
-        KeyVaultColors.dark.textSecondary,
+        CustodeColors.dark.textSecondary,
       );
     });
 
@@ -399,7 +399,7 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(
         tester.widget<Text>(find.text('Internal key files')).style!.color,
-        KeyVaultColors.dark.textPrimary,
+        CustodeColors.dark.textPrimary,
       );
     });
 
@@ -422,7 +422,7 @@ void main() {
             .text
             .style!
             .color,
-        KeyVaultColors.dark.textPrimary,
+        CustodeColors.dark.textPrimary,
       );
     });
   });

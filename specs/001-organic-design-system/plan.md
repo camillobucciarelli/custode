@@ -26,7 +26,7 @@ component. Do not migrate unrelated call sites in 001.
 | `assets/fonts/OFL.txt` | font licences |
 | `assets/icons/lucide/UPSTREAM.md` | pinned commit, licence, source URLs and SHA-256 manifest |
 | `assets/icons/lucide/*.svg` | only mapped glyphs from ICONS §2 plus custom composites |
-| `lib/core/theme/keyvault_colors.dart` | semantic `ThemeExtension` |
+| `lib/core/theme/custode_colors.dart` | semantic `ThemeExtension` |
 | `lib/core/theme/app_spacing.dart` | spacing values |
 | `lib/core/theme/app_radii.dart` | radius values |
 | `lib/core/theme/app_elevation.dart` | light/dark shadows |

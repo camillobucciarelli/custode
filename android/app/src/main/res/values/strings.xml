@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="autofill_service_label">KeyVault Autofill</string>
-    <string name="autofill_service_summary">Use KeyVault to fill credentials after unlocking and publishing the encrypted autofill cache.</string>
-    <string name="autofill_dataset_select_for_site">Select KeyVault credential for this site</string>
-    <string name="autofill_dataset_select_for_app">Select KeyVault credential for this app</string>
-    <string name="autofill_dataset_selected">KeyVault credential</string>
+    <string name="autofill_service_label">Custode Autofill</string>
+    <string name="autofill_service_summary">Use Custode to fill credentials after unlocking and publishing the encrypted autofill cache.</string>
+    <string name="autofill_dataset_select_for_site">Select Custode credential for this site</string>
+    <string name="autofill_dataset_select_for_app">Select Custode credential for this app</string>
+    <string name="autofill_dataset_selected">Custode credential</string>
     <string name="autofill_picker_exact_match_title">Matching credentials</string>
     <string name="autofill_picker_exact_match_subtitle">Choose a credential linked to this app or site.</string>
     <string name="autofill_picker_no_exact_match_title">No exact match for this app or site</string>
-    <string name="autofill_picker_no_exact_match_subtitle">Search saved credential metadata. Choosing one fills once and creates a pending link for confirmation in KeyVault.</string>
+    <string name="autofill_picker_no_exact_match_subtitle">Search saved credential metadata. Choosing one fills once and creates a pending link for confirmation in Custode.</string>
     <string name="autofill_picker_search_hint">Search title, username, site, app</string>
     <string name="autofill_picker_secret_error">Unable to read selected credential.</string>
     <string name="autofill_auth_prompt_title">Confirm it\'s you</string>
-    <string name="autofill_auth_prompt_subtitle">KeyVault is about to fill a saved password into another app.</string>
+    <string name="autofill_auth_prompt_subtitle">Custode is about to fill a saved password into another app.</string>
     <!-- spec 023 FR-015: shown before every passkey signature. -->
     <string name="passkey_auth_prompt_title">Confirm it\'s you</string>
-    <string name="passkey_auth_prompt_subtitle">KeyVault is about to sign in with one of your saved passkeys.</string>
+    <string name="passkey_auth_prompt_subtitle">Custode is about to sign in with one of your saved passkeys.</string>
     <string name="autofill_auth_required_error">Set a screen lock, PIN or biometric on this device to fill saved passwords.</string>
     <string name="autofill_auth_cancelled">Not filled. Authentication was not completed.</string>
     <!-- spec-016 T702: picker accessibility labels and the two row strings that
@@ -24,7 +24,7 @@
     <string name="autofill_picker_row_possible_match">Possible match — not linked</string>
     <string name="autofill_picker_row_content_description">Fill %1$s. %2$s</string>
     <string name="autofill_picker_list_description">Saved credentials</string>
-    <string name="autofill_dataset_subtitle_open_keyvault">Open KeyVault to choose</string>
+    <string name="autofill_dataset_subtitle_open_custode">Open Custode to choose</string>
     <!-- spec-016 T404: the last inline slot when more entries match than fit. -->
-    <string name="autofill_inline_search_keyvault">Search KeyVault</string>
+    <string name="autofill_inline_search_custode">Search Custode</string>
 </resources>

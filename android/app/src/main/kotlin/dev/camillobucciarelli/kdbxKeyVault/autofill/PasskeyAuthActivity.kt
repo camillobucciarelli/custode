@@ -190,7 +190,7 @@ class PasskeyAuthActivity : FragmentActivity() {
     }
 
     companion object {
-        private const val TAG = "KeyVaultPasskey"
+        private const val TAG = "CustodePasskey"
 
         /**
          * One PendingIntent per entry in the sheet. `requestCode` keeps them

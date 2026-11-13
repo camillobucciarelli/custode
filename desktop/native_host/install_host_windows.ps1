@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-Installs the KeyVault Chrome/Edge native messaging host for the current Windows user.
+Installs the Custode Chrome/Edge native messaging host for the current Windows user.
 
 .PARAMETER Browser
 Browser to register. Supported values: Chrome, Edge. Default: Chrome.
 
 .PARAMETER ExtensionId
 Extension ID copied from chrome://extensions or edge://extensions. Defaults to
-the published KeyVault Chrome extension ID.
+the published Custode Chrome extension ID.
 #>
 
 [CmdletBinding()]
@@ -31,7 +31,7 @@ $RegistryPath = Join-Path $BrowserRegistryRoot $HostName
 
 function Write-Step {
     param([Parameter(Mandatory = $true)][string]$Message)
-    Write-Host "[KeyVault native host] $Message"
+    Write-Host "[Custode native host] $Message"
 }
 
 try {
@@ -112,7 +112,7 @@ $ErrorActionPreference = 'Stop'
 
 function Write-LauncherError {
     param([Parameter(Mandatory = $true)][string]$Message)
-    [Console]::Error.WriteLine("[KeyVault native host] $Message")
+    [Console]::Error.WriteLine("[Custode native host] $Message")
 }
 
 try {
@@ -229,12 +229,12 @@ exit /b %ERRORLEVEL%
     Write-Step "Registered HKCU $Browser native messaging host: $RegistryPath"
 
     Write-Host ''
-    Write-Host "KeyVault $Browser native messaging host installed successfully."
+    Write-Host "Custode $Browser native messaging host installed successfully."
     Write-Host "Manifest: $ManifestPath"
     Write-Host "Host: $HostPath"
     Write-Host "Restart $Browser before testing the extension."
 }
 catch {
-    Write-Error "Failed to install KeyVault $Browser native messaging host. $($_.Exception.Message)"
+    Write-Error "Failed to install Custode $Browser native messaging host. $($_.Exception.Message)"
     exit 1
 }

@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:password_manager/core/theme/keyvault_colors.dart';
+import 'package:password_manager/core/theme/custode_colors.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_entry_revision.dart';
 
 import 'vault/entry_editor_generator_test_utils.dart';
@@ -27,7 +27,7 @@ double _contrastRatio(Color foreground, Color background) {
 
 /// The pairs the history view and its confirmations put on screen.
 List<({String label, Color foreground, Color background})> _pairs(
-  KeyVaultColors colors,
+  CustodeColors colors,
 ) => [
   // Dialog title/body and the revision card.
   (
@@ -117,8 +117,8 @@ void main() {
 
   group('token matrix', () {
     for (final (name, colors) in [
-      ('light', KeyVaultColors.light),
-      ('dark', KeyVaultColors.dark),
+      ('light', CustodeColors.light),
+      ('dark', CustodeColors.dark),
     ]) {
       test('every pairing is at least 4.5:1 ($name)', () {
         for (final pair in _pairs(colors)) {
@@ -153,8 +153,8 @@ void main() {
   }
 
   for (final (name, themeMode, colors) in [
-    ('light', ThemeMode.light, KeyVaultColors.light),
-    ('dark', ThemeMode.dark, KeyVaultColors.dark),
+    ('light', ThemeMode.light, CustodeColors.light),
+    ('dark', ThemeMode.dark, CustodeColors.dark),
   ]) {
     testWidgets('every text in the view uses a declared foreground ($name)', (
       tester,
@@ -248,7 +248,7 @@ void main() {
       final side = style?.side?.resolve(focused);
       expect(side, isNotNull, reason: '$label focus side');
       expect(side!.width, 2, reason: '$label focus ring width');
-      expect(side.color, KeyVaultColors.light.selectionBorder);
+      expect(side.color, CustodeColors.light.selectionBorder);
     }
 
     // And for real: once focused, the button's painted shape carries that
@@ -268,7 +268,7 @@ void main() {
     expect((shape! as OutlinedBorder).side.width, 2);
     expect(
       (shape as OutlinedBorder).side.color,
-      KeyVaultColors.light.selectionBorder,
+      CustodeColors.light.selectionBorder,
     );
     await unmount(tester);
   });

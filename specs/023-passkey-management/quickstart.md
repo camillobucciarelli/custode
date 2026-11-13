@@ -39,11 +39,11 @@ fvm flutter run --dart-define-from-file=.env.dart.define.json -d macos
 ## A2 — Secret custom fields (US1b)
 
 1. In KeePassXC add to E2 a custom attribute `Recovery` with "Protect"
-   enabled. Open E2 in KeyVault. **Expect**: the field is masked with a reveal
+   enabled. Open E2 in Custode. **Expect**: the field is masked with a reveal
    control; the editor shows its "Secret" toggle on.
 2. Edit E2's title only, save, reopen in KeePassXC. **Expect**: `Recovery` is
    still protected (SC-008).
-3. In KeyVault add a custom field `PIN`, toggle Secret on, save. **Expect**:
+3. In Custode add a custom field `PIN`, toggle Secret on, save. **Expect**:
    KeePassXC shows it protected.
 4. Reveal and copy `PIN` in the detail. **Expect**: the same gate as the
    password on a biometric-protected database, the same auto-hide, the same
@@ -74,29 +74,29 @@ fvm flutter run --dart-define-from-file=.env.dart.define.json -d macos
 
 iOS and macOS, each recorded separately.
 
-1. Unlock the vault in KeyVault, then background it. In Safari open
+1. Unlock the vault in Custode, then background it. In Safari open
    https://webauthn.io, type the username, choose "Authenticate".
-   **Expect**: KeyVault listed; selecting it asks Face ID / Touch ID / passcode
+   **Expect**: Custode listed; selecting it asks Face ID / Touch ID / passcode
    **every time**, then the site reports success. Under 15 s (SC-003).
 2. Cancel the biometric prompt. **Expect**: the site shows a cancellation, not
    a "credential not found".
 3. On https://passkeys.io, where only E3 matches. **Expect**: only E3 offered.
-4. Lock the database in KeyVault, retry step 1. **Expect**: KeyVault offers
+4. Lock the database in Custode, retry step 1. **Expect**: Custode offers
    nothing for the site (cache wiped, FR-023).
-5. On https://webauthn.io choose "Register" and pick KeyVault as the place to
+5. On https://webauthn.io choose "Register" and pick Custode as the place to
    save the passkey (spec 023 T708). **Expect**: a screen saying the passkey is
-   created in the KeyVault app, naming the site and the account; dismissing it
+   created in the Custode app, naming the site and the account; dismissing it
    leaves the site reporting a **failed** registration, never a successful one,
    and the vault unchanged — check that no new passkey appears on any record.
    **Must not**: a blank sheet, a hang, or the site reporting success.
 
 ## E — Android sign-in (US2)
 
-1. API 34+ device: Settings → Passwords & accounts → set KeyVault as a
+1. API 34+ device: Settings → Passwords & accounts → set Custode as a
    passkey provider. Chrome → https://webauthn.io → Authenticate.
-   **Expect**: KeyVault's entry appears; biometric or device credential is
+   **Expect**: Custode's entry appears; biometric or device credential is
    asked every time; success.
-2. API 29–33 device: open KeyVault settings. **Expect**: the passkey row says
+2. API 29–33 device: open Custode settings. **Expect**: the passkey row says
    it is not available on this device; the provider does not appear in system
    settings.
 3. Repeat D.2 and D.4 on Android.
@@ -109,7 +109,7 @@ iOS and macOS, each recorded separately.
    reports success.
 2. Decline the confirmation. **Expect**: the site sees a cancellation.
 3. Lock the app, retry. **Expect**: the browser's own passkey dialog appears
-   (the wrapper fell through), no KeyVault prompt.
+   (the wrapper fell through), no Custode prompt.
 4. A site with no matching passkey. **Expect**: browser's own dialog only.
 5. Run with the previous native host build. **Expect**: same as 3 — the old
    host answers `unsupported_type` and nothing is offered.

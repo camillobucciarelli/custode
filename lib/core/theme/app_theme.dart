@@ -7,7 +7,7 @@ import 'app_colors.dart';
 import 'app_motion.dart';
 import 'app_radii.dart';
 import 'app_text_styles.dart';
-import 'keyvault_colors.dart';
+import 'custode_colors.dart';
 
 class AppTheme {
   AppTheme._();
@@ -16,16 +16,16 @@ class AppTheme {
 
   static ThemeData get lightTheme {
     _registerLicenses();
-    return _buildTheme(KeyVaultColors.light);
+    return _buildTheme(CustodeColors.light);
   }
 
   static ThemeData get darkTheme {
     _registerLicenses();
-    return _buildTheme(KeyVaultColors.dark);
+    return _buildTheme(CustodeColors.dark);
   }
 
-  static ThemeData _buildTheme(KeyVaultColors colors) {
-    final isDark = colors == KeyVaultColors.dark;
+  static ThemeData _buildTheme(CustodeColors colors) {
+    final isDark = colors == CustodeColors.dark;
     final brightness = isDark ? Brightness.dark : Brightness.light;
     final scheme = ColorScheme(
       brightness: brightness,
@@ -384,7 +384,7 @@ class AppTheme {
   }
 
   static Color _filledBackground(
-    KeyVaultColors colors,
+    CustodeColors colors,
     Set<WidgetState> states,
   ) {
     if (states.contains(WidgetState.disabled)) return colors.surface;
@@ -394,10 +394,10 @@ class AppTheme {
   }
 
   static Color _neutralInteractionBackground(
-    KeyVaultColors colors,
+    CustodeColors colors,
     Set<WidgetState> states,
   ) {
-    final isDark = colors == KeyVaultColors.dark;
+    final isDark = colors == CustodeColors.dark;
     if (states.contains(WidgetState.pressed)) {
       return isDark ? AppColors.neutral600 : colors.canvas;
     }

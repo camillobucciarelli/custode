@@ -23,8 +23,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 LOCK_PATH = REPO / "tool/app_icon_host.lock.json"
-FULL_MASTER = REPO / "specs/_design/keyvault-mark.svg"
-FOREGROUND_MASTER = REPO / "specs/_design/keyvault-mark-foreground.svg"
+FULL_MASTER = REPO / "specs/_design/custode-mark.svg"
+FOREGROUND_MASTER = REPO / "specs/_design/custode-mark-foreground.svg"
 OUTPUT_PREFIX = Path("assets/logo/app_icon_family")
 SS = 4
 RENDERER = "pillow-imagedraw-svg-subset-v1"
@@ -41,13 +41,13 @@ LOCKED = (161, 151, 134, 255)
 NOHOST = (246, 160, 107, 255)
 
 MASTER_HASHES = {
-    Path("specs/_design/keyvault-mark-foreground.svg"): "e8875c70faf2c5b7d4180f4ef2d497868f5b33b978d3971abdb9cb3094970b41",
-    Path("specs/_design/keyvault-mark.svg"): "6d0c50c9b8e53fa678066a7b3a6eb19f9aa216163683beb7906616923eaeb5c3",
+    Path("specs/_design/custode-mark-foreground.svg"): "e8875c70faf2c5b7d4180f4ef2d497868f5b33b978d3971abdb9cb3094970b41",
+    Path("specs/_design/custode-mark.svg"): "6d0c50c9b8e53fa678066a7b3a6eb19f9aa216163683beb7906616923eaeb5c3",
 }
 UNBADGED = {
-    Path("keyvault-source-1024.png"): (1024, "full"),
-    Path("keyvault-adaptive-foreground-1024.png"): (1024, "foreground"),
-    Path("keyvault-monochrome-1024.png"): (1024, "monochrome"),
+    Path("custode-source-1024.png"): (1024, "full"),
+    Path("custode-adaptive-foreground-1024.png"): (1024, "foreground"),
+    Path("custode-monochrome-1024.png"): (1024, "monochrome"),
     Path("app-512.png"): (512, "full"),
     Path("app-192.png"): (192, "full"),
     Path("ext-128.png"): (128, "full"),
@@ -65,7 +65,7 @@ STATE_PATHS = {
     for size in (16, 32, 48)
     for state in ("locked", "nohost")
 }
-SVG_PATH = Path("keyvault-mark-monochrome.svg")
+SVG_PATH = Path("custode-mark-monochrome.svg")
 REVIEW_PATH = Path("review/app-icon-family-review.png")
 MANIFEST_PATH = Path("SHA256SUMS")
 PAYLOAD_PATHS = frozenset({SVG_PATH, REVIEW_PATH, *UNBADGED, *STATE_PATHS})
@@ -732,8 +732,10 @@ def build_review_sheet(images: dict[Path, object]) -> object:
     def label(x: int, y: int, text: str) -> None:
         draw.text((x, y), text, fill=(64, 35, 16), font=font)
 
+    # Kept as rendered in the committed review sheet: changing it means
+    # regenerating that PNG on the attested macOS toolchain.
     label(40, 24, "KEYVAULT 007A / COMBINATORE / DETERMINISTIC REVIEW")
-    source = images[Path("keyvault-source-1024.png")]
+    source = images[Path("custode-source-1024.png")]
     assert isinstance(source, Image.Image)
     label(40, 62, "FULL + MASK PREVIEWS / NO-CROP")
     for index, shape in enumerate(("full", "circle", "squircle", "rounded-square")):
@@ -755,8 +757,8 @@ def build_review_sheet(images: dict[Path, object]) -> object:
 
     label(40, 352, "FOREGROUND + MONOCHROME ON WHITE / PEACH / DARK")
     foregrounds = (
-        ("foreground", images[Path("keyvault-adaptive-foreground-1024.png")]),
-        ("monochrome", images[Path("keyvault-monochrome-1024.png")]),
+        ("foreground", images[Path("custode-adaptive-foreground-1024.png")]),
+        ("monochrome", images[Path("custode-monochrome-1024.png")]),
     )
     backgrounds = (("white", (255, 255, 255)), ("peach", PEACH[:3]), ("dark", (39, 46, 27)))
     for row, (name, image) in enumerate(foregrounds):

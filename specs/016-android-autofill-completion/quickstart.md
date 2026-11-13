@@ -10,8 +10,8 @@ browser versions, and a `pass` / `fail` per item.
 ## Prerequisites
 
 - Two devices, or one device and one emulator image: **API 29** and **API 33+**.
-- KeyVault installed from a debug build and selected as the autofill service:
-  Settings → Passwords & accounts → Autofill service → KeyVault.
+- Custode installed from a debug build and selected as the autofill service:
+  Settings → Passwords & accounts → Autofill service → Custode.
 - A vault unlocked at least once with entries for a native app and for a website,
   so the cache is published.
 - Gboard plus one third-party IME installed (API 33+ device).
@@ -34,7 +34,7 @@ Expect `android_autofill_metadata_v2.json` and
 
 ## A — Authentication gate (P1)
 
-1. Open any app with a login form, focus the username field, choose KeyVault,
+1. Open any app with a login form, focus the username field, choose Custode,
    pick an entry.
    **Expect**: an authentication prompt before anything is filled.
 2. Cancel the prompt.
@@ -61,7 +61,7 @@ Expect `android_autofill_metadata_v2.json` and
    **Expect**: either inline suggestions, or the dropdown fallback — never a
    broken or empty strip.
 4. Focus a field matching more entries than the IME's slot count.
-   **Expect**: top matches shown, last slot is "Search KeyVault" and opens the
+   **Expect**: top matches shown, last slot is "Search Custode" and opens the
    picker.
 5. On the API 29 device, repeat step 1.
    **Expect**: the existing dropdown-and-picker path, unchanged.
@@ -70,7 +70,7 @@ Expect `android_autofill_metadata_v2.json` and
 
 1. In an app with no matching vault entry, type a new username and password and
    submit.
-   **Expect**: the system save bar offering KeyVault.
+   **Expect**: the system save bar offering Custode.
 2. Accept it with the vault unlocked.
    **Expect**: confirmation stating a **new entry** will be created; after
    confirming, the entry exists in the vault with the app's package as its
@@ -79,7 +79,7 @@ Expect `android_autofill_metadata_v2.json` and
    **Expect**: confirmation stating this is an **update**; afterwards the entry
    holds the new password and the previous one is in its history.
 4. Lock the vault, repeat step 1, and accept.
-   **Expect**: the KeyVault unlock screen; after unlocking, the entry is written.
+   **Expect**: the Custode unlock screen; after unlocking, the entry is written.
 5. Repeat step 4 but cancel the unlock.
    **Expect**: the unlock screen states that a captured password is waiting and
    will be discarded if you leave; leaving discards it immediately — nothing

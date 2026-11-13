@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "KeyVault Browser Autofill BETA",
+  "name": "Custode Browser Autofill BETA",
   "version": "0.6.1",
-  "description": "THIS EXTENSION IS FOR BETA TESTING. Autofill for KeyVault; requires the local KeyVault desktop app and Native Messaging host.",
+  "description": "THIS EXTENSION IS FOR BETA TESTING. Autofill for Custode; requires the local Custode desktop app and Native Messaging host.",
   "permissions": ["activeTab", "nativeMessaging", "scripting", "storage"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "icons": {
@@ -15,7 +15,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "KeyVault Autofill",
+    "default_title": "Custode Autofill",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",

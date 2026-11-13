@@ -95,7 +95,7 @@ test("A040: a light listbox with GENERIC options renders as a sibling in the pag
   const listbox = lightListboxEl(page);
   assert.ok(listbox, "light listbox missing");
   assert.equal(listbox.getAttribute("role"), "listbox");
-  assert.equal(listbox.getAttribute("aria-label"), "KeyVault suggestions");
+  assert.equal(listbox.getAttribute("aria-label"), "Custode suggestions");
   // In the PAGE tree (light DOM), not inside any shadow root.
   let node = listbox.parentNode;
   let inPageTree = false;

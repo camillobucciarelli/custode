@@ -144,7 +144,7 @@ internal class AutofillAuthGate(
     /** Debug builds only, and carries no secret — a status constant and a flag. */
     private inline fun trace(message: () -> String) {
         if ((activity.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
-            Log.d("KeyVaultAutofill", message())
+            Log.d("CustodeAutofill", message())
         }
     }
 }

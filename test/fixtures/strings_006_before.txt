@@ -22,33 +22,33 @@
 
 Estensione browser desktop
 Estensione Chrome
-Installa l\'estensione e collegala a KeyVault
+Installa l\'estensione e collegala a Custode
 Impossibile aprire Chrome Web Store. Riprova.
 Installa l\'estensione
-Apri Chrome Web Store e installa l\'estensione KeyVault.
+Apri Chrome Web Store e installa l\'estensione Custode.
 Apertura in corso…
 Apri Chrome Web Store
 Apri il pacchetto scaricato, completa l’installazione e riavvia Chrome.
 Impossibile scaricare Chrome Support per macOS.
-Collega Chrome a KeyVault
+Collega Chrome a Custode
 Scarica e installa il componente Chrome Support firmato per macOS.
 Configura automaticamente il collegamento sicuro con Chrome.
-Installer Chrome non disponibile in questa versione di KeyVault.
+Installer Chrome non disponibile in questa versione di Custode.
 Configurazione in corso…
 Scarica Chrome Support
 Configura Chrome
 Chrome configurato. Riavvia Chrome e verifica la connessione.
-Configurazione Chrome non valida. Aggiorna KeyVault e riprova.
+Configurazione Chrome non valida. Aggiorna Custode e riprova.
 Configurazione automatica di Chrome non supportata su questa piattaforma.
-Configurazione Chrome non riuscita. Riprova o reinstalla KeyVault.
+Configurazione Chrome non riuscita. Riprova o reinstalla Custode.
 Verifica la connessione
-Sblocca il vault e tieni KeyVault aperto, poi verifica che il bridge app sia pronto.
+Sblocca il vault e tieni Custode aperto, poi verifica che il bridge app sia pronto.
 Verifica in corso…
-Sblocca il vault in KeyVault e riprova.
-Bridge non raggiungibile. Riavvia KeyVault, sblocca il vault e riprova.
+Sblocca il vault in Custode e riprova.
+Bridge non raggiungibile. Riavvia Custode, sblocca il vault e riprova.
 Collegamento non disponibile. Blocca e sblocca il vault, poi riprova.
-Ultimo controllo: riavvia Chrome e apri il popup KeyVault. La voce Host deve risultare Available.
-KeyVault è pronto per collegarsi all\'estensione Chrome.
+Ultimo controllo: riavvia Chrome e apri il popup Custode. La voce Host deve risultare Available.
+Custode è pronto per collegarsi all\'estensione Chrome.
 
 ## vault_navigation.part.dart (settings / master-password)
 

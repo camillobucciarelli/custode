@@ -72,21 +72,21 @@ test("worker files evaluate in one shared global scope without collisions", () =
   // Throws "Identifier ... has already been declared" on any duplicate
   // top-level binding between worker files, exactly like the real worker.
   const context = loadWorker();
-  assert.strictEqual(typeof context.KeyVaultOverlaySecurity, "object");
-  assert.strictEqual(typeof context.KeyVaultOverlayLifecycle, "object");
-  assert.strictEqual(typeof context.KeyVaultOverlayRoutes, "object");
+  assert.strictEqual(typeof context.CustodeOverlaySecurity, "object");
+  assert.strictEqual(typeof context.CustodeOverlayLifecycle, "object");
+  assert.strictEqual(typeof context.CustodeOverlayRoutes, "object");
 });
 
 test("loading the worker twice in one scope still works (idempotent globals)", () => {
   // `importScripts` never re-runs in production, but the IIFE wrappers must
   // not leak bindings that would collide on a hypothetical second evaluation.
   const context = loadWorker();
-  const security = context.KeyVaultOverlaySecurity;
+  const security = context.CustodeOverlaySecurity;
   const code = fs.readFileSync(
     path.join(EXTENSION_ROOT, "overlay_security.js"),
     "utf8"
   );
   vm.runInContext(code, context, { filename: "overlay_security.js#2" });
-  assert.notStrictEqual(context.KeyVaultOverlaySecurity, undefined);
+  assert.notStrictEqual(context.CustodeOverlaySecurity, undefined);
   assert.strictEqual(typeof security.canonicalizeOrigin, "function");
 });

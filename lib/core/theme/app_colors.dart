@@ -39,7 +39,7 @@ class AppColors {
   static const divider = Color(0x29201E1D);
 
   // Compatibility-only aliases for untouched screens. New code uses Organic
-  // ramps through KeyVaultColors semantic roles.
+  // ramps through CustodeColors semantic roles.
   static const primary = accent400;
   static const primaryLight = accent300;
   static const primaryDark = accent800;

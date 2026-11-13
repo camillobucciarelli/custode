@@ -10,7 +10,7 @@ import '../../../../../core/navigation/app_navigation.dart';
 import '../../../../../core/responsive/breakpoints.dart';
 import '../../../../../core/theme/app_glyph.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../../../core/utils/mobile_file_storage.dart';
 import '../../../../../core/theme/app_radii.dart';
 import '../../../../../core/widgets/kv_bottom_sheet.dart';
@@ -279,7 +279,7 @@ class DatabaseSelectionScreen extends StatelessWidget {
     return KvBottomSheet.show<RecentDatabaseRemovalMode>(
       context: context,
       builder: (sheetContext) {
-        final colors = Theme.of(sheetContext).extension<KeyVaultColors>()!;
+        final colors = Theme.of(sheetContext).extension<CustodeColors>()!;
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
           child: Column(
@@ -403,7 +403,7 @@ class DatabaseSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return Scaffold(
       backgroundColor: colors.ground,
@@ -521,13 +521,13 @@ class _RecentHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Row(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: Image.asset(
-            'assets/logo/app_icon_family/keyvault-source-1024.png',
+            'assets/logo/app_icon_family/custode-source-1024.png',
             width: 40,
             height: 40,
             fit: BoxFit.cover,
@@ -565,7 +565,7 @@ class _AddSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     Widget row({
       required AppGlyph icon,

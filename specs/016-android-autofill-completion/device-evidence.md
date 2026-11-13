@@ -35,12 +35,12 @@ Traced line, verbatim:
 
 ```
 # Gboard
-D KeyVaultAutofill: fill: entries=468 targets=[AndroidAutofillServiceIdentifier(type=AndroidPackage, value=it.lene.lene)]
+D CustodeAutofill: fill: entries=468 targets=[AndroidAutofillServiceIdentifier(type=AndroidPackage, value=it.lene.lene)]
 strongMatches=0 usernameFields=1 passwordFields=1 inlineRequested=true maxSuggestionCount=9 specs=9
 styleV1=[androidx.autofill.inline.ui.version:v1] minSize=89x126 maxSize=630x126
 
 # SwiftKey
-D KeyVaultAutofill: fill: entries=468 targets=[AndroidAutofillServiceIdentifier(type=AndroidPackage, value=it.lene.lene)]
+D CustodeAutofill: fill: entries=468 targets=[AndroidAutofillServiceIdentifier(type=AndroidPackage, value=it.lene.lene)]
 strongMatches=0 usernameFields=1 passwordFields=1 inlineRequested=true maxSuggestionCount=9 specs=9
 styleV1=[androidx.autofill.inline.ui.version:v1] minSize=90x112 maxSize=600x112
 ```
@@ -185,7 +185,7 @@ pressure the check is measuring.
 
 ### Not observable on any device we have — one task
 
-**T404**, the "Search KeyVault" overflow slot. Both Gboard and SwiftKey advertise
+**T404**, the "Search Custode" overflow slot. Both Gboard and SwiftKey advertise
 `maxSuggestionCount=9`, so it needs a site with more than nine matching entries in
 the vault. Either construct one, or accept that only an instrumented test can
 cover it and say so in the task.

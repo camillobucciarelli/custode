@@ -15,9 +15,9 @@ signing a challenge. Sites increasingly offer, and some now require, passkeys �
 a password manager that cannot hold one forces the user to keep a second
 credential store.
 
-KeyVault stores credentials in a `.kdbx` file, and that format already carries
+Custode stores credentials in a `.kdbx` file, and that format already carries
 passkeys in practice: KeePassXC writes them as a small set of named fields on an
-ordinary entry. This spec makes KeyVault a first-class holder of those
+ordinary entry. This spec makes Custode a first-class holder of those
 credentials, in three independently shippable slices:
 
 1. **Hold them** — read, display, protect, sync and delete passkeys that already
@@ -29,10 +29,10 @@ credentials, in three independently shippable slices:
    Android through a Credential Manager provider, Windows and Linux through the
    desktop browser extension and native host.
 3. **Create them** — register a brand-new passkey from the Apple extension, so a
-   site's "create a passkey" flow can choose KeyVault.
+   site's "create a passkey" flow can choose Custode.
 
 Slice 1 alone delivers value (a KeePassXC user's vault stops being partially
-unreadable and unsafely handled in KeyVault); slice 2 turns KeyVault into a
+unreadable and unsafely handled in Custode); slice 2 turns Custode into a
 usable authenticator; slice 3 removes the dependency on KeePassXC for creating
 passkeys.
 
@@ -72,14 +72,14 @@ this feature, not a checklist item at the end.
 ### User Story 1 - Hold passkeys safely in the vault (Priority: P1)
 
 A user who already created passkeys in KeePassXC opens the same `.kdbx` in
-KeyVault. Entries carrying a passkey are recognisable as such, the user can see
+Custode. Entries carrying a passkey are recognisable as such, the user can see
 which site and account the passkey belongs to and when it was added, and can
 delete it. The private key is never displayed, never copied to the clipboard,
 never written to an export or an autofill cache, and survives sync and merge
 untouched.
 
 **Why this priority**: It is the correctness and safety floor. Without it,
-KeyVault silently mishandles credentials that are already in the user's file —
+Custode silently mishandles credentials that are already in the user's file —
 showing a private key as ordinary copyable text is worse than not supporting
 passkeys at all. It is also a precondition for every later slice.
 
@@ -121,14 +121,14 @@ client already stored protected is shown as secret without the user doing
 anything.
 
 **Why this priority**: The passkey private key is a protected custom field, so
-the plumbing is shared; and today KeyVault silently strips the protection from
+the plumbing is shared; and today Custode silently strips the protection from
 any protected custom field on save, which is a data-safety bug with or without
 passkeys.
 
 **Independent Test**: Create a custom field marked secret, save, reopen in
 KeePassXC and confirm the attribute is protected; edit the entry's title in
-KeyVault, save, confirm the attribute is still protected; open the entry in
-KeyVault and confirm the value is masked until revealed.
+Custode, save, confirm the attribute is still protected; open the entry in
+Custode and confirm the value is masked until revealed.
 
 **Acceptance Scenarios**:
 
@@ -138,7 +138,7 @@ KeyVault and confirm the value is masked until revealed.
    **Then** the field is stored protected in the file and another KeePass
    client shows it as protected.
 3. **Given** an entry with a protected custom field written by another client,
-   **When** the user opens it in KeyVault, **Then** the field is shown as
+   **When** the user opens it in Custode, **Then** the field is shown as
    secret and masked; **When** the user edits any other field and saves,
    **Then** the field is still protected in the file.
 4. **Given** a secret custom field in the entry detail, **When** the user
@@ -152,8 +152,8 @@ KeyVault and confirm the value is masked until revealed.
 
 ### User Story 2 - Sign in with a stored passkey on every platform (Priority: P2)
 
-A user visits a site or app that asks for a passkey. KeyVault is offered as the
-passkey source for that platform; the user picks the KeyVault passkey for that
+A user visits a site or app that asks for a passkey. Custode is offered as the
+passkey source for that platform; the user picks the Custode passkey for that
 site, confirms with biometrics or device passcode, and is signed in without
 typing anything.
 
@@ -174,39 +174,39 @@ autofill integrations of specs 016 and 009 for their plumbing.
 
 **Independent Test**: With a passkey for a test relying party in the vault,
 trigger a passkey sign-in on each platform and confirm the sign-in completes
-using KeyVault, and that a passkey for a *different* relying party is never
+using Custode, and that a passkey for a *different* relying party is never
 offered or usable for that site. On an Android device below API 34, confirm the
 "not available" state is shown and no provider is registered.
 
 **Acceptance Scenarios**:
 
 1. **Given** the vault holds a passkey for a site, **When** the site requests a
-   passkey sign-in, **Then** KeyVault appears as an available provider and lists
+   passkey sign-in, **Then** Custode appears as an available provider and lists
    only passkeys whose relying party matches that site.
 2. **Given** an Android device below API 34, **When** the user looks for passkey
    sign-in, **Then** the app says it is not available on this device and no
    Credential Manager provider is registered.
 3. **Given** a site open in a desktop browser with the extension installed,
    **When** the site requests a passkey sign-in, **Then** the extension offers
-   the matching KeyVault passkeys and the response is signed by the native host,
+   the matching Custode passkeys and the response is signed by the native host,
    with the private key never sent to the extension.
-4. **Given** the user selects a KeyVault passkey, **When** the user confirms with
+4. **Given** the user selects a Custode passkey, **When** the user confirms with
    biometrics or device passcode, **Then** the sign-in succeeds.
 5. **Given** the user cancels or fails the confirmation, **When** the flow ends,
    **Then** no assertion is produced and the site receives a cancellation, not an
    error implying the credential is missing.
 6. **Given** the vault holds no passkey for the requesting site, **When** the
-   request arrives, **Then** KeyVault offers nothing for that request and does
+   request arrives, **Then** Custode offers nothing for that request and does
    not present a misleading empty list.
 7. **Given** a passkey sign-in has completed, **When** the flow ends, **Then** no
    private key remains outside its protected storage.
 
 ---
 
-### User Story 3 - Create a new passkey from KeyVault on iOS and macOS (Priority: P3)
+### User Story 3 - Create a new passkey from Custode on iOS and macOS (Priority: P3)
 
-A user on a site's "create a passkey" flow chooses KeyVault as the destination.
-KeyVault creates the credential, stores it on a new or existing entry for that
+A user on a site's "create a passkey" flow chooses Custode as the destination.
+Custode creates the credential, stores it on a new or existing entry for that
 site, and the site completes registration. The new passkey is immediately
 visible in the vault (Story 1) and usable for sign-in (Story 2).
 
@@ -230,12 +230,12 @@ transport (T709); on iOS no supported extension-to-app channel exists, so it
 cannot be completed there by any design.
 
 **Independent Test**: Run a passkey registration on a test relying party
-choosing KeyVault, then confirm the credential appears in the vault with the
+choosing Custode, then confirm the credential appears in the vault with the
 correct site and account, and that signing in with it afterwards succeeds.
 
 **Acceptance Scenarios**:
 
-1. **Given** a site requests passkey creation, **When** the user chooses KeyVault
+1. **Given** a site requests passkey creation, **When** the user chooses Custode
    and confirms, **Then** a passkey is stored in the vault and the site reports
    successful registration.
 2. **Given** the vault already has an entry for that site and account, **When**
@@ -262,7 +262,7 @@ correct site and account, and that signing in with it afterwards succeeds.
   credential".
 - **Malformed or foreign passkey fields.** An entry carrying an incomplete,
   truncated or unrecognised passkey field set must be shown as an unusable
-  passkey and left byte-identical on save; KeyVault must not "repair" or drop
+  passkey and left byte-identical on save; Custode must not "repair" or drop
   fields it does not understand.
 - **Same relying party, several accounts.** Multiple passkeys for one site must
   be distinguishable by account at selection time.
@@ -349,7 +349,7 @@ correct site and account, and that signing in with it afterwards succeeds.
 
 **Sign-in (all platforms)**
 
-- **FR-013**: The system MUST offer KeyVault as a passkey source for sign-in
+- **FR-013**: The system MUST offer Custode as a passkey source for sign-in
   requests on iOS and macOS (credential provider extension), Android API 34+
   (Credential Manager provider), and Windows and Linux (browser extension +
   native host). On Android below API 34 the system MUST state that passkey
@@ -420,7 +420,7 @@ correct site and account, and that signing in with it afterwards succeeds.
 
 ### Measurable Outcomes
 
-- **SC-001**: A vault created in KeePassXC with passkeys opens in KeyVault with
+- **SC-001**: A vault created in KeePassXC with passkeys opens in Custode with
   100% of those passkeys recognised, and reopens in KeePassXC afterwards with no
   passkey lost, altered or reported as corrupt.
 - **SC-002**: No user-reachable action in the app, and no exported or logged
@@ -430,14 +430,14 @@ correct site and account, and that signing in with it afterwards succeeds.
 - **SC-003**: A user can complete a passkey sign-in on each supported platform
   in under 15 seconds from the moment the site asks, without leaving the
   requesting app or browser.
-- **SC-004**: A passkey created in KeyVault is accepted by the site at
+- **SC-004**: A passkey created in Custode is accepted by the site at
   registration and works for a subsequent sign-in on at least three independent
   relying parties used as conformance targets.
 - **SC-005**: A passkey offered for a site is never a passkey belonging to
   another site — zero cross-relying-party offers across the matching test suite.
 - **SC-006**: An interrupted registration leaves zero partially written
   credentials across the interruption test matrix (cancel, lock, write failure).
-- **SC-007**: Opening and saving an entry that holds a passkey that KeyVault does not
+- **SC-007**: Opening and saving an entry that holds a passkey that Custode does not
   fully understand changes no byte of that passkey's stored fields.
 - **SC-008**: For any custom field, the protection attribute in the file after
   an unrelated save equals the attribute before it — asserted for both states.
@@ -445,7 +445,7 @@ correct site and account, and that signing in with it afterwards succeeds.
 ## Assumptions
 
 - The KeePassXC field layout for passkeys is the interoperability target;
-  matching it is preferred over inventing a KeyVault-specific layout, so that
+  matching it is preferred over inventing a Custode-specific layout, so that
   vaults stay usable in both applications.
 - The security model of a passkey held here is the vault's security model —
   master password, key file and the sync destination — not hardware-backed key

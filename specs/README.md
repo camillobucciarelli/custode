@@ -1,10 +1,10 @@
-# KeyVault specs
+# Custode specs
 
-Spec-kit style specifications for the **KeyVault restyle** (Organic design
+Spec-kit style specifications for the **Custode restyle** (Organic design
 system) plus the **two new features** the design package introduces.
 
 Source of the design: Claude Design project
-`5151eacb-bbf2-44aa-921c-6a0e2d231d12`, folder `design_handoff_keyvault_restyle/`.
+`5151eacb-bbf2-44aa-921c-6a0e2d231d12`, folder `design_handoff_custode_restyle/`.
 Imported 2026-08-05.
 
 ## Layout
@@ -16,7 +16,7 @@ specs/_design/                    the design handoff, verbatim (numbers of recor
   PIXEL_SPEC.md                   every measurement, per surface
   ICONS.md                        app mark geometry + Lucide mapping
   tokens.css                      Organic handoff source; 001 records mandatory accessibility deviations
-  keyvault-mark*.svg              vector masters of the new app mark
+  custode-mark*.svg              vector masters of the new app mark
 specs/NNN-slug/spec.md|plan.md|tasks.md
 ```
 

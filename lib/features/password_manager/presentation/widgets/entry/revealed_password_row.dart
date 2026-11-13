@@ -4,7 +4,7 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_glyph.dart';
 import '../../../../../core/theme/app_motion.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../../../core/widgets/kv_icon.dart';
 
 /// Revealed-password row (spec-004 FR-2, PIXEL_SPEC "Entry detail"):
@@ -38,7 +38,7 @@ class RevealedPasswordRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     // The bar steps once per second (shared ticker, see RevealController's
     // doc comment); this only smooths that per-second step visually and is
     // zeroed under reduced motion. It never affects the 12s expiry itself.

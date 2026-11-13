@@ -63,7 +63,7 @@ class _VaultVerticalSpacer extends StatelessWidget {
     child: Divider(
       height: 17,
       thickness: 1,
-      color: Theme.of(context).extension<KeyVaultColors>()!.divider,
+      color: Theme.of(context).extension<CustodeColors>()!.divider,
     ),
   );
 }
@@ -140,7 +140,7 @@ class _VaultHygieneShortcuts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     Widget shortcut({
       required String label,

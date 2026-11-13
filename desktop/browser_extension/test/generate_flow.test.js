@@ -41,9 +41,9 @@ const {
 const GENERATED_SECRET = ["b2", "canary", "generated", "value"].join("-");
 const PENDING_ID_CANARY = ["b2", "pending", "record", "canary"].join("-");
 
-const GENERATE_DISABLED_TEXT = "Open KeyVault to generate a password.";
+const GENERATE_DISABLED_TEXT = "Open Custode to generate a password.";
 const GENERATE_ACTIVE_TEXT =
-  "Generate a password — confirm the save in KeyVault.";
+  "Generate a password — confirm the save in Custode.";
 
 // ---------------------------------------------------------------------------
 // Worker-side harness. Models the Slice A1/B1 native transport only.
@@ -710,7 +710,7 @@ test("B012: renderable generate failures show the honest state; stale_session of
 
   await page.focus(password);
   await page.click(generateRow(page));
-  assert.equal(statusText(page), "Open and unlock KeyVault.");
+  assert.equal(statusText(page), "Open and unlock Custode.");
   assert.equal(overlayCount(page), 1, "renderable error keeps the overlay");
   assert.equal(password.value, "");
 
@@ -723,7 +723,7 @@ test("B012: renderable generate failures show the honest state; stale_session of
     errorResult("generateResult", "stale_session", message);
   await page2.focus(password2);
   await page2.click(generateRow(page2));
-  assert.equal(statusText(page2), "KeyVault session changed.");
+  assert.equal(statusText(page2), "Custode session changed.");
   const retry = page2.allElements().find((el) => el.id === "kv-retry");
   assert.ok(retry, "stale_session offers Try again");
   await page2.click(retry);

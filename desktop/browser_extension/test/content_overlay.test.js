@@ -218,7 +218,7 @@ test("content_overlay: an enabled origin in an unsupported frame is display-only
   assert.equal(overlayCount(page), 1, "the unsupported state must render");
   assert.equal(
     statusText(page),
-    "The overlay is not available in this frame. Copy your login from the KeyVault app."
+    "The overlay is not available in this frame. Copy your login from the Custode app."
   );
   // Fail closed: not one credential message may leave this frame, ever.
   assert.equal(page.sentOfType("requestMatches").length, 0);
@@ -647,7 +647,7 @@ test("exposes listbox/options/live state and restores ARIA", async () => {
   const status = page.allElements().find((el) => el.id === "kv-status");
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.getAttribute("aria-live"), "polite");
-  assert.equal(status.textContent, "2 KeyVault suggestions");
+  assert.equal(status.textContent, "2 Custode suggestions");
   await page.pressKey("ArrowDown");
   assert.equal(status.textContent, "Second, 2 of 2");
   assert.deepEqual(optionRows(page).map((row) => row.getAttribute("aria-selected")), ["false", "true"]);

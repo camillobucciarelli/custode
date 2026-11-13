@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 EXTENSION_DIR="${REPO_ROOT}/desktop/browser_extension"
 
-APP_NAME="${1:-KeyVaultSafariAutofill}"
+APP_NAME="${1:-CustodeSafariAutofill}"
 BUNDLE_ID="${2:-dev.camillobucciarelli.kdbxKeyVault.safari}"
 OUT_DIR="${REPO_ROOT}/desktop/safari/generated"
 

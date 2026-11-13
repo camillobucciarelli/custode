@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../domain/utils/password_strength.dart';
 
 /// Entry-detail strength strip (spec-004 FR-1/FR-4, PIXEL_SPEC "Entry
@@ -36,7 +36,7 @@ class StrengthStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     if (!isWarning) {
       return Container(
@@ -185,7 +185,7 @@ class _StrengthNotches extends StatelessWidget {
   const _StrengthNotches({required this.level, required this.colors});
 
   final PasswordStrengthLevel level;
-  final KeyVaultColors colors;
+  final CustodeColors colors;
 
   @override
   Widget build(BuildContext context) {

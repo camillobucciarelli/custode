@@ -704,7 +704,7 @@ git commit -m "feat: add MacCredentialProviderViewController (bridge + snapshot 
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>KeyVault AutoFill</string>
+	<string>Custode AutoFill</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -931,7 +931,7 @@ Add the appex to the **Products** group. Find:
 		33CC10EE2044A3C60003C045 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				33CC10ED2044A3C60003C045 /* KeyVault.app */,
+				33CC10ED2044A3C60003C045 /* Custode.app */,
 				331C80D5294CF71000263BE5 /* RunnerTests.xctest */,
 			);
 ```
@@ -942,7 +942,7 @@ Replace with:
 		33CC10EE2044A3C60003C045 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				33CC10ED2044A3C60003C045 /* KeyVault.app */,
+				33CC10ED2044A3C60003C045 /* Custode.app */,
 				331C80D5294CF71000263BE5 /* RunnerTests.xctest */,
 				MACE0000000000000000A001 /* CredentialProviderExtension.appex */,
 			);

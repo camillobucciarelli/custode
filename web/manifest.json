@@ -1,11 +1,11 @@
 {
-    "name": "KeyVault",
-    "short_name": "KeyVault",
+    "name": "Custode",
+    "short_name": "Custode",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "KeyVault Smart Password Security",
+    "description": "Custode Smart Password Security",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

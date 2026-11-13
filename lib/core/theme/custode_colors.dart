@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 @immutable
-class KeyVaultColors extends ThemeExtension<KeyVaultColors> {
-  const KeyVaultColors({
+class CustodeColors extends ThemeExtension<CustodeColors> {
+  const CustodeColors({
     required this.ground,
     required this.surface,
     required this.surfaceNested,
@@ -26,7 +26,7 @@ class KeyVaultColors extends ThemeExtension<KeyVaultColors> {
     required this.iconNeutral,
   });
 
-  static const light = KeyVaultColors(
+  static const light = CustodeColors(
     ground: AppColors.neutral100,
     surface: AppColors.neutral200,
     surfaceNested: AppColors.neutral100,
@@ -48,7 +48,7 @@ class KeyVaultColors extends ThemeExtension<KeyVaultColors> {
     iconNeutral: AppColors.neutral700,
   );
 
-  static final dark = KeyVaultColors(
+  static final dark = CustodeColors(
     ground: AppColors.neutral900,
     surface: AppColors.neutral800,
     surfaceNested: AppColors.neutral900,
@@ -91,7 +91,7 @@ class KeyVaultColors extends ThemeExtension<KeyVaultColors> {
   final Color iconNeutral;
 
   @override
-  KeyVaultColors copyWith({
+  CustodeColors copyWith({
     Color? ground,
     Color? surface,
     Color? surfaceNested,
@@ -111,7 +111,7 @@ class KeyVaultColors extends ThemeExtension<KeyVaultColors> {
     Color? positiveText,
     Color? selectionBorder,
     Color? iconNeutral,
-  }) => KeyVaultColors(
+  }) => CustodeColors(
     ground: ground ?? this.ground,
     surface: surface ?? this.surface,
     surfaceNested: surfaceNested ?? this.surfaceNested,
@@ -134,9 +134,9 @@ class KeyVaultColors extends ThemeExtension<KeyVaultColors> {
   );
 
   @override
-  KeyVaultColors lerp(covariant KeyVaultColors? other, double t) {
+  CustodeColors lerp(covariant CustodeColors? other, double t) {
     if (other == null) return this;
-    return KeyVaultColors(
+    return CustodeColors(
       ground: Color.lerp(ground, other.ground, t)!,
       surface: Color.lerp(surface, other.surface, t)!,
       surfaceNested: Color.lerp(surfaceNested, other.surfaceNested, t)!,

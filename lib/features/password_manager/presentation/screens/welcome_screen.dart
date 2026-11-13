@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/theme/keyvault_colors.dart';
+import '../../../../core/theme/custode_colors.dart';
 import '../../../../core/widgets/kv_pill_button.dart';
 
 /// FR-1 "Welcome / no database" — shown when the selection list is empty.
@@ -21,7 +21,7 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 34),
@@ -33,7 +33,7 @@ class WelcomeScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(26),
               child: Image.asset(
-                'assets/logo/app_icon_family/keyvault-source-1024.png',
+                'assets/logo/app_icon_family/custode-source-1024.png',
                 width: 88,
                 height: 88,
                 fit: BoxFit.cover,

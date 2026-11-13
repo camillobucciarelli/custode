@@ -8,7 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/theme/keyvault_colors.dart';
+import '../../../../core/theme/custode_colors.dart';
 import '../../../../core/widgets/kv_pill_button.dart';
 import '../../domain/models/create_database_step.dart';
 import '../../domain/usecases/create_database_download_usecase.dart';
@@ -267,7 +267,7 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return BlocConsumer<DatabaseSelectionBloc, DatabaseSelectionState>(
       listenWhen: (previous, current) =>
@@ -428,7 +428,7 @@ class _CreateHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final index = CreateDatabaseStep.values.indexOf(step);
 
     return Column(
@@ -511,7 +511,7 @@ class _NameStepState extends State<_NameStep> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -530,7 +530,7 @@ class _NameStepState extends State<_NameStep> {
         ),
         const SizedBox(height: 12),
         Text(
-          'KeyVault app storage',
+          'Custode app storage',
           style: AppTextStyles.secondary.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: 4),
@@ -590,7 +590,7 @@ class _CredentialsStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final hasPassword = passwordCtrl.text.isNotEmpty;
     final category = strengthCategoryOf(passwordCtrl.text);
 
@@ -718,7 +718,7 @@ class _CredentialsStep extends StatelessWidget {
         else
           Builder(
             builder: (context) {
-              final colors = Theme.of(context).extension<KeyVaultColors>()!;
+              final colors = Theme.of(context).extension<CustodeColors>()!;
               return Text(
                 'The web app keeps nothing: the database and key file are '
                 'only downloaded to your device. Reloading the page loses '
@@ -771,7 +771,7 @@ class _WebDownloadStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final databaseEnabled = !hasKeyFile || keyDownloadRequested;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -833,7 +833,7 @@ class _StrengthMeter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final activeCount = PasswordStrengthCategory.values.indexOf(category) + 1;
     return Row(
       children: [

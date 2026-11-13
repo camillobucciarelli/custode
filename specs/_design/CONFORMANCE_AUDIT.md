@@ -2,7 +2,7 @@
 
 **Date**: 2026-08-29
 **Design source**: project `5151eacb-bbf2-44aa-921c-6a0e2d231d12`, mirrored
-byte-identical in `docs/design_handoff_keyvault_restyle/` (verified 2026-08-28).
+byte-identical in `docs/design_handoff_custode_restyle/` (verified 2026-08-28).
 **Normative documents**: `00 Catalogo & Piano`, the per-journey artboards,
 `PIXEL_SPEC.md`, `ICONS.md`, and the DQ-1…DQ-3 decisions recorded in
 `specs/018-desktop-vault-navigation/spec.md` §Design decisions.
@@ -58,13 +58,13 @@ deleting the host chrome closes this too.
 
 ### C-SH-03 · Rail mark is a glyph, not the app mark
 
-**Resolved by spec 019** — T051 — the rail renders `keyvault-mark-monochrome.svg` at 38 × 38 / r13; `key-round` no longer appears in the chrome (`vault_chrome_test.dart`).
+**Resolved by spec 019** — T051 — the rail renders `custode-mark-monochrome.svg` at 38 × 38 / r13; `key-round` no longer appears in the chrome (`vault_chrome_test.dart`).
 
 `_VaultRail` (`vault_shell.part.dart:1140`) draws `AppGlyph.key` inside a
 38 × 38 / r13 tile. `ICONS.md` §1 "In-app usage of the mark" requires the
 **Combinatore mark** itself at 38 × 38 / r13 in the tablet rail (and 40/14 in the
 database list header, 88/26 on Welcome, 76/24 on the lock overlay). The mark
-ships already (`specs/_design/keyvault-mark.svg`, spec 007A raster set).
+ships already (`specs/_design/custode-mark.svg`, spec 007A raster set).
 
 ---
 

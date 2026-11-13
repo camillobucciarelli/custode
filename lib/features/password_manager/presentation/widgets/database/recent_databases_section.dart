@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../domain/models/database_selection_item.dart';
 import 'database_item_tile.dart';
 
@@ -37,7 +37,7 @@ class _RecentDatabasesSectionState extends State<RecentDatabasesSection> {
       return const SizedBox.shrink();
     }
 
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final normalizedQuery = _query.trim().toLowerCase();
     final filtered = widget.items
         .where((item) {

@@ -43,20 +43,20 @@ Shipped in this folder:
 
 | File | Contents |
 | --- | --- |
-| `keyvault-mark.svg` | Full-bleed mark (background + ink) |
-| `keyvault-mark-foreground.svg` | Ink only, transparent — adaptive foreground and monochrome master |
+| `custode-mark.svg` | Full-bleed mark (background + ink) |
+| `custode-mark-foreground.svg` | Ink only, transparent — adaptive foreground and monochrome master |
 
-For the **monochrome** variant, take `keyvault-mark-foreground.svg` and set every
+For the **monochrome** variant, take `custode-mark-foreground.svg` and set every
 `stroke` and `fill` to `#ffffff` (white ink on alpha), matching the existing
-`assets/logo/keyvault-monochrome.png` convention.
+`assets/logo/custode-monochrome.png` convention.
 
 ### Raster exports required
 
 | File | Size | Background | Target |
 | --- | --- | --- | --- |
-| `keyvault-source-1024.png` | 1024 | `#ffe1d0` | `flutter_launcher_icons: image_path`, plus `image_path_ios_dark_transparent` / `image_path_ios_tinted_grayscale` |
-| `keyvault-adaptive-foreground-1024.png` | 1024 | transparent | `adaptive_icon_foreground` |
-| `keyvault-monochrome-1024.png` | 1024 | transparent, white ink | `adaptive_icon_monochrome` |
+| `custode-source-1024.png` | 1024 | `#ffe1d0` | `flutter_launcher_icons: image_path`, plus `image_path_ios_dark_transparent` / `image_path_ios_tinted_grayscale` |
+| `custode-adaptive-foreground-1024.png` | 1024 | transparent | `adaptive_icon_foreground` |
+| `custode-monochrome-1024.png` | 1024 | transparent, white ink | `adaptive_icon_monochrome` |
 | `app-512.png` | 512 | `#ffe1d0` | `web/icons/Icon-512.png`, `Icon-maskable-512.png` |
 | `app-192.png` | 192 | `#ffe1d0` | `web/icons/Icon-192.png`, `Icon-maskable-192.png` |
 | `ext-128.png` | 128 | `#ffe1d0` | extension `icons/icon-128.png` |
@@ -65,22 +65,22 @@ For the **monochrome** variant, take `keyvault-mark-foreground.svg` and set ever
 | `ext-16.png` | 16 | `#ffe1d0` | extension `icons/icon-16.png` |
 
 Pre-rendered PNGs exist in the design project under
-`design_handoff_keyvault_restyle/icons/`. Regenerating from the SVG is fine —
+`design_handoff_custode_restyle/icons/`. Regenerating from the SVG is fine —
 render at 4× and downsample, no additional padding, no rounding.
 
 ### `pubspec.yaml` diff
 
 ```yaml
 flutter_launcher_icons:
-  image_path: icons/keyvault-source-1024.png            # was assets/logo/keyvault-source.png
+  image_path: icons/custode-source-1024.png            # was assets/logo/custode-source.png
   android: true
   ios: true
   remove_alpha_ios: true
   adaptive_icon_background: "#FFE1D0"                   # was "#FFFFFF"
-  adaptive_icon_foreground: icons/keyvault-adaptive-foreground-1024.png
-  adaptive_icon_monochrome: icons/keyvault-monochrome-1024.png
-  image_path_ios_dark_transparent: icons/keyvault-adaptive-foreground-1024.png
-  image_path_ios_tinted_grayscale: icons/keyvault-monochrome-1024.png
+  adaptive_icon_foreground: icons/custode-adaptive-foreground-1024.png
+  adaptive_icon_monochrome: icons/custode-monochrome-1024.png
+  image_path_ios_dark_transparent: icons/custode-adaptive-foreground-1024.png
+  image_path_ios_tinted_grayscale: icons/custode-monochrome-1024.png
   desaturate_tinted_to_grayscale_ios: true
   web: { generate: true }
   windows: { generate: true }

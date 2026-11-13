@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/keyvault_colors.dart';
+import '../theme/custode_colors.dart';
 
 /// Letter avatar used by entry rows and the entry-detail header (PIXEL_SPEC
 /// "List row" / "Entry detail" anchors). Rows use favicons never — letter
@@ -26,11 +26,11 @@ class KvLetterAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final resolved = letter.isEmpty ? '?' : letter[0].toUpperCase();
     // Mock uses a raw accent-200/accent-900 (dark: accent-800/accent-200)
-    // pairing for the default avatar that isn't one of KeyVaultColors'
+    // pairing for the default avatar that isn't one of CustodeColors'
     // existing semantic roles (attentionTint is accent-100/accent-800,
     // reused elsewhere for warning tints) — selected reuses actionFill/
     // actionText, which already is accent-300/accent-900 in both themes.

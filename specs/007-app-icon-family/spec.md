@@ -2,8 +2,8 @@
 
 **Status**: Draft · **Kind**: Restyle asset work · **Depends on**: —
 **Design source**: `13 Icona app & estensione.dc.html`,
-`specs/_design/ICONS.md` §1, `specs/_design/keyvault-mark.svg`, and
-`specs/_design/keyvault-mark-foreground.svg`.
+`specs/_design/ICONS.md` §1, `specs/_design/custode-mark.svg`, and
+`specs/_design/custode-mark-foreground.svg`.
 
 ## Milestone boundary
 
@@ -39,8 +39,8 @@ These existing files are the only masters; 007A does not copy them into another
 
 | Master | SHA-256 | Meaning |
 | --- | --- | --- |
-| `specs/_design/keyvault-mark.svg` | `6d0c50c9b8e53fa678066a7b3a6eb19f9aa216163683beb7906616923eaeb5c3` | Full-bleed background plus mark |
-| `specs/_design/keyvault-mark-foreground.svg` | `e8875c70faf2c5b7d4180f4ef2d497868f5b33b978d3971abdb9cb3094970b41` | Transparent mark only |
+| `specs/_design/custode-mark.svg` | `6d0c50c9b8e53fa678066a7b3a6eb19f9aa216163683beb7906616923eaeb5c3` | Full-bleed background plus mark |
+| `specs/_design/custode-mark-foreground.svg` | `e8875c70faf2c5b7d4180f4ef2d497868f5b33b978d3971abdb9cb3094970b41` | Transparent mark only |
 
 Both use a 100 × 100 `viewBox`. Ink is inside
 `translate(50,50) scale(.75) translate(-50,-50)` and is drawn background → ring →
@@ -69,7 +69,7 @@ recorded x bound `26.5→73.5` conflicts with the hashed master: centred ring st
 and E/W notches reach x `23→77`. This spec records the discrepancy; computed
 geometry from the hashed SVG masters governs implementation and review.
 
-`assets/logo/app_icon_family/keyvault-mark-monochrome.svg` is a generated
+`assets/logo/app_icon_family/custode-mark-monochrome.svg` is a generated
 derivative, not a third master. It preserves foreground element order, geometry,
 transform, `fill="none"`, and transparent canvas while replacing every hex paint
 with `#ffffff`.
@@ -157,10 +157,10 @@ root `icons/` path is assumed.
 
 | Output | Dimensions | Mode/background | Source and later consumer |
 | --- | --- | --- | --- |
-| `keyvault-mark-monochrome.svg` | viewBox 100×100; width/height 1024 | transparent white ink | foreground derivative |
-| `keyvault-source-1024.png` | 1024×1024 | RGB, opaque `#ffe1d0` | normal launcher source |
-| `keyvault-adaptive-foreground-1024.png` | 1024×1024 | RGBA | Android foreground; iOS dark source |
-| `keyvault-monochrome-1024.png` | 1024×1024 | RGBA, white ink | Android monochrome; iOS tinted source |
+| `custode-mark-monochrome.svg` | viewBox 100×100; width/height 1024 | transparent white ink | foreground derivative |
+| `custode-source-1024.png` | 1024×1024 | RGB, opaque `#ffe1d0` | normal launcher source |
+| `custode-adaptive-foreground-1024.png` | 1024×1024 | RGBA | Android foreground; iOS dark source |
+| `custode-monochrome-1024.png` | 1024×1024 | RGBA, white ink | Android monochrome; iOS tinted source |
 | `app-512.png` | 512×512 | RGB, opaque `#ffe1d0` | web normal/maskable and Linux source |
 | `app-192.png` | 192×192 | RGB, opaque `#ffe1d0` | web normal/maskable source |
 | `ext-128.png` | 128×128 | RGB, opaque `#ffe1d0` | extension ready/base icon only |
@@ -194,9 +194,9 @@ masters plus 17 payload outputs. It excludes itself and excludes
 Locked `flutter_launcher_icons 0.14.4` supports normal, dark-transparent, and
 tinted-grayscale paths. 007B will map:
 
-- normal → `keyvault-source-1024.png`;
-- dark-transparent → `keyvault-adaptive-foreground-1024.png`; and
-- tinted-grayscale → `keyvault-monochrome-1024.png`.
+- normal → `custode-source-1024.png`;
+- dark-transparent → `custode-adaptive-foreground-1024.png`; and
+- tinted-grayscale → `custode-monochrome-1024.png`.
 
 007B keeps `desaturate_tinted_to_grayscale_ios: true` as an explicit generator
 guard even though the reviewed source already has equal RGB channels. 007A does

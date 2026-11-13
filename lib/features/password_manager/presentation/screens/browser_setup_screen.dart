@@ -10,14 +10,14 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_glyph.dart';
 import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../../../core/widgets/kv_icon.dart';
 import '../../../../../core/widgets/kv_pill_button.dart';
 import '../../data/services/browser_setup_service.dart';
 import '../widgets/styled_info_container.dart';
 
 /// A step-by-step wizard that guides the user through connecting the
-/// KeyVault browser extension to the desktop app.
+/// Custode browser extension to the desktop app.
 ///
 /// Should only be shown on desktop platforms.
 class BrowserSetupScreen extends StatefulWidget {
@@ -178,7 +178,7 @@ class _BrowserSetupScreenState extends State<BrowserSetupScreen> {
       if (!mounted) return;
       final message = _usesSideloadFallback
           ? (opened
-                ? 'Scarica lo zip di KeyVault dalla release, avvialo e ripeti il passo 2 da quella versione.'
+                ? 'Scarica lo zip di Custode dalla release, avvialo e ripeti il passo 2 da quella versione.'
                 : 'Impossibile aprire la pagina delle release GitHub.')
           : opened
           ? 'Apri il pacchetto scaricato, completa l’installazione e riavvia Chrome.'
@@ -208,13 +208,13 @@ class _BrowserSetupScreenState extends State<BrowserSetupScreen> {
       case NativeHostInstallResult.success:
         return 'Chrome configurato. Riavvia Chrome e verifica la connessione.';
       case NativeHostInstallResult.invalidExtensionId:
-        return 'Configurazione Chrome non valida. Aggiorna KeyVault e riprova.';
+        return 'Configurazione Chrome non valida. Aggiorna Custode e riprova.';
       case NativeHostInstallResult.scriptNotFound:
-        return 'Installer Chrome non disponibile in questa versione di KeyVault.';
+        return 'Installer Chrome non disponibile in questa versione di Custode.';
       case NativeHostInstallResult.unsupportedPlatform:
         return 'Configurazione automatica di Chrome non supportata su questa piattaforma.';
       case NativeHostInstallResult.failed:
-        return 'Configurazione Chrome non riuscita. Riprova o reinstalla KeyVault.';
+        return 'Configurazione Chrome non riuscita. Riprova o reinstalla Custode.';
     }
   }
 
@@ -271,11 +271,11 @@ class _BrowserSetupScreenState extends State<BrowserSetupScreen> {
         case BridgeCheckResult.noConfig:
           _appBridgeConnected = false;
           _connectionStatus = _StepStatus.error;
-          _errorMessage = 'Sblocca il vault in KeyVault e riprova.';
+          _errorMessage = 'Sblocca il vault in Custode e riprova.';
         case BridgeCheckResult.notRunning:
           _appBridgeConnected = false;
           _connectionStatus = _StepStatus.error;
-          _errorMessage = 'Bridge non raggiungibile. Riavvia KeyVault, sblocca il vault e riprova.';
+          _errorMessage = 'Bridge non raggiungibile. Riavvia Custode, sblocca il vault e riprova.';
         case BridgeCheckResult.v2AppBridgeUnavailable:
           _appBridgeConnected = false;
           _connectionStatus = _StepStatus.error;
@@ -354,7 +354,7 @@ class _BrowserSetupScreenState extends State<BrowserSetupScreen> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'Installa l\'estensione e collegala a KeyVault',
+                                      'Installa l\'estensione e collegala a Custode',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall,
@@ -385,7 +385,7 @@ class _BrowserSetupScreenState extends State<BrowserSetupScreen> {
                           _SetupStep(
                             number: 1,
                             title: 'Installa l\'estensione',
-                            description: 'Apri Chrome Web Store e installa l\'estensione KeyVault.',
+                            description: 'Apri Chrome Web Store e installa l\'estensione Custode.',
                             status: _extensionStatus,
                             actionLabel: _extensionStatus == _StepStatus.loading
                                 ? 'Apertura in corso…'
@@ -400,12 +400,12 @@ class _BrowserSetupScreenState extends State<BrowserSetupScreen> {
                           // Step 2 — Native Host
                           _SetupStep(
                             number: 2,
-                            title: 'Collega Chrome a KeyVault',
+                            title: 'Collega Chrome a Custode',
                             description: _usesMacOSCompanionInstaller
                                 ? 'Scarica e installa il componente Chrome Support firmato per macOS.'
                                 : _hasNativeHostInstaller
                                 ? 'Configura automaticamente il collegamento sicuro con Chrome.'
-                                : 'Questa versione di KeyVault non include il collegamento con Chrome (ad esempio la build Microsoft Store). Usa lo zip della release GitHub per attivarlo.',
+                                : 'Questa versione di Custode non include il collegamento con Chrome (ad esempio la build Microsoft Store). Usa lo zip della release GitHub per attivarlo.',
                             status: _nativeHostStatus,
                             actionLabel:
                                 _nativeHostStatus == _StepStatus.loading
@@ -452,7 +452,7 @@ class _BrowserSetupScreenState extends State<BrowserSetupScreen> {
                           _SetupStep(
                             number: 3,
                             title: 'Verifica la connessione',
-                            description: 'Sblocca il vault e tieni KeyVault aperto, poi verifica che il bridge app sia pronto.',
+                            description: 'Sblocca il vault e tieni Custode aperto, poi verifica che il bridge app sia pronto.',
                             status: _connectionStatus,
                             actionLabel: _isCheckingConnection
                                 ? 'Verifica in corso…'
@@ -532,7 +532,7 @@ class _BrowserSetupScreenState extends State<BrowserSetupScreen> {
                           if (_appBridgeConnected) ...[
                             const SizedBox(height: 16),
                             Text(
-                              'Ultimo controllo: riavvia Chrome e apri il popup KeyVault. La voce Host deve risultare Available.',
+                              'Ultimo controllo: riavvia Chrome e apri il popup Custode. La voce Host deve risultare Available.',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -642,7 +642,7 @@ class _SetupStep extends StatelessWidget {
   // this only restyles the container.
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final isDisabled = status == _StepStatus.disabled;
     final isDone = status == _StepStatus.done;
     final isLoading = status == _StepStatus.loading;
@@ -848,7 +848,7 @@ class HostNotFoundDiagnosticScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Scaffold(
       backgroundColor: colors.ground,
       appBar: AppBar(
@@ -977,7 +977,7 @@ class HostNotFoundDiagnosticScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Il resto di KeyVault continua a funzionare: senza host '
+                'Il resto di Custode continua a funzionare: senza host '
                 'manca solo il riempimento automatico nel browser.',
                 style: AppTextStyles.meta.copyWith(color: colors.textSecondary),
               ),
@@ -1040,7 +1040,7 @@ class _AppBridgeStatusBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'KeyVault è pronto per collegarsi all\'estensione Chrome.',
+              'Custode è pronto per collegarsi all\'estensione Chrome.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

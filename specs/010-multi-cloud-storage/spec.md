@@ -749,8 +749,8 @@ remain normative for future provider-choice work:
 | Category | Exact derivation | Required condition-first copy |
 | --- | --- | --- |
 | **Protetto** | `conditionalWrite` present | `If another device saves at the same moment, this service refuses the second save. Nothing you save here is replaced by another device without you being asked.` |
-| **Recuperabile** | no `conditionalWrite`; `versionHistory` present | `If two devices save at the same moment, one save can replace the other. As long as the device that made the replaced save connects again, KeyVault gets it back from the service and nothing is lost. Until then, that save exists only on that device.` |
-| **Ricostruibile** | neither present | `If two devices save at the same moment, one save can replace the other. As long as the device that made the replaced save connects again, KeyVault restores it from the copy kept on that device and nothing is lost. If that device never connects again, that save is lost.` |
+| **Recuperabile** | no `conditionalWrite`; `versionHistory` present | `If two devices save at the same moment, one save can replace the other. As long as the device that made the replaced save connects again, Custode gets it back from the service and nothing is lost. Until then, that save exists only on that device.` |
+| **Ricostruibile** | neither present | `If two devices save at the same moment, one save can replace the other. As long as the device that made the replaced save connects again, Custode restores it from the copy kept on that device and nothing is lost. If that device never connects again, that save is lost.` |
 
 Category is one pure function of evidence-backed capability set, never an adapter
 constant/override. `changeNotification` changes freshness only and never raises a

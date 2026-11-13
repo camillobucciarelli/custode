@@ -33,7 +33,7 @@ Future<void> main() async {
       }
       continue;
     } catch (_) {
-      stderr.writeln('[KeyVault native host] internal_error');
+      stderr.writeln('[Custode native host] internal_error');
       stdout.add(
         encodeNativeMessage(
           nativeHostErrorResponse(
@@ -58,5 +58,5 @@ Future<void> main() async {
 }
 
 void _logProtocolError(NativeHostProtocolException error) {
-  stderr.writeln('[KeyVault native host] protocol_error code=${error.code}');
+  stderr.writeln('[Custode native host] protocol_error code=${error.code}');
 }

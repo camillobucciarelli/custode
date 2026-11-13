@@ -4,24 +4,24 @@
 
 **Name**
 
-KeyVault Browser Autofill BETA
+Custode Browser Autofill BETA
 
 **Summary**
 
-Beta autofill for KeyVault desktop through a local Native Messaging host, with
+Beta autofill for Custode desktop through a local Native Messaging host, with
 explicit fills only.
 
 **Detailed description**
 
 THIS EXTENSION IS FOR BETA TESTING.
 
-KeyVault Browser Autofill connects Chrome to the locally installed KeyVault
+Custode Browser Autofill connects Chrome to the locally installed Custode
 desktop app. Open the popup to find credential metadata matching the current
 site or search local metadata. For an exact site match, click **Fill on this
 page** to request and fill the credential once. Possible or manually selected
-matches create a pending site association that must be confirmed in KeyVault.
+matches create a pending site association that must be confirmed in Custode.
 Current-tab origin/title and user-entered global-search text are processed only
-between the extension, local Native Messaging host, and KeyVault desktop app.
+between the extension, local Native Messaging host, and Custode desktop app.
 
 The extension never reads a KDBX database or requests the master password. The
 local Native Messaging host also cannot access the master password or KDBX
@@ -30,13 +30,13 @@ an explicit Fill click. The extension and Native Messaging host use no silent
 fill, analytics, browser storage, remote code, developer server, or cloud
 transfer.
 
-KeyVault desktop and the registered Native Messaging host are required. Chrome
+Custode desktop and the registered Native Messaging host are required. Chrome
 and Chromium-based Microsoft Edge are supported. Firefox is not supported by
 this build.
 
 **Single purpose**
 
-Find and explicitly fill credentials from the locally running KeyVault desktop
+Find and explicitly fill credentials from the locally running Custode desktop
 app into the current browser tab.
 
 ## Permission justifications
@@ -44,14 +44,14 @@ app into the current browser tab.
 **`activeTab`**
 
 Grants temporary access to the user-selected active tab after the extension is
-opened. KeyVault reads only that tab's HTTP(S) origin and title for local
+opened. Custode reads only that tab's HTTP(S) origin and title for local
 credential matching. No persistent host permissions are requested.
 
 **`nativeMessaging`**
 
 Communicates with the locally installed
 `dev.camillobucciarelli.keyvault_native_host` process. The host searches local
-KeyVault metadata and requests a one-shot credential from the running, unlocked
+Custode metadata and requests a one-shot credential from the running, unlocked
 desktop app only after the user clicks Fill.
 
 **`scripting`**
@@ -89,10 +89,10 @@ For each category, state that data is used only for the extension's single
 autofill purpose, is not sold or shared, is not used for advertising, credit, or
 unrelated personalization, and is not transferred to remote developer or cloud
 servers. Processing occurs locally between the browser extension, local Native
-Messaging host, and unlocked KeyVault desktop app. The extension uses no browser
+Messaging host, and unlocked Custode desktop app. The extension uses no browser
 storage or analytics.
 
-Do not claim secure memory erasure or immediate zeroization. KeyVault desktop is
+Do not claim secure memory erasure or immediate zeroization. Custode desktop is
 a Dart application, and its strings are garbage-collected.
 
 **Privacy policy URL**
@@ -101,8 +101,8 @@ https://camillobucciarelli.github.io/keyvault-privacy/
 
 ## Reviewer test instructions
 
-This extension is not standalone. Testing requires the public KeyVault source,
-Flutter/Dart, the KeyVault desktop app, and a Native Messaging host registered
+This extension is not standalone. Testing requires the public Custode source,
+Flutter/Dart, the Custode desktop app, and a Native Messaging host registered
 for the published extension ID. Do not use production credentials or vaults.
 
 1. Install this beta item from Chrome Web Store. Open `chrome://extensions` and
@@ -147,7 +147,7 @@ for the published extension ID. Do not use production credentials or vaults.
    # or, from Windows PowerShell: flutter run -d windows
    ```
 
-6. Create or open a non-production test KDBX vault in KeyVault. Unlock it with
+6. Create or open a non-production test KDBX vault in Custode. Unlock it with
    reviewer-created test credentials. Add a login entry whose URL exactly matches
    a non-sensitive HTTP(S) test page. Keep the app running and unlocked.
 7. Open the extension popup. Native host should show **Available** and the app
@@ -157,7 +157,7 @@ for the published extension ID. Do not use production credentials or vaults.
 9. Click **Fill on this page**. Confirm the test username/password appear in the
    visible login fields only after that click. The extension does not submit the
    form.
-10. Lock KeyVault. Reopen the popup and confirm credential matching/fill is no
+10. Lock Custode. Reopen the popup and confirm credential matching/fill is no
     longer available.
 
 No reviewer password is included in this listing. Reviewer creates all test

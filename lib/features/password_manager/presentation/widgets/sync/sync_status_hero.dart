@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_glyph.dart';
 import '../../../../../core/theme/app_radii.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/theme/keyvault_colors.dart';
+import '../../../../../core/theme/custode_colors.dart';
 import '../../../../../core/widgets/kv_icon.dart';
 import '../../../../../core/widgets/kv_circle_icon_button.dart';
 import '../../../../../core/widgets/kv_list_row.dart';
@@ -190,7 +190,7 @@ class SyncStatusHero extends StatelessWidget {
 
   // ── disconnected ─────────────────────────────────────────────────────
   Widget _disconnectedHero(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return _HeroCard(
       backgroundColor: colors.surface,
       child: Column(
@@ -219,7 +219,7 @@ class SyncStatusHero extends StatelessWidget {
                 TextSpan(
                   text:
                       'Connect a Google account to keep this database in '
-                      'sync across your devices. KeyVault uploads the '
+                      'sync across your devices. Custode uploads the '
                       'encrypted file as-is — ',
                 ),
                 TextSpan(
@@ -260,7 +260,7 @@ class SyncStatusHero extends StatelessWidget {
   // unreadable wash. Neutral `surface` card, a compact attention banner,
   // and `surfaceNested` rows carry the contrast now.
   Widget _notLinkedHero(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final provider = kSyncProviders.first;
     return _HeroCard(
       backgroundColor: colors.surface,
@@ -366,7 +366,7 @@ class SyncStatusHero extends StatelessWidget {
     VoidCallback? onTap,
     String? statusLabel,
   }) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return KvListRow(
       title: provider.name,
       subtitle: provider.tagline,
@@ -399,7 +399,7 @@ class SyncStatusHero extends StatelessWidget {
   }
 
   Widget _squareGlyph(BuildContext context, AppGlyph glyph) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       width: 40,
       height: 40,
@@ -414,7 +414,7 @@ class SyncStatusHero extends StatelessWidget {
 
   // ── syncing ───────────────────────────────────────────────────────────
   Widget _syncingHero(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return _HeroCard(
       backgroundColor: colors.surface,
       child: Row(
@@ -448,7 +448,7 @@ class SyncStatusHero extends StatelessWidget {
 
   // ── offline (T7 proposal) ────────────────────────────────────────────
   Widget _offlineCard(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return _HeroCard(
       backgroundColor: colors.attentionTint,
       child: Column(
@@ -496,7 +496,7 @@ class SyncStatusHero extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Your edits are already saved in the local file. KeyVault will '
+            'Your edits are already saved in the local file. Custode will '
             "upload them automatically as soon as you're back online.",
             style: AppTextStyles.secondary.copyWith(
               color: colors.attentionText,
@@ -521,7 +521,7 @@ class SyncStatusHero extends StatelessWidget {
   // positive status header, provider tile, readable `surfaceNested` rows —
   // the previous all-green card washed its own key/value rows out.
   Widget _successHero(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     final provider = kSyncProviders.first;
     final activity = recentActivity;
     return _HeroCard(
@@ -661,7 +661,7 @@ class SyncStatusHero extends StatelessWidget {
   }
 
   Widget _activityRow(BuildContext context, SyncActivityItem item) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
@@ -700,7 +700,7 @@ class SyncStatusHero extends StatelessWidget {
 
   // ── error ─────────────────────────────────────────────────────────────
   Widget _errorHero(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return _HeroCard(
       backgroundColor: colors.attentionTint,
       child: Column(
@@ -769,7 +769,7 @@ class SyncStatusHero extends StatelessWidget {
 
   // ── conflict ──────────────────────────────────────────────────────────
   Widget _conflictHero(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return _HeroCard(
       backgroundColor: colors.attentionTint,
       onTap: onOpenConflict,

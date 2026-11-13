@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../responsive/breakpoints.dart';
-import '../theme/keyvault_colors.dart';
+import '../theme/custode_colors.dart';
 
 /// Generic typed chooser surface: a modal bottom sheet on phones, a `Dialog`
 /// (560 px max) at and above `Breakpoints.mobile`. One caller, one builder,
@@ -64,7 +64,7 @@ class KvSheetFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.only(

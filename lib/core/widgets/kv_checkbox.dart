@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_glyph.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/keyvault_colors.dart';
+import '../theme/custode_colors.dart';
 import 'kv_icon.dart';
 
 /// Generator character-set row (PIXEL_SPEC "Switch/radio/checkbox" +
@@ -23,7 +23,7 @@ class KvCheckboxRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
 
     return Material(
       color: Colors.transparent,

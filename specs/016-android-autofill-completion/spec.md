@@ -43,7 +43,7 @@ and `android/app/src/main/res/xml/keyvault_autofill_service.xml`.
 - **Nothing is ever saved from autofill.** `onSaveRequest`
   (`KeyVaultAutofillService.kt:91-94`) returns success without doing anything,
   and the fill response sets no `SaveInfo`, so Android never even shows the
-  "Save to KeyVault?" bar. A credential created or rotated inside a native app
+  "Save to Custode?" bar. A credential created or rotated inside a native app
   has to be re-typed into the vault by hand.
 - **Mobile browsers get no autofill.** `keyvault_autofill_service.xml` declares
   only a summary. Without compatibility-package declarations, Android's
@@ -91,7 +91,7 @@ appears in a `Dataset` handed back before a successful authentication.
    used instead and success fills the fields.
 4. **Given** a device with no device lock at all, **When** the user taps an
    entry, **Then** nothing is filled and the user is told that a device lock is
-   required before KeyVault will release a password.
+   required before Custode will release a password.
 5. **Given** a successful authentication a moment ago, **When** the user fills a
    second field or a second form inside the reuse window, **Then** no second
    prompt is shown.
@@ -121,14 +121,14 @@ on an IME without inline support confirm the existing dropdown path still works.
    is focused, **Then** the existing dropdown + picker path is offered unchanged.
 3. **Given** more matches than the IME's advertised inline slot count,
    **When** suggestions render, **Then** the highest-ranked matches fill the
-   available slots and a final "Search KeyVault" suggestion opens the picker.
+   available slots and a final "Search Custode" suggestion opens the picker.
 
 ---
 
 ### User Story 3 — Credentials typed in apps can be saved (Priority: P2)
 
 After signing in or changing a password inside another app, Android offers to
-save the credential to KeyVault. Accepting creates a new entry, or updates the
+save the credential to Custode. Accepting creates a new entry, or updates the
 existing one when the same username already exists for that app or site, and the
 user is told which of the two happened before it is written.
 
@@ -150,7 +150,7 @@ association.
    this is an update to an existing entry and the old password is preserved in
    history rather than discarded.
 3. **Given** the vault is locked when the save prompt is accepted, **Then**
-   KeyVault opens its unlock screen, and on a successful unlock the captured
+   Custode opens its unlock screen, and on a successful unlock the captured
    credential is written and the user is returned to where they were; on a
    cancelled unlock nothing is written and the user is told the credential was
    not saved.
@@ -199,7 +199,7 @@ associated with the browser package.
   save capture must not treat "new" and "confirm" as two distinct credentials.
 - A save prompt arrives for a domain the user has already declined once.
 - The device has no secure lock configured at all.
-- Autofill is invoked while a different KeyVault database is open than the one
+- Autofill is invoked while a different Custode database is open than the one
   that published the cache.
 
 ## Requirements
@@ -236,7 +236,7 @@ associated with the browser package.
   single-writer protections for the `.kdbx` file; it MUST NOT introduce a second
   write path around them.
 - **FR-010**: When the vault is not unlocked at the moment a save is accepted,
-  the system MUST present the KeyVault unlock screen, write the credential on
+  the system MUST present the Custode unlock screen, write the credential on
   success, and report plainly that nothing was saved if the unlock is cancelled.
   The captured credential MUST NOT be persisted anywhere while the vault is
   locked, and MUST NOT be silently dropped without telling the user.
@@ -304,7 +304,7 @@ Recorded 2026-08-28, applied as defaults with the user proceeding.
   with no secure lock configured is refused outright (FR-003a) rather than
   served with a warning, because a released password on such a device has no
   protection at all.
-- **SD2 — Save while locked**: open the KeyVault unlock screen and write on
+- **SD2 — Save while locked**: open the Custode unlock screen and write on
   success (FR-010). Rejected: an encrypted pending-capture store, which would
   create a second at-rest secret surface for a case the unlock screen already
   covers (Constitution VIII).

@@ -6,7 +6,7 @@ import 'package:password_manager/core/theme/app_glyph.dart';
 import 'package:password_manager/core/theme/app_radii.dart';
 import 'package:password_manager/core/theme/app_text_styles.dart';
 import 'package:password_manager/core/theme/app_theme.dart';
-import 'package:password_manager/core/theme/keyvault_colors.dart';
+import 'package:password_manager/core/theme/custode_colors.dart';
 import 'package:password_manager/core/widgets/app_focus_ring.dart';
 import 'package:password_manager/core/widgets/kv_icon.dart';
 
@@ -210,7 +210,7 @@ class OrganicThemeGallery extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -305,7 +305,7 @@ class _Panel extends StatelessWidget {
 class _ColorSamples extends StatelessWidget {
   const _ColorSamples(this.colors);
 
-  final KeyVaultColors colors;
+  final CustodeColors colors;
 
   @override
   Widget build(BuildContext context) {
@@ -396,7 +396,7 @@ class _TypeSamples extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<KeyVaultColors>()!;
+    final colors = Theme.of(context).extension<CustodeColors>()!;
     return LayoutBuilder(
       builder: (context, constraints) {
         const columns = 2;

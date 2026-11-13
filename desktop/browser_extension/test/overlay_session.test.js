@@ -35,7 +35,7 @@ const {
   overlayCount,
 } = require("./session_helpers.js");
 
-const GENERATE_TEXT = "Open KeyVault to generate a password.";
+const GENERATE_TEXT = "Open Custode to generate a password.";
 
 // Fill values are assembled at runtime so no source literal ever forms a
 // credential-shaped assignment (GitGuardian scans every commit; on a password
@@ -204,10 +204,10 @@ test("A030: the loading state shows while the query is in flight", async () => {
   // content mutation (see setStatusText in content_overlay.js).
   assert.equal(statusText(page), "", "region must exist empty at mount");
   page.flushTimers();
-  assert.equal(statusText(page), "Loading KeyVault suggestions…");
+  assert.equal(statusText(page), "Loading Custode suggestions…");
   release();
   await page.settle();
-  assert.equal(statusText(page), "1 KeyVault suggestions");
+  assert.equal(statusText(page), "1 Custode suggestions");
 });
 
 test("M13: the live region exists empty at mount and its announcement timer dies with the session", async () => {
@@ -233,28 +233,28 @@ test("A030: every terminal state renders its honest text", async () => {
   const cases = [
     [
       (message) => matchesResult(message, { items: [] }),
-      "No KeyVault entries for this site.",
+      "No Custode entries for this site.",
     ],
     [
       (message) =>
         matchesResult(message, {
           items: [item({ matchType: "possible", fillEligible: false })],
         }),
-      "Matches exist but cannot be filled here. Open KeyVault.",
+      "Matches exist but cannot be filled here. Open Custode.",
     ],
-    [(m) => errorResult("matchesResult", "locked", m), "Open and unlock KeyVault."],
-    [(m) => errorResult("matchesResult", "no_host", m), "KeyVault native host is unavailable."],
-    [(m) => errorResult("matchesResult", "timeout", m), "KeyVault did not respond in time."],
+    [(m) => errorResult("matchesResult", "locked", m), "Open and unlock Custode."],
+    [(m) => errorResult("matchesResult", "no_host", m), "Custode native host is unavailable."],
+    [(m) => errorResult("matchesResult", "timeout", m), "Custode did not respond in time."],
     [
       (m) => errorResult("matchesResult", "unsupported_frame", m),
-      "The overlay is not available in this frame. Copy your login from the KeyVault app.",
+      "The overlay is not available in this frame. Copy your login from the Custode app.",
     ],
     [
       (m) => errorResult("matchesResult", "unsupported_capability", m),
       // Neutral: an old native host or an old app both land here.
-      "Update KeyVault to use this feature.",
+      "Update Custode to use this feature.",
     ],
-    [(m) => errorResult("matchesResult", "stale_session", m), "KeyVault session changed."],
+    [(m) => errorResult("matchesResult", "stale_session", m), "Custode session changed."],
   ];
   for (const [matches, expected] of cases) {
     const { page, password, handlers } = await loginPage();
@@ -289,7 +289,7 @@ test("A030: the stale state offers retry, which re-queries the same focus sessio
   const sent = page.sentOfType("requestMatches");
   assert.equal(sent.length, 2);
   assert.equal(sent[0].focusNonce, sent[1].focusNonce, "retry keeps the focus session");
-  assert.equal(statusText(page), "1 KeyVault suggestions");
+  assert.equal(statusText(page), "1 Custode suggestions");
 });
 
 test("A030: Generate is present, disabled, and honest in every rendered state", async () => {
@@ -498,7 +498,7 @@ test("A031: a renderable fill error keeps the session and shows the state", asyn
   await page.click(optionRows(page)[0]);
   assert.equal(password.value, "");
   assert.equal(overlayCount(page), 1);
-  assert.equal(statusText(page), "KeyVault session changed.");
+  assert.equal(statusText(page), "Custode session changed.");
 });
 
 test("A031: focusing the username fills the associated password field as well", async () => {

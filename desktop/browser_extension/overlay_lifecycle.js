@@ -28,7 +28,7 @@ const securityModule =
   typeof module !== "undefined" &&
   typeof module.exports === "object"
     ? require("./overlay_security.js")
-    : globalThis.KeyVaultOverlaySecurity;
+    : globalThis.CustodeOverlaySecurity;
 
 // ---------------------------------------------------------------------------
 // Registration identity.
@@ -468,7 +468,7 @@ class OverlayLifecycle {
     const wanted = config.enabled === true;
     const registered = await this._registeredOverlayScripts();
     // spec 023 T503: the passkey pair rides the same switch as the overlay.
-    // One control, one answer to "is KeyVault acting on my pages" — a wrapper
+    // One control, one answer to "is Custode acting on my pages" — a wrapper
     // that survived the switch being turned off would be exactly the
     // permission the user thought they had withdrawn.
     const desired = wanted
@@ -882,7 +882,7 @@ class OverlayLifecycle {
    * remains is what protects the key: a real content script of this
    * extension, the global switch on, and the broad host permission still
    * held — so a wrapper still running in a page after the user turned
-   * KeyVault off cannot sign.
+   * Custode off cannot sign.
    */
   async authorizePasskeyRequest({ sender, runtimeId } = {}) {
     await this.ready();
@@ -952,7 +952,7 @@ const API = {
 if (typeof module !== "undefined" && typeof module.exports === "object") {
   module.exports = API;
 } else {
-  globalThis.KeyVaultOverlayLifecycle = API;
+  globalThis.CustodeOverlayLifecycle = API;
 }
 
 })();

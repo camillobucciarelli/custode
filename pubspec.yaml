@@ -87,15 +87,15 @@ flutter:
   assets:
     - assets/fonts/OFL.txt
     - assets/icons/lucide/
-    - assets/logo/app_icon_family/keyvault-source-1024.png
+    - assets/logo/app_icon_family/custode-source-1024.png
     # spec-019 FR-016: the rail and tab bar show the app's own mark, not a
     # stand-in key glyph (C-SH-03).
-    - assets/logo/app_icon_family/keyvault-mark-monochrome.svg
+    - assets/logo/app_icon_family/custode-mark-monochrome.svg
     # Full-colour variant of the same mark (verbatim copy of
-    # specs/_design/keyvault-mark-foreground.svg, sha pinned there) for the
+    # specs/_design/custode-mark-foreground.svg, sha pinned there) for the
     # rail tile. Lives outside app_icon_family/, whose inventory the icon
     # build tool owns exactly.
-    - assets/logo/keyvault-mark-color.svg
+    - assets/logo/custode-mark-color.svg
   fonts:
     - family: Caprasimo
       fonts:
@@ -111,17 +111,17 @@ flutter:
           weight: 700
 
 flutter_launcher_icons:
-  image_path: assets/logo/app_icon_family/keyvault-source-1024.png
+  image_path: assets/logo/app_icon_family/custode-source-1024.png
   android: true
   ios: true
   remove_alpha_ios: true
   # Android adaptive icons (API 26+)
   adaptive_icon_background: "#FFE1D0"
-  adaptive_icon_foreground: assets/logo/app_icon_family/keyvault-adaptive-foreground-1024.png
-  adaptive_icon_monochrome: assets/logo/app_icon_family/keyvault-monochrome-1024.png
+  adaptive_icon_foreground: assets/logo/app_icon_family/custode-adaptive-foreground-1024.png
+  adaptive_icon_monochrome: assets/logo/app_icon_family/custode-monochrome-1024.png
   # iOS: dark/tinted variants for iOS 18+
-  image_path_ios_dark_transparent: assets/logo/app_icon_family/keyvault-adaptive-foreground-1024.png
-  image_path_ios_tinted_grayscale: assets/logo/app_icon_family/keyvault-monochrome-1024.png
+  image_path_ios_dark_transparent: assets/logo/app_icon_family/custode-adaptive-foreground-1024.png
+  image_path_ios_tinted_grayscale: assets/logo/app_icon_family/custode-monochrome-1024.png
   desaturate_tinted_to_grayscale_ios: true
   web:
     generate: false

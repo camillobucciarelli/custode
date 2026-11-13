@@ -78,7 +78,7 @@ void main() {
     'Import from CSV',
     'Keep editing',
     'Keep local',
-    'KeyVault is backgrounded',
+    'Custode is backgrounded',
     'Link',
     'Lock vault',
     'Lowercase letters (a-z)',

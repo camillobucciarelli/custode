@@ -110,7 +110,7 @@ void main() {
 
       expect(service.installCalls, 0);
       expect(opened, [Uri.parse(BrowserSetupService.sideloadReleasesUrl)]);
-      expect(find.textContaining('Scarica lo zip di KeyVault'), findsOneWidget);
+      expect(find.textContaining('Scarica lo zip di Custode'), findsOneWidget);
     });
   });
 }

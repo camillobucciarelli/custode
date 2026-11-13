@@ -1,6 +1,6 @@
 # Contributor License Agreement
 
-Thank you for your interest in contributing to KeyVault Password Manager
+Thank you for your interest in contributing to Custode Password Manager
 ("the Project"), owned by Camillo Bucciarelli ("the Maintainer").
 
 By signing this agreement you accept the following terms for your past,

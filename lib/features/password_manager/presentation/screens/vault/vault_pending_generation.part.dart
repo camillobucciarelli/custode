@@ -139,7 +139,7 @@ class _PendingGenerationBannerState extends State<_PendingGenerationBanner> {
           return const SizedBox.shrink();
         }
         final snapshot = pending.first;
-        final colors = Theme.of(context).extension<KeyVaultColors>()!;
+        final colors = Theme.of(context).extension<CustodeColors>()!;
         final countdown = _pendingGenerationCountdown(
           snapshot.expiresAtEpochMs,
           DateTime.now(),
