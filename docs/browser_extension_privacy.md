@@ -62,4 +62,4 @@ decryption remain inside the unlocked Custode desktop app.
 ## Contact and support
 
 Report privacy questions or support issues at:
-https://github.com/camillobucciarelli/key-vault-password-manager/issues
+https://github.com/camillobucciarelli/custode/issues

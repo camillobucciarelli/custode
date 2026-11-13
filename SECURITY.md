@@ -5,7 +5,7 @@
 **Do not open a public issue for security vulnerabilities.**
 
 Report privately through GitHub Security Advisories:
-https://github.com/camillobucciarelli/key-vault-password-manager/security/advisories/new
+https://github.com/camillobucciarelli/custode/security/advisories/new
 
 Include: affected version and platform, reproduction steps, and the impact you
 believe the issue has. A proof of concept helps but is not required.

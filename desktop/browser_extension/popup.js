@@ -366,7 +366,7 @@ function renderHostMissingState() {
   showMe.type = "button";
   showMe.addEventListener("click", () => {
     chrome.tabs.create({
-      url: "https://github.com/camillobucciarelli/key-vault-password-manager/blob/main/docs/desktop_browser_autofill.md",
+      url: "https://github.com/camillobucciarelli/custode/blob/main/docs/desktop_browser_autofill.md",
     }); // Deep link to the native-host setup doc (no in-app browser-setup screen to link to yet).
   });
   const checkAgain = el("button", "secondary-pill-btn", "Check again");

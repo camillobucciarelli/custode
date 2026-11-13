@@ -712,7 +712,7 @@ const _kPrivacyPolicyUrl =
     'https://github.com/camillobucciarelli/key-vault-password-manager/blob/main/PRIVACY.md';
 
 const _kAppLicenceUrl =
-    'https://github.com/camillobucciarelli/key-vault-password-manager/blob/main/LICENSE';
+    'https://github.com/camillobucciarelli/custode/blob/main/LICENSE';
 
 /// `Lock vault`, verbatim from the retired overflow sheet: drop the session
 /// and land on the unlock screen for the same file.

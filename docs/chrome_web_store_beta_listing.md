@@ -110,8 +110,8 @@ for the published extension ID. Do not use production credentials or vaults.
 2. Clone the public repository and fetch dependencies:
 
    ```bash
-   git clone https://github.com/camillobucciarelli/key-vault-password-manager.git
-   cd key-vault-password-manager
+   git clone https://github.com/camillobucciarelli/custode.git
+   cd custode
    flutter pub get
    ```
 
