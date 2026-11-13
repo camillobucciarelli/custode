@@ -28,6 +28,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           token: ${{ secrets.RELEASE_PAT }}
+          # Every tag is needed: the build number continues from the highest
+          # one ever released, on any version line.
+          fetch-depth: 0
+          fetch-tags: true
 
       - id: bump
         env:
@@ -36,7 +40,15 @@ jobs:
           CURRENT=$(grep '^version:' pubspec.yaml | sed 's/version: //')
           VERSION_NAME=$(echo "$CURRENT" | cut -d'+' -f1)
           OLD_BUILD=$(echo "$CURRENT" | cut -d'+' -f2)
-          BUILD_NUMBER=$((OLD_BUILD + 1))
+          # One counter for the whole app, never restarted. Android refuses to
+          # install an APK whose versionCode is lower than the installed one,
+          # so a counter that restarts with X.Y.Z locks sideload users out of
+          # the update. Taking the highest released tag as the floor makes
+          # that impossible even if pubspec.yaml is edited by hand.
+          MAX_TAG_BUILD=$(git tag --list 'v*+*' | sed -n 's/^v.*+\([0-9][0-9]*\)$/\1/p' | sort -n | tail -1)
+          MAX_TAG_BUILD=${MAX_TAG_BUILD:-0}
+          FLOOR=$(( OLD_BUILD > MAX_TAG_BUILD ? OLD_BUILD : MAX_TAG_BUILD ))
+          BUILD_NUMBER=$((FLOOR + 1))
           sed -i "s/^version: .*/version: ${VERSION_NAME}+${BUILD_NUMBER}/" pubspec.yaml
           # The suffix lives in the tag only: pubspec stays numeric because
           # CFBundleShortVersionString rejects "0.5.0-beta".

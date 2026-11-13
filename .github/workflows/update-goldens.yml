@@ -1,0 +1,104 @@
+name: Update goldens
+
+# Manual only. The reference images under test/goldens are rasterized on macOS,
+# and the PR jobs run on Linux, which draws text differently, so they exclude
+# that folder (see pr.yml). This workflow is the macOS machine for whoever does
+# not have one at hand: it compares the committed images with a fresh render,
+# regenerates them, and on request commits the result to the dispatched branch.
+#
+# Run it with `commit` off first. The "Compare" step then tells how many images
+# this runner draws differently from the committed ones, which is the evidence
+# that the runner matches the machine that recorded them.
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Commit the regenerated images to the dispatched branch
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  goldens:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # A push made with the default token starts no workflow, so the PR
+          # checks would never run on the commit this job adds.
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Single source of truth for the pinned Flutter version: .fvmrc.
+          channel: stable
+          flutter-version-file: .fvmrc
+
+      - run: flutter pub get
+
+      - name: Compare the committed images with this runner
+        run: |
+          set -o pipefail
+          status=0
+          flutter test test/goldens 2>&1 | tee compare.log | tail -40 || status=$?
+          {
+            echo "## Committed images against this runner"
+            echo
+            echo "Exit status: \`$status\` (0 means every image matches)"
+            echo
+            echo '```'
+            tail -3 compare.log
+            echo '```'
+            echo
+            echo "Images that differ:"
+            echo
+            echo '```'
+            ls test/goldens/failures 2>/dev/null | sed -n 's/_masterImage\.png$//p' | sort -u
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: golden-differences
+          path: test/goldens/failures/
+          if-no-files-found: ignore
+
+      - name: Regenerate
+        run: |
+          rm -rf test/goldens/failures
+          flutter test --update-goldens test/goldens
+
+      # A regenerated image that only matches in recording order is not a
+      # reference. See "Test order must not matter" in AGENTS.md.
+      - name: Check the new images hold in random order
+        run: flutter test test/goldens --test-randomize-ordering-seed=random
+
+      - name: List what changed
+        run: |
+          {
+            echo "## Regenerated images"
+            echo
+            echo '```'
+            git status --short test/goldens
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit
+        if: inputs.commit
+        run: |
+          if [[ "$GITHUB_REF_NAME" == "${{ github.event.repository.default_branch }}" ]]; then
+            echo "Refusing to commit images straight to the default branch; dispatch on a PR branch." >&2
+            exit 1
+          fi
+          git add test/goldens
+          if git diff --cached --quiet; then
+            echo "No image changed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "test(goldens): regenerate the reference images on macOS"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
