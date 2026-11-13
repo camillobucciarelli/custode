@@ -129,6 +129,10 @@ Both channels run the App Store Connect (TestFlight) and Chrome Web Store publis
 
 The `-beta` suffix lives in the tag only; `pubspec.yaml` stays numeric because `CFBundleShortVersionString` rejects pre-release suffixes. Run it with `gh workflow run release.yml -f channel=beta` (or `release`) from `main` — or from `release/X.Y.x` for a maintenance release, since the workflow bumps and tags whichever branch it is dispatched on (see **Branch model** below).
 
+### Download site
+
+`https://custode.camillobucciarelli.dev` is a Cloudflare R2 bucket behind a custom domain. The `download` job of `release.yml` fills it on every `release` dispatch: it copies the Android APK and the Windows and Linux bundles from the GitHub release into the bucket (a versioned key and a `latest` key each), then publishes `docs/download/index.html` as the bucket's `index.html` with `__VERSION__` replaced by `X.Y.Z.N`. `tool/release/download_check.sh` checks the page first; when you add or rename a download link, change the page, that script and the job together. A `beta` dispatch does not touch the site, and a dispatch from a branch other than the default one uploads only the versioned keys. The job needs the secrets `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID` and `R2_BUCKET`; without them it warns and publishes nothing. The root `/` works only through a Cloudflare Transform Rule set by hand in the dashboard (rewrite path `/` to `/index.html`).
+
 ### Branch model
 
 `main` is the trunk and the default base for every branch: features, fixes and

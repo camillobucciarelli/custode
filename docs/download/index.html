@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<!-- Published as index.html at the R2 bucket root by release.yml (job download); __VERSION__ is replaced there. Checked by tool/release/download_check.sh. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download Custode</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' width='1024' height='1024'%3E%3Cg transform='translate(50,50) scale(.75) translate(-50,-50)' fill='none' stroke-linecap='round'%3E%3Ccircle cx='50' cy='50' r='31' stroke='%23f6a06b' stroke-width='10'/%3E%3Cpath d='M50 50 74 26' stroke='%23402310' stroke-width='10'/%3E%3Ccircle cx='50' cy='50' r='14' fill='%23402310'/%3E%3Ccircle cx='50' cy='19' r='5' fill='%23ccdbb2'/%3E%3Ccircle cx='81' cy='50' r='5' fill='%23ccdbb2'/%3E%3Ccircle cx='50' cy='81' r='5' fill='%23ccdbb2'/%3E%3Ccircle cx='19' cy='50' r='5' fill='%23ccdbb2'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;600;700&amp;display=swap">
+<style>
+  /* Tokens from lib/core/theme/app_colors.dart (Organic ramps) and app_text_styles.dart. */
+  :root {
+    color-scheme: light dark;
+    --ground: #F9F4ED;       /* neutral100 */
+    --surface: #FFFFFF;
+    --text: #201E1D;         /* text */
+    --text-muted: #665F53;   /* neutral700 */
+    --action: #F6A06B;       /* accent400 */
+    --action-hover: #FFC6A5; /* accent300 */
+    --on-action: #402310;    /* accent900 */
+    --link: #8C491A;         /* accent700 */
+    --border: #DCD3C4;       /* neutral300 */
+    --focus: #56633F;        /* accent2_700 */
+    --rule: #CCDBB2;         /* accent2_300, decorative only */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #2E2B25;       /* neutral900 */
+      --surface: #474238;      /* neutral800 */
+      --text: #F9F4ED;         /* neutral100 */
+      --text-muted: #C0B6A5;   /* neutral400 */
+      --action: #F6A06B;       /* accent400 */
+      --action-hover: #FFC6A5; /* accent300 */
+      --on-action: #402310;    /* accent900 */
+      --link: #FFC6A5;         /* accent300 */
+      --border: #665F53;       /* neutral700 */
+      --focus: #CCDBB2;        /* accent2_300 */
+      --rule: #728157;         /* accent2_600 */
+    }
+  }
+  html { font-size: 100%; }
+  body { margin: 0 auto; padding: 1rem; max-width: 40rem; background: var(--ground); color: var(--text);
+         font-family: Figtree, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 1rem; line-height: 1.625; }
+  main { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1rem 1.5rem 1.5rem; }
+  h1 { font-family: Caprasimo, Georgia, serif; font-weight: 400; font-size: 2.125em; line-height: 1.2; margin: 1rem 0 0.75rem;
+       padding-bottom: 0.75rem; border-bottom: 0.25rem solid var(--rule); overflow-wrap: anywhere; }
+  h2 { font-size: 1.125em; margin: 1.5rem 0 0.25rem; }
+  a { color: var(--link); text-decoration: underline; overflow-wrap: anywhere; }
+  a:focus-visible, button:focus-visible { outline: 0.2em solid var(--focus); outline-offset: 0.2em; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .logo { display: block; width: 4.5rem; height: 4.5rem; }
+  .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.5rem; }
+  a.sponsor { display: inline-flex; align-items: center; gap: 0.4em; box-sizing: border-box; min-height: 2.75rem; padding: 0.4em 0.9em;
+              border-radius: 0.75rem; border: 1px solid var(--border); color: var(--text); font-weight: 600; text-decoration: none; }
+  a.sponsor:hover { border-color: var(--link); }
+  .lang { font: inherit; font-weight: 600; min-height: 2.75rem; padding: 0.4em 0.9em; border-radius: 0.75rem;
+          border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; }
+  .version { color: var(--text-muted); font-weight: 600; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.5rem 0; }
+  a.button { display: inline-block; box-sizing: border-box; min-height: 3rem; padding: 0.7em 1.25em; border-radius: 0.75rem;
+             background: var(--action); color: var(--on-action); font-weight: 700; text-decoration: none; }
+  a.button:hover { background: var(--action-hover); }
+  li { margin-bottom: 0.5rem; }
+  /* One language at a time once the script has chosen; without script both stay visible. */
+  html.one-lang:lang(en) [lang="it"], html.one-lang:lang(it) [lang="en"] { display: none; }
+</style>
+</head>
+<body>
+<main>
+<div class="top">
+  <img class="logo" alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' width='1024' height='1024'%3E%3Cg transform='translate(50,50) scale(.75) translate(-50,-50)' fill='none' stroke-linecap='round'%3E%3Ccircle cx='50' cy='50' r='31' stroke='%23f6a06b' stroke-width='10'/%3E%3Cpath d='M50 50 74 26' stroke='%23402310' stroke-width='10'/%3E%3Ccircle cx='50' cy='50' r='14' fill='%23402310'/%3E%3Ccircle cx='50' cy='19' r='5' fill='%23ccdbb2'/%3E%3Ccircle cx='81' cy='50' r='5' fill='%23ccdbb2'/%3E%3Ccircle cx='50' cy='81' r='5' fill='%23ccdbb2'/%3E%3Ccircle cx='19' cy='50' r='5' fill='%23ccdbb2'/%3E%3C/g%3E%3C/svg%3E">
+  <span class="actions">
+    <a class="sponsor" href="https://buymeacoffee.com/camillobucciarelli" rel="noopener"><span aria-hidden="true">&#9749;</span> Buy me a coffee</a>
+    <button class="lang" type="button" id="lang-switch" hidden>Italiano</button>
+  </span>
+</div>
+
+<div lang="en">
+<h1>Download Custode</h1>
+<p>Custode is an open source password manager. It keeps your vault in the KeePass <code>.kdbx</code> format, on your own devices.</p>
+<p class="version">Version __VERSION__</p>
+<p class="buttons">
+  <a class="button" href="android/latest/Custode.apk" download>Android (APK)</a>
+  <a class="button" href="windows/latest/Custode-windows.zip" download>Windows (ZIP)</a>
+  <a class="button" href="linux/latest/Custode-linux.zip" download>Linux (ZIP)</a>
+</p>
+<h2>How to install</h2>
+<ul>
+  <li><strong>Android:</strong> open the APK and allow your browser to install apps when Android asks.</li>
+  <li><strong>Windows:</strong> extract the ZIP and run <code>password_manager.exe</code> from the extracted folder.</li>
+  <li><strong>Linux:</strong> extract the ZIP and run <code>password_manager</code> from the extracted folder.</li>
+  <li><strong>iOS and macOS:</strong> distributed through TestFlight.</li>
+  <li><strong>Browser extension:</strong> <a href="https://chromewebstore.google.com/detail/ogjmlkogmogijgpflnjifiobdmnmommh">Custode on the Chrome Web Store</a>.</li>
+</ul>
+<h2>This exact version</h2>
+<ul>
+  <li><a href="android/__VERSION__/Custode-__VERSION__.apk" download>Custode __VERSION__ for Android</a></li>
+  <li><a href="windows/__VERSION__/Custode-__VERSION__-windows.zip" download>Custode __VERSION__ for Windows</a></li>
+  <li><a href="linux/__VERSION__/Custode-__VERSION__-linux.zip" download>Custode __VERSION__ for Linux</a></li>
+</ul>
+<h2>Support the project</h2>
+<p>Custode is free and open source: source code, licence and older releases are on <a href="https://github.com/camillobucciarelli/custode" rel="noopener">GitHub</a>. If it is useful to you, you can <a href="https://buymeacoffee.com/camillobucciarelli" rel="noopener">buy me a coffee</a>.</p>
+</div>
+
+<div lang="it">
+<h1>Scarica Custode</h1>
+<p>Custode è un gestore di password open source. Conserva il tuo archivio nel formato KeePass <code>.kdbx</code>, sui tuoi dispositivi.</p>
+<p class="version">Versione __VERSION__</p>
+<p class="buttons">
+  <a class="button" href="android/latest/Custode.apk" download>Android (APK)</a>
+  <a class="button" href="windows/latest/Custode-windows.zip" download>Windows (ZIP)</a>
+  <a class="button" href="linux/latest/Custode-linux.zip" download>Linux (ZIP)</a>
+</p>
+<h2>Come installare</h2>
+<ul>
+  <li><strong>Android:</strong> apri l'APK e consenti al browser di installare app quando Android lo chiede.</li>
+  <li><strong>Windows:</strong> estrai lo ZIP e avvia <code>password_manager.exe</code> dalla cartella estratta.</li>
+  <li><strong>Linux:</strong> estrai lo ZIP e avvia <code>password_manager</code> dalla cartella estratta.</li>
+  <li><strong>iOS e macOS:</strong> distribuiti con TestFlight.</li>
+  <li><strong>Estensione per browser:</strong> <a href="https://chromewebstore.google.com/detail/ogjmlkogmogijgpflnjifiobdmnmommh">Custode sul Chrome Web Store</a>.</li>
+</ul>
+<h2>Questa versione esatta</h2>
+<ul>
+  <li><a href="android/__VERSION__/Custode-__VERSION__.apk" download>Custode __VERSION__ per Android</a></li>
+  <li><a href="windows/__VERSION__/Custode-__VERSION__-windows.zip" download>Custode __VERSION__ per Windows</a></li>
+  <li><a href="linux/__VERSION__/Custode-__VERSION__-linux.zip" download>Custode __VERSION__ per Linux</a></li>
+</ul>
+<h2>Sostieni il progetto</h2>
+<p>Custode è gratuita e open source: codice sorgente, licenza e versioni precedenti sono su <a href="https://github.com/camillobucciarelli/custode" rel="noopener">GitHub</a>. Se ti è utile puoi <a href="https://buymeacoffee.com/camillobucciarelli" rel="noopener">offrirmi un caffè</a>.</p>
+</div>
+</main>
+<script>
+  // Shows one language: the browser's when it is Italian, English otherwise. The button switches.
+  (function () {
+    var root = document.documentElement, button = document.getElementById('lang-switch');
+    function show(lang) {
+      root.lang = lang;
+      document.title = lang === 'it' ? 'Scarica Custode' : 'Download Custode';
+      button.textContent = lang === 'it' ? 'English' : 'Italiano';
+    }
+    root.classList.add('one-lang');
+    button.hidden = false;
+    button.addEventListener('click', function () { show(root.lang === 'it' ? 'en' : 'it'); });
+    show((navigator.language || 'en').toLowerCase().indexOf('it') === 0 ? 'it' : 'en');
+  })();
+</script>
+</body>
+</html>
