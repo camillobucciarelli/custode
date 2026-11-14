@@ -2550,6 +2550,10 @@ void main() {
           final harness = await _Harness.build(
             g4Temp,
             driveFactory: entry.value,
+            // Fixed equal mtimes: otherwise the two sides are stamped with
+            // DateTime.now() (second resolution in KDBX), so a tier built
+            // across a second boundary gets remoteNewer while the others tie.
+            tiedTimestamps: true,
           );
           final summary = await harness.repository.startReview(
             harness.databaseId,
