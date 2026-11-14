@@ -15,15 +15,18 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
   private let store = SharedAutofillStore()
   private var hostingController: NSHostingController<CredentialListView>?
 
-  /// spec 023 T304 — set while this invocation is answering a passkey sign-in
-  /// rather than a password fill. Selecting a record then completes an
-  /// assertion instead of handing back an `ASPasswordCredential`.
-  private var passkeyRequest: ASPasskeyCredentialRequest?
+  /// spec 024 T016 — the sealed queue of passkeys created here and not yet
+  /// adopted into the vault by the app.
+  private let pendingPasskeys = PendingPasskeyStore()
 
-  /// spec 023 T708 — hosts the registration refusal screen. Separate from
+  /// spec 024 T018 — hosts the registration screens. Separate from
   /// [hostingController] because the two root views are different types and a
   /// single invocation only ever shows one of them.
-  private var registrationHost: NSHostingController<PasskeyRegistrationUnavailableView>?
+  private var registrationHost: NSHostingController<PasskeyRegistrationView>?
+
+  /// One confirmation creates one key: a second tap while the system prompt
+  /// is up must not start a second ceremony.
+  private var registrationInFlight = false
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -54,18 +57,23 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
     requestParameters: ASPasskeyCredentialRequestParameters
   ) {
     let rpId = requestParameters.relyingPartyIdentifier
-    log.info("prepareCredentialList(passkey) rpId=\(rpId, privacy: .public)")
+    log.info("prepareCredentialList(passkey) rpId=\(rpId, privacy: .private(mask: .hash))")
     store.wipeLegacyPlaintextArtifacts(reason: "passkey credential list")
 
+    // spec 024 T019 / FR-10: cached passkeys plus the pending ones of the
+    // published vault, under one filter.
     let allowed = Set(requestParameters.allowedCredentials.map { $0.base64URLEncodedString })
-    let matches = store.readCredentialMetadata().filter { metadata in
-      metadata.passkeys.contains { passkey in
-        passkey.rpId.caseInsensitiveCompare(rpId) == .orderedSame
-          && (allowed.isEmpty || allowed.contains(passkey.credentialId))
-      }
-    }
+    let clientDataHash = requestParameters.clientDataHash
+    let matches = PasskeyProviderLogic.offers(
+      rpId: rpId,
+      allowed: allowed,
+      publishedDatabaseId: PasskeyProviderLogic.publishedDatabaseId(store.status()),
+      cached: store.readCredentialMetadata(),
+      // Envelope metadata only: nothing is unsealed before user verification.
+      pending: pendingPasskeys.readMetadata()
+    )
     guard !matches.isEmpty else {
-      log.info("no passkey for rpId=\(rpId, privacy: .public)")
+      log.info("no passkey for rpId=\(rpId, privacy: .private(mask: .hash))")
       cancelWithError(.credentialIdentityNotFound)
       return
     }
@@ -76,7 +84,16 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
       bestMatchId: matches.first?.id,
       isGlobalSearch: false,
       onSelect: { [weak self] metadata in
-        self?.completePasskeyAssertion(for: metadata, rpId: rpId)
+        let credentialId = metadata.passkeys.first {
+          $0.rpId.caseInsensitiveCompare(rpId) == .orderedSame
+            && (allowed.isEmpty || allowed.contains($0.credentialId))
+        }?.credentialId
+        self?.completePasskeyAssertion(
+          recordIdentifier: metadata.id,
+          rpId: rpId,
+          credentialId: credentialId,
+          clientDataHash: clientDataHash
+        )
       },
       onCancel: { [weak self] in
         log.info("user cancelled passkey list")
@@ -148,43 +165,204 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
     prepareInterfaceToProvideCredential(for: identity)
   }
 
-  // MARK: - Registration (spec 023 T708)
+  // MARK: - Registration (spec 024 T018)
 
-  /// spec 023 T708 / FR-020 — a registration never happens in this process.
+  /// The extension completes the WebAuthn ceremony itself and queues the new
+  /// passkey sealed on this device; the app adopts it into the `.kdbx` at the
+  /// next unlock. The extension never writes the vault.
   ///
-  /// The decision, in one line: registration always goes through the app, and
-  /// the extension implements no step of it the app does not perform. The
-  /// reasoning is on [PasskeyRegistrationUnavailableView]; the mechanics are
-  /// that this process has no master password and therefore cannot write the
-  /// `.kdbx`, so the only alternative to refusing would be telling the site a
-  /// credential exists before the vault holds one.
-  ///
-  /// The refusal is explicit rather than an unimplemented override: without it
-  /// the system presents this extension's empty sheet and the ceremony hangs
-  /// until the user backs out, with no explanation anywhere.
+  /// Order, with no step skippable: ES256 offered (FR-4), a published cache to
+  /// bind the record to (FR-6), exclusion (FR-7), the user's confirmation,
+  /// device-owner authentication, the cache still published, key and
+  /// attestation, the sealed record written and read back, and only then the
+  /// answer to the relying party (FR-5).
   @available(macOS 14.0, *)
   override func prepareInterface(forPasskeyRegistration registrationRequest: any ASCredentialRequest) {
-    let identity = (registrationRequest as? ASPasskeyCredentialRequest)?
-      .credentialIdentity as? ASPasskeyCredentialIdentity
-    let rpId = identity?.relyingPartyIdentifier ?? ""
-    let userName = identity?.userName ?? ""
-    log.info("prepareInterface(forPasskeyRegistration) rpId=\(rpId, privacy: .public) → refused, the app is the only writer")
+    store.wipeLegacyPlaintextArtifacts(reason: "passkey registration")
+    guard let request = registrationRequest as? ASPasskeyCredentialRequest,
+          let identity = request.credentialIdentity as? ASPasskeyCredentialIdentity else {
+      log.error("unsupported registration request → .failed")
+      cancelWithError(.failed)
+      return
+    }
+    var excludedCredentialIds: [Data] = []
+    if #available(iOS 18.0, macOS 15.0, *) {
+      excludedCredentialIds = request.excludedCredentials?.map { $0.credentialID } ?? []
+    }
+    let input = PasskeyRegistrationInput(
+      // Lowercased like every cached passkey, so the rpIdHash signed at
+      // registration is the one every later assertion signs.
+      rpId: identity.relyingPartyIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+      userName: identity.userName,
+      userHandle: identity.userHandle,
+      supportedAlgorithms: request.supportedAlgorithms.map { $0.rawValue },
+      excludedCredentialIds: excludedCredentialIds
+    )
+    let clientDataHash = request.clientDataHash
+    log.info("prepareInterface(forPasskeyRegistration) rpId=\(input.rpId, privacy: .private(mask: .hash))")
 
-    installRegistrationRefusal(relyingPartyId: rpId, userName: userName)
+    guard !input.rpId.isEmpty else {
+      cancelWithError(.failed)
+      return
+    }
+    guard PasskeyProviderLogic.offersES256(input.supportedAlgorithms) else {
+      log.info("registration refused: ES256 not offered rpId=\(input.rpId, privacy: .private(mask: .hash))")
+      refuseRegistration(
+        input,
+        title: "Custode can't create this passkey",
+        message: "\(input.rpId) does not accept the passkey type Custode creates (ES256). Choose another passkey provider."
+      )
+      return
+    }
+    guard let databaseId = PasskeyProviderLogic.publishedDatabaseId(store.status()) else {
+      log.info("registration refused: no published cache rpId=\(input.rpId, privacy: .private(mask: .hash))")
+      refuseRegistrationUntilUnlocked(input)
+      return
+    }
+
+    let conflict = PasskeyProviderLogic.conflict(
+      input,
+      cached: store.readCredentialMetadata(),
+      // Envelope metadata only: nothing is unsealed before user verification.
+      pending: pendingPasskeys.readMetadata()
+    )
+    if conflict == .excludedCredential {
+      log.info("registration refused: excluded credential held rpId=\(input.rpId, privacy: .private(mask: .hash))")
+      // The code exists from iOS 18 / macOS 15, as does `excludedCredentials`,
+      // so the fallback is unreachable; it is there for the compiler.
+      if #available(iOS 18.0, macOS 15.0, *) {
+        cancelWithError(.matchedExcludedCredential)
+      } else {
+        cancelWithError(.failed)
+      }
+      return
+    }
+
+    showRegistration(
+      input,
+      screen: .confirm(existingPasskey: conflict == .sameAccount),
+      onConfirm: { [weak self] in
+        self?.createPasskey(input, databaseId: databaseId, clientDataHash: clientDataHash)
+      },
+      onCancel: { [weak self] in
+        log.info("registration cancelled by the user")
+        self?.cancelWithError(.userCanceled)
+      }
+    )
   }
 
-  private func installRegistrationRefusal(relyingPartyId: String, userName: String) {
-    let rootView = PasskeyRegistrationUnavailableView(
-      relyingPartyId: relyingPartyId,
-      userName: userName,
-      onCancel: { [weak self] in
-        log.info("registration refusal dismissed by the user")
-        // `.failed` and not `.userCanceled`: the user did not decline the
-        // passkey, this provider cannot serve it. The distinction is what lets
-        // the browser offer another provider instead of treating the ceremony
-        // as abandoned.
-        self?.cancelWithError(.failed, message: "Custode creates passkeys in the app, not in AutoFill.")
+  /// Authenticate, re-check the vault binding, generate, queue, answer.
+  /// Nothing is generated before the prompt succeeds, and the key leaves this
+  /// function only inside the sealed record (SR-1, SR-3, SR-8).
+  private func createPasskey(
+    _ input: PasskeyRegistrationInput,
+    databaseId: String,
+    clientDataHash: Data
+  ) {
+    guard !registrationInFlight else { return }
+    registrationInFlight = true
+    PasskeyUserPresence.require(
+      reason: "Create a passkey for \(input.rpId)"
+    ) { [weak self] authenticated in
+      guard let self else { return }
+      guard authenticated else {
+        log.info("passkey registration declined by the user")
+        self.cancelWithError(.userCanceled)
+        return
       }
+      // The vault may have been locked, or another one published, while the
+      // prompt was up. A record bound to a vault that is gone is refused.
+      guard PasskeyProviderLogic.publishedDatabaseId(self.store.status()) == databaseId else {
+        log.info("registration refused: cache changed during the prompt rpId=\(input.rpId, privacy: .private(mask: .hash))")
+        self.refuseRegistrationUntilUnlocked(input)
+        return
+      }
+      do {
+        let registration = try PasskeyRegistrationBuilder.build(rpId: input.rpId)
+        let credential = ASPasskeyRegistrationCredential(
+          relyingParty: input.rpId,
+          clientDataHash: clientDataHash,
+          credentialID: registration.credentialID,
+          attestationObject: registration.attestationObject
+        )
+        let record = PasskeyProviderLogic.makeRecord(
+          input,
+          databaseId: databaseId,
+          credentialID: registration.credentialID,
+          privateKeyPem: registration.privateKeyPem
+        )
+        let recordIdentifier = PasskeyProviderLogic.pendingRecordPrefix + record.recordId
+        let quickTypeIdentity = ASPasskeyCredentialIdentity(
+          relyingPartyIdentifier: record.rpId,
+          userName: record.username.isEmpty ? record.rpId : record.username,
+          credentialID: registration.credentialID,
+          userHandle: input.userHandle.isEmpty ? Data(recordIdentifier.utf8) : input.userHandle,
+          recordIdentifier: recordIdentifier
+        )
+        // FR-5: sealed, written and read back before the site hears "done".
+        // Nothing between here and the completion call can fail.
+        try self.pendingPasskeys.write(record)
+        log.info("passkey registration completed rpId=\(input.rpId, privacy: .private(mask: .hash)) recordId=\(record.recordId, privacy: .public)")
+        self.showRegistration(input, screen: .saved)
+        self.extensionContext.completeRegistrationRequest(using: credential) { _ in
+          Self.offerInQuickType(quickTypeIdentity)
+        }
+      } catch {
+        log.error("passkey registration failed rpId=\(input.rpId, privacy: .private(mask: .hash)) error=\(String(describing: type(of: error)), privacy: .public)")
+        self.cancelWithError(.failed, message: "Custode could not save the passkey. Nothing was created.")
+      }
+    }
+  }
+
+  /// spec 024 T019 — best effort: lets the system suggest the pending passkey
+  /// without opening the list. The app's next publish replaces the whole
+  /// identity set (and a lock empties it), so this entry never outlives the
+  /// cache it depends on. Skipped unless the store takes incremental updates:
+  /// otherwise a save may stand in for the whole set and drop every other
+  /// suggestion.
+  private static func offerInQuickType(_ identity: ASPasskeyCredentialIdentity) {
+    let identityStore = ASCredentialIdentityStore.shared
+    identityStore.getState { state in
+      guard state.isEnabled, state.supportsIncrementalUpdates else { return }
+      identityStore.saveCredentialIdentities([identity]) { success, _ in
+        log.info("pending passkey identity saved=\(success, privacy: .public)")
+      }
+    }
+  }
+
+  /// FR-6: without a published cache there is no vault to bind the record to.
+  private func refuseRegistrationUntilUnlocked(_ input: PasskeyRegistrationInput) {
+    refuseRegistration(
+      input,
+      title: "Open and unlock Custode, then try again",
+      message: "Custode can create a passkey only while your vault is unlocked. Nothing was created."
+    )
+  }
+
+  /// `.failed` and not `.userCanceled`: the user did not decline the passkey,
+  /// this provider cannot serve it, and the site must not see a success.
+  private func refuseRegistration(_ input: PasskeyRegistrationInput, title: String, message: String) {
+    showRegistration(
+      input,
+      screen: .refused(title: title, message: message),
+      onCancel: { [weak self] in
+        self?.cancelWithError(.failed, message: title)
+      }
+    )
+  }
+
+  private func showRegistration(
+    _ input: PasskeyRegistrationInput,
+    screen: PasskeyRegistrationView.Screen,
+    onConfirm: @escaping () -> Void = {},
+    onCancel: @escaping () -> Void = {}
+  ) {
+    let rootView = PasskeyRegistrationView(
+      relyingPartyId: input.rpId,
+      userName: input.userName,
+      screen: screen,
+      onConfirm: onConfirm,
+      onCancel: onCancel
     )
 
     if let registrationHost {
@@ -350,36 +528,10 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
       cancelWithError(.credentialIdentityNotFound)
       return
     }
-    passkeyRequest = request
     completePasskeyAssertion(
       recordIdentifier: recordIdentifier,
       rpId: identity.relyingPartyIdentifier,
       credentialId: identity.credentialID.base64URLEncodedString,
-      clientDataHash: request.clientDataHash
-    )
-  }
-
-  /// The user picked a record from the passkey list. The request that brought
-  /// us here carries the client data hash to sign.
-  private func completePasskeyAssertion(
-    for metadata: AutofillCredentialMetadata,
-    rpId: String
-  ) {
-    guard let request = passkeyRequest else {
-      // Reached from `prepareCredentialList(requestParameters:)`, where the
-      // system has not handed over a request to complete. Nothing can be
-      // signed from here, and pretending otherwise would hang the sheet.
-      log.error("passkey selection without a pending request")
-      cancelWithError(.failed, message: "No passkey request to answer")
-      return
-    }
-    let credentialId = metadata.passkeys.first {
-      $0.rpId.caseInsensitiveCompare(rpId) == .orderedSame
-    }?.credentialId
-    completePasskeyAssertion(
-      recordIdentifier: metadata.id,
-      rpId: rpId,
-      credentialId: credentialId,
       clientDataHash: request.clientDataHash
     )
   }
@@ -404,12 +556,27 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
         return
       }
       do {
-        let secretRecord = try self.store.readCredentialSecret(id: recordIdentifier)
-        guard let secret = secretRecord.passkeys.first(where: { passkey in
-          passkey.rpId.caseInsensitiveCompare(rpId) == .orderedSame
-            && (credentialId == nil || passkey.credentialId == credentialId)
-        }) else {
-          log.error("passkey not in the sealed record rpId=\(rpId, privacy: .public)")
+        let secret: AutofillPasskeySecret?
+        if recordIdentifier.hasPrefix(PasskeyProviderLogic.pendingRecordPrefix) {
+          // spec 024 T019: a passkey still waiting to be adopted signs under
+          // the same rules, and only while its vault's cache is published.
+          secret = PasskeyProviderLogic.pendingSecret(
+            // The one record, decrypted only now that the user is verified.
+            records: PasskeyProviderLogic.pendingRecordId(recordIdentifier)
+              .flatMap { self.pendingPasskeys.read(recordId: $0) }.map { [$0] } ?? [],
+            publishedDatabaseId: PasskeyProviderLogic.publishedDatabaseId(self.store.status()),
+            recordIdentifier: recordIdentifier,
+            rpId: rpId,
+            credentialId: credentialId
+          )
+        } else {
+          secret = try self.store.readCredentialSecret(id: recordIdentifier).passkeys.first { passkey in
+            passkey.rpId.caseInsensitiveCompare(rpId) == .orderedSame
+              && (credentialId == nil || passkey.credentialId == credentialId)
+          }
+        }
+        guard let secret else {
+          log.error("passkey not in the sealed record rpId=\(rpId, privacy: .private(mask: .hash))")
           self.cancelWithError(.credentialIdentityNotFound)
           return
         }
@@ -425,7 +592,7 @@ final class MacCredentialProviderViewController: ASCredentialProviderViewControl
           authenticatorData: assertion.authenticatorData,
           credentialID: assertion.credentialID
         )
-        log.info("passkey assertion completed rpId=\(rpId, privacy: .public)")
+        log.info("passkey assertion completed rpId=\(rpId, privacy: .private(mask: .hash))")
         self.extensionContext.completeAssertionRequest(using: credential)
       } catch SharedAutofillStoreError.credentialNotFound {
         log.error("passkey record not found")

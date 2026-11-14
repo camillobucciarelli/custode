@@ -1,10 +1,10 @@
 package dev.camillobucciarelli.kdbxKeyVault.autofill
 
-import android.util.Base64
 import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.Signature
 import java.security.spec.PKCS8EncodedKeySpec
+import java.util.Base64
 import org.json.JSONObject
 
 /**
@@ -89,6 +89,7 @@ internal object PasskeyAssertionBuilder {
         challenge: String,
         origin: String,
         androidPackageName: String?,
+        suppliedClientDataHash: ByteArray? = null,
     ): Assertion {
         val authData = authenticatorData(
             rpId = passkey.rpId,
@@ -96,7 +97,14 @@ internal object PasskeyAssertionBuilder {
             backupState = passkey.backupState,
         )
         val clientData = clientDataJson(challenge, origin, androidPackageName)
-        val clientDataHash = MessageDigest.getInstance("SHA-256").digest(clientData)
+        // GetPublicKeyCredentialOption.clientDataHash: "a clientDataHash value
+        // to sign over in place of assembling and hashing clientDataJSON". A
+        // privileged caller (a browser) sends its own clientDataJSON to the
+        // relying party, so the signature must cover its hash, not ours. The
+        // clientDataJSON in the response is then only a well-formed
+        // placeholder: the library documents nothing about it in this case.
+        val clientDataHash = suppliedClientDataHash?.takeIf { it.isNotEmpty() }
+            ?: MessageDigest.getInstance("SHA-256").digest(clientData)
         val message = authData + clientDataHash
 
         val der = derFromPem(passkey.privateKeyPem) ?: throw BadKey()
@@ -172,9 +180,8 @@ internal object PasskeyAssertionBuilder {
             return null
         }
         return try {
-            Base64.decode(
+            Base64.getDecoder().decode(
                 lines.subList(1, lines.size - 1).joinToString(separator = ""),
-                Base64.DEFAULT,
             )
         } catch (error: IllegalArgumentException) {
             null
@@ -182,11 +189,11 @@ internal object PasskeyAssertionBuilder {
     }
 
     fun base64Url(bytes: ByteArray): String =
-        Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
 
     /** base64url, padded or not — KeePassXC omits the padding. */
     fun decodeBase64Url(value: String): ByteArray? = try {
-        Base64.decode(value, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        Base64.getUrlDecoder().decode(value)
     } catch (error: IllegalArgumentException) {
         null
     }

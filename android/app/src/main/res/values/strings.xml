@@ -16,6 +16,18 @@
     <!-- spec 023 FR-015: shown before every passkey signature. -->
     <string name="passkey_auth_prompt_title">Confirm it\'s you</string>
     <string name="passkey_auth_prompt_subtitle">Custode is about to sign in with one of your saved passkeys.</string>
+    <!-- spec 024 T022: passkey creation (PasskeyCreateActivity). -->
+    <string name="passkey_create_prompt_subtitle">Custode is about to create a new passkey.</string>
+    <string name="passkey_create_confirm_title">Create a passkey?</string>
+    <string name="passkey_create_confirm_message">Save a passkey for %1$s on %2$s in Custode.</string>
+    <string name="passkey_create_same_account_warning">Custode already has a passkey for this account on this site. Creating another one keeps both.</string>
+    <string name="passkey_create_confirm_action">Create</string>
+    <string name="passkey_create_excluded_message">This account already has a passkey saved in Custode for %1$s.</string>
+    <string name="passkey_create_locked_title">Custode is locked</string>
+    <string name="passkey_create_locked_message">Open and unlock Custode, then try again.</string>
+    <string name="passkey_create_open_custode">Open Custode</string>
+    <string name="passkey_create_failed">The passkey could not be saved. Nothing was registered.</string>
+    <string name="passkey_create_done_message">The passkey is saved on this device and will be added to your vault when you open Custode. Until then it exists only on this device.</string>
     <string name="autofill_auth_required_error">Set a screen lock, PIN or biometric on this device to fill saved passwords.</string>
     <string name="autofill_auth_cancelled">Not filled. Authentication was not completed.</string>
     <!-- spec-016 T702: picker accessibility labels and the two row strings that

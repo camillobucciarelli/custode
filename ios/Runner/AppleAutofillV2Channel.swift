@@ -13,6 +13,7 @@ final class AppleAutofillV2Channel {
 
   private let channelName = "dev.camillobucciarelli.keyvault/apple_autofill_v2"
   private let store = SharedAutofillStore()
+  private let pendingPasskeys = PendingPasskeyStore()
   private var channel: FlutterMethodChannel?
 
   func configure(binaryMessenger: FlutterBinaryMessenger) {
@@ -33,6 +34,13 @@ final class AppleAutofillV2Channel {
       handleReadPendingAssociations(result: result)
     case "clearPendingAssociations":
       handleClearPendingAssociations(arguments: call.arguments, result: result)
+    case "readPendingPasskeyRegistrations":
+      result(pendingPasskeyRegistrationsMap())
+    case "countPendingPasskeyRegistrations":
+      // File names only: no keychain, nothing decrypted. Safe before unlock.
+      result(pendingPasskeys.count())
+    case "resolvePendingPasskeyRegistration":
+      handleResolvePendingPasskeyRegistration(arguments: call.arguments, result: result)
     case "getStatus":
       result(store.status().dictionary)
     case "getExtensionEnabled":
@@ -93,6 +101,43 @@ final class AppleAutofillV2Channel {
       result(["clearedCount": clearedCount])
     } catch {
       result(flutterError(code: "clear_pending_associations_failed", error: error))
+    }
+  }
+
+  /// spec 024 T016. The PEM crosses the channel here, once, for adoption.
+  private func pendingPasskeyRegistrationsMap() -> [String: Any] {
+    let read = pendingPasskeys.read()
+    let records: [[String: Any]] = read.records.map { r in
+      [
+        "recordId": r.recordId,
+        "databaseId": r.databaseId,
+        "createdAtEpochMs": r.createdAtEpochMs,
+        "rpId": r.rpId,
+        "credentialId": r.credentialId,
+        "userHandle": r.userHandle ?? NSNull(),
+        "username": r.username,
+        "displayName": r.displayName ?? NSNull(),
+        "privateKeyPem": r.privateKeyPem,
+        "algorithm": r.algorithm,
+        "be": r.be,
+        "bs": r.bs,
+        "origin": r.origin,
+      ]
+    }
+    appleAutofillV2Log.info("readPendingPasskeyRegistrations count=\(records.count, privacy: .public) unreadable=\(read.unreadableCount, privacy: .public)")
+    return ["records": records, "unreadableCount": read.unreadableCount]
+  }
+
+  private func handleResolvePendingPasskeyRegistration(arguments: Any?, result: @escaping FlutterResult) {
+    guard let recordId = (arguments as? [String: Any])?["recordId"] as? String else {
+      result(FlutterError(code: "invalid_args", message: "recordId must be a string", details: nil))
+      return
+    }
+    do {
+      result(try pendingPasskeys.resolve(recordId: recordId))
+    } catch {
+      // PendingPasskeyStoreError messages are fixed strings with no record content.
+      result(flutterError(code: "resolve_pending_passkey_failed", error: error))
     }
   }
 

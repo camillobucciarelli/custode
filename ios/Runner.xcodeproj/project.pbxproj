@@ -16,7 +16,12 @@
 		1A2B3C4D5E6F700100000006 /* AppleAutofillV2Channel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000017 /* AppleAutofillV2Channel.swift */; };
 		1A2B3C4D5E6F700100000007 /* SharedAutofillStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000012 /* SharedAutofillStore.swift */; };
 		1A2B3C4D5E6F700100000008 /* PasskeyAssertionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000018 /* PasskeyAssertionBuilder.swift */; };
+		1A2B3C4D5E6F70010000000A /* PasskeyAssertionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000018 /* PasskeyAssertionBuilder.swift */; };
 		1A2B3C4D5E6F700100000009 /* PasskeyUserPresence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000019 /* PasskeyUserPresence.swift */; };
+		1A2B3C4D5E6F70010000000B /* PasskeyRegistrationBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F70010000001A /* PasskeyRegistrationBuilder.swift */; };
+		1A2B3C4D5E6F70010000000C /* PasskeyRegistrationBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F70010000001A /* PasskeyRegistrationBuilder.swift */; };
+		1A2B3C4D5E6F70010000000D /* PendingPasskeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F70010000001B /* PendingPasskeyStore.swift */; };
+		1A2B3C4D5E6F70010000000E /* PendingPasskeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F70010000001B /* PendingPasskeyStore.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
@@ -69,6 +74,8 @@
 		1A2B3C4D5E6F700100000012 /* SharedAutofillStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedAutofillStore.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700100000018 /* PasskeyAssertionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyAssertionBuilder.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700100000019 /* PasskeyUserPresence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyUserPresence.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F70010000001A /* PasskeyRegistrationBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyRegistrationBuilder.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F70010000001B /* PendingPasskeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingPasskeyStore.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700100000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700100000014 /* CredentialProviderExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CredentialProviderExtension.entitlements; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700100000015 /* CredentialProviderPasswordGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderPasswordGenerator.swift; sourceTree = "<group>"; };
@@ -125,6 +132,8 @@
 				1A2B3C4D5E6F700100000012 /* SharedAutofillStore.swift */,
 				1A2B3C4D5E6F700100000018 /* PasskeyAssertionBuilder.swift */,
 				1A2B3C4D5E6F700100000019 /* PasskeyUserPresence.swift */,
+				1A2B3C4D5E6F70010000001A /* PasskeyRegistrationBuilder.swift */,
+				1A2B3C4D5E6F70010000001B /* PendingPasskeyStore.swift */,
 				1A2B3C4D5E6F700100000015 /* CredentialProviderPasswordGenerator.swift */,
 				1A2B3C4D5E6F700100000016 /* CredentialListView.swift */,
 				1A2B3C4D5E6F700100000013 /* Info.plist */,
@@ -371,6 +380,8 @@
 				1A2B3C4D5E6F700100000002 /* SharedAutofillStore.swift in Sources */,
 				1A2B3C4D5E6F700100000008 /* PasskeyAssertionBuilder.swift in Sources */,
 				1A2B3C4D5E6F700100000009 /* PasskeyUserPresence.swift in Sources */,
+				1A2B3C4D5E6F70010000000B /* PasskeyRegistrationBuilder.swift in Sources */,
+				1A2B3C4D5E6F70010000000D /* PendingPasskeyStore.swift in Sources */,
 				1A2B3C4D5E6F700100000004 /* CredentialProviderPasswordGenerator.swift in Sources */,
 				1A2B3C4D5E6F700100000005 /* CredentialListView.swift in Sources */,
 			);
@@ -390,6 +401,9 @@
 			files = (
 				1A2B3C4D5E6F700100000006 /* AppleAutofillV2Channel.swift in Sources */,
 				1A2B3C4D5E6F700100000007 /* SharedAutofillStore.swift in Sources */,
+				1A2B3C4D5E6F70010000000A /* PasskeyAssertionBuilder.swift in Sources */,
+				1A2B3C4D5E6F70010000000C /* PasskeyRegistrationBuilder.swift in Sources */,
+				1A2B3C4D5E6F70010000000E /* PendingPasskeyStore.swift in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,

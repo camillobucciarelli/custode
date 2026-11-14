@@ -225,8 +225,9 @@ class AndroidAutofillCredentialMatcherTest {
         )
         val fields = AndroidAutofillCredentialMetadata::class.java.declaredFields.map { it.name }
 
-        assertFalse(fields.any { it.contains("password", ignoreCase = true) })
-        assertFalse(entry.toString().contains("password", ignoreCase = true))
+        // `hasPassword` is a boolean flag, not a secret.
+        assertEquals(listOf("hasPassword"), fields.filter { it.contains("password", ignoreCase = true) })
+        assertFalse(Regex("(?i)(?<!has)password=").containsMatchIn(entry.toString()))
     }
 
     private fun credential(

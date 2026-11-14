@@ -8,6 +8,8 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.credentials.provider.BeginCreateCredentialRequest
 import androidx.credentials.provider.BeginCreateCredentialResponse
+import androidx.credentials.provider.BeginCreatePublicKeyCredentialRequest
+import androidx.credentials.provider.CreateEntry
 import androidx.credentials.provider.BeginGetCredentialOption
 import androidx.credentials.provider.BeginGetCredentialRequest
 import androidx.credentials.provider.BeginGetCredentialResponse
@@ -19,6 +21,7 @@ import androidx.credentials.exceptions.ClearCredentialException
 import androidx.credentials.exceptions.CreateCredentialException
 import androidx.credentials.exceptions.CreateCredentialUnknownException
 import androidx.credentials.exceptions.GetCredentialException
+import dev.camillobucciarelli.kdbxKeyVault.R
 import org.json.JSONObject
 
 /**
@@ -28,8 +31,9 @@ import org.json.JSONObject
  * provider to register with (FR-013). Below that the manifest's service is
  * disabled at runtime and this class is never instantiated.
  *
- * The service answers from the **plaintext metadata** alone: rp ids and
- * credential ids, no unsealing, no key. Nothing here can sign — that happens
+ * The service answers from the **plaintext metadata** of the cache (rp ids
+ * and credential ids) plus, since spec 024, the plaintext envelope fields of
+ * the pending passkey queue; no key is read. Nothing here can sign — that happens
  * in [PasskeyAuthActivity], behind a biometric prompt, after the user has
  * chosen an entry from the system sheet.
  *
@@ -62,45 +66,42 @@ class KeyVaultCredentialProviderService : CredentialProviderService() {
     private fun buildEntries(
         options: List<BeginGetCredentialOption>,
     ): List<PublicKeyCredentialEntry> {
-        val metadata = AndroidAutofillStore(applicationContext).readCredentialMetadata()
-        if (metadata.isEmpty()) return emptyList()
+        val store = AndroidAutofillStore(applicationContext)
+        // spec 024 FR-10: no published cache, nothing offered, pending or not.
+        val databaseId = store.publishedDatabaseId() ?: return emptyList()
+        val metadata = store.readCredentialMetadata()
+        // Envelope metadata only: nothing is decrypted before user verification.
+        val pending = AndroidPendingPasskeyStore(applicationContext).readMetadata()
 
         val entries = mutableListOf<PublicKeyCredentialEntry>()
         for (option in options) {
             if (option !is BeginGetPublicKeyCredentialOption) continue
             val request = JSONObject(option.requestJson)
             val rpId = request.optString("rpId").trim().lowercase()
-            if (rpId.isEmpty()) continue
-            val allowed = request.optJSONArray("allowCredentials")?.let { array ->
-                buildSet {
-                    for (index in 0 until array.length()) {
-                        val id = array.optJSONObject(index)?.optString("id")?.trim()
-                        if (!id.isNullOrEmpty()) add(id)
-                    }
-                }
-            }.orEmpty()
-
-            for (record in metadata) {
-                // FR-014: the relying party must match exactly, and an
-                // `allowCredentials` the site sent must name this credential.
-                val passkey = record.passkeys.firstOrNull { passkey ->
-                    passkey.rpId.equals(rpId, ignoreCase = true) &&
-                        (allowed.isEmpty() || allowed.contains(passkey.credentialId))
-                } ?: continue
-
+            // FR-014: the relying party must match exactly, and an
+            // `allowCredentials` the site sent must name this credential.
+            val offers = PasskeyProviderLogic.offers(
+                rpId = rpId,
+                allowed = PasskeyProviderLogic.credentialIds(request, "allowCredentials"),
+                publishedDatabaseId = databaseId,
+                cached = metadata,
+                pending = pending,
+            )
+            for (offer in offers) {
                 entries.add(
                     PublicKeyCredentialEntry(
                         context = applicationContext,
-                        username = record.username.ifEmpty { record.title },
+                        username = offer.username,
                         pendingIntent = PasskeyAuthActivity.pendingIntent(
                             context = applicationContext,
-                            entryId = record.id,
-                            rpId = passkey.rpId,
-                            credentialId = passkey.credentialId,
+                            entryId = offer.entryId,
+                            pendingRecordId = offer.pendingRecordId,
+                            rpId = offer.rpId,
+                            credentialId = offer.credentialId,
                             requestCode = entries.size,
                         ),
                         beginGetPublicKeyCredentialOption = option,
-                        displayName = record.title,
+                        displayName = offer.displayName,
                     ),
                 )
             }
@@ -109,9 +110,10 @@ class KeyVaultCredentialProviderService : CredentialProviderService() {
     }
 
     /**
-     * Creating a passkey through Credential Manager is US3, which this spec
-     * does not build. Answering with an explicit failure rather than leaving
-     * the callback hanging is what keeps the system's create sheet responsive.
+     * spec 024 T022. A public-key create request gets one entry opening
+     * [PasskeyCreateActivity], which does the whole ceremony. A request that
+     * does not offer ES256 gets no entry (FR-4), so the sheet offers another
+     * provider instead. Other credential types are refused as before.
      */
     override fun onBeginCreateCredentialRequest(
         request: BeginCreateCredentialRequest,
@@ -119,9 +121,19 @@ class KeyVaultCredentialProviderService : CredentialProviderService() {
         callback: android.os.OutcomeReceiver<BeginCreateCredentialResponse, CreateCredentialException>,
     ) {
         if (cancellationSignal.isCanceled) return
-        callback.onError(
-            CreateCredentialUnknownException("Custode cannot create passkeys yet"),
-        )
+        if (request !is BeginCreatePublicKeyCredentialRequest) {
+            callback.onError(CreateCredentialUnknownException("Custode creates passkeys only"))
+            return
+        }
+        if (!PasskeyProviderLogic.offersEs256(request.requestJson)) {
+            callback.onResult(BeginCreateCredentialResponse())
+            return
+        }
+        val entry = CreateEntry.Builder(
+            getString(R.string.autofill_service_label),
+            PasskeyCreateActivity.pendingIntent(applicationContext),
+        ).build()
+        callback.onResult(BeginCreateCredentialResponse(createEntries = listOf(entry)))
     }
 
     /**
@@ -147,13 +159,18 @@ class KeyVaultCredentialProviderService : CredentialProviderService() {
         const val EXTRA_RP_ID = "dev.camillobucciarelli.keyvault.PASSKEY_RP_ID"
         const val EXTRA_CREDENTIAL_ID = "dev.camillobucciarelli.keyvault.PASSKEY_CREDENTIAL_ID"
 
+        /** spec 024 T023: set instead of [EXTRA_ENTRY_ID] for a pending record. */
+        const val EXTRA_PENDING_RECORD_ID = "dev.camillobucciarelli.keyvault.PASSKEY_PENDING_RECORD_ID"
+
         fun intentFor(
             context: android.content.Context,
-            entryId: String,
+            entryId: String?,
+            pendingRecordId: String?,
             rpId: String,
             credentialId: String,
         ): Intent = Intent(context, PasskeyAuthActivity::class.java).apply {
             putExtra(EXTRA_ENTRY_ID, entryId)
+            putExtra(EXTRA_PENDING_RECORD_ID, pendingRecordId)
             putExtra(EXTRA_RP_ID, rpId)
             putExtra(EXTRA_CREDENTIAL_ID, credentialId)
         }

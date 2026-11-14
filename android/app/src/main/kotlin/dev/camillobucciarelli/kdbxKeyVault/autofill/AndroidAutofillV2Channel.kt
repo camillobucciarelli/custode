@@ -8,6 +8,7 @@ import io.flutter.plugin.common.MethodChannel
 internal class AndroidAutofillV2Channel(context: Context) {
     private val store = AndroidAutofillStore(context)
     private val appContext = context.applicationContext
+    private val pendingPasskeys = AndroidPendingPasskeyStore(context)
 
     init {
         // spec 023 T405: bring the credential provider component into line
@@ -28,6 +29,10 @@ internal class AndroidAutofillV2Channel(context: Context) {
                 "readPendingCapture" -> handleReadPendingCapture(call.arguments, result)
                 "resolvePendingCapture" -> handleResolvePendingCapture(call.arguments, result)
                 "takePendingCaptureToken" -> result.success(takePendingCaptureToken())
+                "readPendingPasskeyRegistrations" -> handleReadPendingPasskeys(result)
+                // Files only: no keystore access, no decryption (pre-unlock banner).
+                "countPendingPasskeyRegistrations" -> result.success(pendingPasskeys.count())
+                "resolvePendingPasskeyRegistration" -> handleResolvePendingPasskey(call.arguments, result)
                 "getStatus" -> result.success(statusMap())
                 // spec 023 T405: what the settings row reads.
                 "getPasskeyProviderAvailability" -> result.success(
@@ -63,6 +68,42 @@ internal class AndroidAutofillV2Channel(context: Context) {
         val databaseId = (arguments as? Map<*, *>)?.get("databaseId") as? String
         Log.i(TAG, "clearCredentials received hasDatabaseId=${databaseId != null}")
         result.success(store.clearCredentials(databaseId = databaseId))
+    }
+
+    // spec 024 T020. Messages are fixed strings: nothing here may echo a PEM.
+    private fun handleReadPendingPasskeys(result: MethodChannel.Result) {
+        val read = pendingPasskeys.read()
+        Log.i(TAG, "readPendingPasskeyRegistrations count=${read.records.size} unreadable=${read.unreadableCount}")
+        result.success(
+            mapOf(
+                "records" to read.records.map {
+                    mapOf(
+                        "recordId" to it.recordId,
+                        "databaseId" to it.databaseId,
+                        "createdAtEpochMs" to it.createdAtEpochMs,
+                        "rpId" to it.rpId,
+                        "credentialId" to it.credentialId,
+                        "userHandle" to it.userHandle,
+                        "username" to it.username,
+                        "displayName" to it.displayName,
+                        "privateKeyPem" to it.privateKeyPem,
+                        "algorithm" to it.algorithm,
+                        "be" to it.be,
+                        "bs" to it.bs,
+                        "origin" to it.origin,
+                    )
+                },
+                "unreadableCount" to read.unreadableCount,
+            ),
+        )
+    }
+
+    private fun handleResolvePendingPasskey(arguments: Any?, result: MethodChannel.Result) {
+        val recordId = (arguments as? Map<*, *>)?.get("recordId") as? String
+        require(recordId != null && AndroidPendingPasskeyStore.isRecordId(recordId)) {
+            "recordId must be a UUID"
+        }
+        result.success(pendingPasskeys.resolve(recordId))
     }
 
     private fun handleClearPendingAssociations(arguments: Any?, result: MethodChannel.Result) {
