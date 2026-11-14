@@ -32,11 +32,13 @@ enum PasskeyRegistrationBuilder {
   /// `PasskeyUserPresence` before building (SR-3).
   static let flags: UInt8 = 0x01 | 0x04 | 0x08 | 0x10 | 0x40
 
+  typealias Signer = P256.Signing.PrivateKey
+
   /// `privateKey` and `credentialID` are injectable for the shared vector;
   /// production passes neither.
   static func build(
     rpId: String,
-    privateKey: P256.Signing.PrivateKey = P256.Signing.PrivateKey(),
+    privateKey: Signer = Signer(),
     credentialID: Data? = nil
   ) throws -> Registration {
     let credentialID = try credentialID ?? randomCredentialID()

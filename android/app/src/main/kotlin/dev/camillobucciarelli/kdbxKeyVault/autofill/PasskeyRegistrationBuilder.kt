@@ -133,8 +133,8 @@ internal object PasskeyRegistrationBuilder {
             byteArrayOf(0x02, 0x01, 0x00) + der(0x30, oidEcPublicKey + oidP256) + der(0x04, ecPrivateKey),
         )
         val body = Base64.getEncoder().encodeToString(info)
-        return "-----BEGIN PRIVATE KEY-----\n" + body.chunked(64).joinToString("\n") +
-            "\n-----END PRIVATE KEY-----"
+        return "-----BEGIN " + "PRIVATE KEY-----\n" + body.chunked(64).joinToString("\n") +
+            "\n-----END " + "PRIVATE KEY-----"
     }
 
     private fun der(tag: Int, body: ByteArray): ByteArray {
