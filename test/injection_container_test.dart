@@ -14,7 +14,10 @@ import 'package:password_manager/features/password_manager/domain/repositories/c
 import 'package:password_manager/features/password_manager/domain/usecases/link_database_to_remote_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/sync_database_now_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
+import 'package:password_manager/features/password_manager/domain/repositories/autofill_ports.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_registry_repository.dart';
+import 'package:password_manager/features/password_manager/presentation/bloc/vault/vault_bloc.dart';
+import 'package:password_manager/features/password_manager/presentation/coordinators/pending_passkey_adoption_coordinator.dart';
 import 'package:password_manager/injection_container.dart' as di;
 import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -243,6 +246,18 @@ void main() {
       identical(di.sl<DatabasePathMutex>(), di.sl<DatabasePathMutex>()),
       isTrue,
     );
+  });
+
+  test('the production VaultBloc gets the pending-passkey adoption '
+      'coordinator, so adoption is not a silent no-op', () async {
+    await di.init();
+
+    expect(di.sl<PendingPasskeyRegistrationPort>(), isNotNull);
+    final coordinator = di.sl<PendingPasskeyAdoptionCoordinator>();
+    final bloc = di.sl<VaultBloc>(param1: '/vaults/vault.kdbx');
+    addTearDown(bloc.close);
+
+    expect(bloc.pendingPasskeyAdoptionCoordinator, same(coordinator));
   });
 }
 

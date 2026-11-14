@@ -145,6 +145,11 @@ void registerPasswordManagerDataDependencies(GetIt sl) {
   sl.registerLazySingleton<AppleAutofillV2Client>(
     () => AppleAutofillV2MethodChannelClient(),
   );
+  // Same channel, stateless client: a second instance keeps the pending
+  // passkey queue port apart from the wider autofill client interface.
+  sl.registerLazySingleton<PendingPasskeyRegistrationPort>(
+    () => AppleAutofillV2MethodChannelClient(),
+  );
   // spec 008 T104/T105: one process-wide instance, shared by every database
   // writer below — a writer holding a private mutex would void the
   // serialization guarantee.

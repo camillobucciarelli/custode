@@ -1,5 +1,6 @@
 import '../models/autofill_models.dart';
 import '../models/apple_autofill_v2_models.dart';
+import '../models/pending_passkey_registration.dart';
 
 abstract interface class AutofillPlatformPort {
   Stream<AutofillRequest> get requests;
@@ -79,4 +80,26 @@ abstract interface class AppleAutofillV2Client {
     required String token,
     required AndroidAutofillCaptureOutcome outcome,
   });
+}
+
+/// The native sealed queue of passkeys created by the autofill surface and not
+/// yet written to the vault (Apple App Group, Android app storage).
+abstract interface class PendingPasskeyRegistrationPort {
+  /// Every pending record of every vault, decrypted by the native side, plus
+  /// the number that could not be read. Empty on platforms with no queue and
+  /// where the native side does not implement it yet.
+  Future<PendingPasskeyRegistrations> readPendingPasskeyRegistrations();
+
+  /// Number of record files in the queue (readable or not, every vault),
+  /// counted from metadata only: no decryption, no key material crosses the
+  /// channel, so it is safe before unlock. 0 where there is no queue, the
+  /// native side does not implement it, or it fails.
+  Future<int> countPendingPasskeyRegistrations();
+
+  /// Deletes the queue record [recordId]. Call only after the vault write is
+  /// confirmed, or after an explicit, confirmed discard (FR-9).
+  ///
+  /// `true` when the native side reports the record gone; `false` when there
+  /// is no queue on this platform. A native failure throws.
+  Future<bool> resolvePendingPasskeyRegistration(String recordId);
 }

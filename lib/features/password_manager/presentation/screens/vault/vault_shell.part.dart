@@ -504,6 +504,9 @@ class _VaultViewState extends State<_VaultView> with WidgetsBindingObserver {
 
     if (!shouldLock) {
       _resetInactivityTimer();
+      // Passkeys-all-platforms FR-8: an autofill surface may have queued a
+      // passkey while the app was away.
+      context.read<VaultBloc>().add(const AdoptPendingPasskeys());
     }
     // A save request brings the app forward with a new capture waiting.
     _androidAutofillCapturePulled = false;
@@ -900,6 +903,9 @@ class _VaultViewState extends State<_VaultView> with WidgetsBindingObserver {
                                     // confirmation. Draws nothing until a
                                     // page asks for a signature.
                                     const _PasskeyApprovalListener(),
+                                    // Passkeys-all-platforms T014: draws
+                                    // nothing; asks the adoption questions.
+                                    const _PasskeyAdoptionListener(),
                                     Expanded(
                                       child: _VaultEntriesCardSection(
                                         layout: _effectiveLayout(context),

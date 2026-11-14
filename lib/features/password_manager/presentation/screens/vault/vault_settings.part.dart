@@ -46,31 +46,69 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
   String? _loadingForPath;
   String? _autofillStatusSubtitle;
 
-  /// spec 023 T405 — what the passkey row says. Null while unknown, and on
-  /// every platform but Android, where the row is not shown at all.
+  /// spec 023 T405 — what the passkey row says on Android. Null while unknown
+  /// (the row is then hidden); other platforms use [_staticPasskeySubtitle].
   String? _passkeyProviderSubtitle;
+
+  /// T015: passkeys queued by the system provider and not yet in the vault.
+  int _waitingPasskeys = 0;
+
+  static const _passkeyKeptOnDevice =
+      'A passkey created outside the app is kept on this device and added to '
+      'the vault when Custode is next opened and unlocked; until then it '
+      'exists only on this device.';
+
+  /// Passkeys-all-platforms T015 / FR-13: per-platform truth, with the reason.
+  /// Null on Android, which asks the platform channel instead.
+  static String? _staticPasskeySubtitle() {
+    if (kIsWeb) {
+      return 'Not available: a web page cannot act as a passkey provider';
+    }
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.macOS =>
+        'Sign in and create passkeys through AutoFill. $_passkeyKeptOnDevice',
+      TargetPlatform.windows || TargetPlatform.linux =>
+        'Passkeys work in browsers through the Custode extension only: '
+            'there is no system-level passkey provider on this platform',
+      _ => null,
+    };
+  }
 
   @override
   void initState() {
     super.initState();
     unawaited(_loadAutofillStatus());
     unawaited(_loadPasskeyProviderStatus());
+    unawaited(_loadWaitingPasskeys());
+  }
+
+  Future<void> _loadWaitingPasskeys() async {
+    final count =
+        await context
+            .read<VaultBloc>()
+            .pendingPasskeyAdoptionCoordinator
+            ?.waitingCount() ??
+        0;
+    if (!mounted) return;
+    setState(() => _waitingPasskeys = count);
   }
 
   /// spec 023 T405 / FR-013 — an Android below API 34 has no credential
   /// provider to register with, so the row states that plainly rather than
   /// offering a switch that would do nothing.
   Future<void> _loadPasskeyProviderStatus() async {
-    if (defaultTargetPlatform != TargetPlatform.android) return;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     String? label;
     try {
       final availability = await di
           .sl<AppleAutofillV2Client>()
           .getPasskeyProviderAvailability();
       label = availability.available
-          ? 'Available — turn Custode on in Android\u2019s passkey settings'
-          : 'Needs Android 14 or later '
-                '(this device runs API ${availability.apiLevel})';
+          ? 'Sign in and create passkeys through Android\u2019s system '
+                'credential provider: turn Custode on in Android\u2019s '
+                'passkey settings. $_passkeyKeptOnDevice'
+          : 'Not available: the system provider API needs Android 14 or '
+                'later (this device runs API ${availability.apiLevel})';
     } catch (_) {
       label = null;
     }
@@ -638,16 +676,37 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
                     'Biometric keyboard, desktop helper',
                 onTap: () => _openAutofillSettings(context),
               ),
-              // spec 023 T405: Android only — the one place that says whether
-              // passkey sign-in can work on this device.
-              if (defaultTargetPlatform == TargetPlatform.android &&
-                  _passkeyProviderSubtitle != null) ...[
+              // spec 023 T405 / passkeys-all-platforms T015: the one place that
+              // says whether passkey sign-in and creation work on this device.
+              if (_staticPasskeySubtitle() ??
+                      (kIsWeb ? null : _passkeyProviderSubtitle)
+                  case final passkeySubtitle?) ...[
                 const SizedBox(height: 8),
                 _SettingsRow(
                   glyph: AppGlyph.fingerprint,
-                  title: 'Passkey sign-in',
-                  subtitle: _passkeyProviderSubtitle!,
-                  onTap: () => _openAndroidAutofillSettings(context),
+                  title: 'Passkeys',
+                  subtitle: passkeySubtitle,
+                  onTap:
+                      !kIsWeb && defaultTargetPlatform == TargetPlatform.android
+                      ? () => _openAndroidAutofillSettings(context)
+                      : null,
+                ),
+              ],
+              // T015: passkeys created outside the app and still queued on
+              // this device. ponytail: a count only (waitingCount); the queue
+              // has no list in state, so no per-site names here.
+              if (_waitingPasskeys > 0) ...[
+                const SizedBox(height: 8),
+                _SettingsRow(
+                  glyph: AppGlyph.fingerprint,
+                  title: 'Passkeys waiting',
+                  subtitle:
+                      '$_waitingPasskeys on this device, added to the vault '
+                      'when Custode is next opened and unlocked',
+                  // Brings back questions answered "Decide later" this session.
+                  onTap: () => context.read<VaultBloc>().add(
+                    const AdoptPendingPasskeys(includeDeferred: true),
+                  ),
                 ),
               ],
               const SizedBox(height: 8),

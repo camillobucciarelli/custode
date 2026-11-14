@@ -7,6 +7,8 @@ import '../../../domain/models/vault_custom_field.dart';
 import '../../../domain/models/sync_conflict.dart';
 import '../../../domain/models/sync_merge_models.dart';
 import '../../../domain/services/sync_merge_policy.dart' show MergeShortcut;
+import '../../coordinators/pending_passkey_adoption_coordinator.dart'
+    show PasskeyClashDecision;
 import '../../../domain/models/remote_file.dart';
 import 'vault_state.dart';
 
@@ -665,4 +667,68 @@ class DeletePasskey extends VaultEvent {
 
   @override
   List<Object?> get props => [entryId, relyingPartyId, credentialId];
+}
+
+/// Passkeys-all-platforms T014 / FR-8 — adopt passkeys the autofill surface
+/// queued. Sent after unlock and on app resume while unlocked.
+class AdoptPendingPasskeys extends VaultEvent {
+  /// [includeDeferred] forgets the "Decide later" answers of this session, so
+  /// their questions come back (the settings "Passkeys waiting" row).
+  const AdoptPendingPasskeys({this.includeDeferred = false});
+
+  final bool includeDeferred;
+
+  @override
+  List<Object?> get props => [includeDeferred];
+}
+
+/// FR-8 (b): the user's answer to a clash. [replaceEntryId] is required for
+/// [PasskeyClashDecision.replace].
+class ResolvePasskeyClash extends VaultEvent {
+  const ResolvePasskeyClash({
+    required this.recordId,
+    required this.decision,
+    this.replaceEntryId,
+  });
+
+  final String recordId;
+  final PasskeyClashDecision decision;
+  final String? replaceEntryId;
+
+  @override
+  List<Object?> get props => [recordId, decision, replaceEntryId];
+}
+
+/// FR-9: adopt a record bound to another vault into this one. Send only after
+/// the user confirmed.
+class MovePendingPasskeyToThisVault extends VaultEvent {
+  const MovePendingPasskeyToThisVault(this.recordId);
+
+  final String recordId;
+
+  @override
+  List<Object?> get props => [recordId];
+}
+
+/// FR-9: permanently delete a waiting record. Send only after the user
+/// confirmed.
+class DiscardPendingPasskey extends VaultEvent {
+  const DiscardPendingPasskey(this.recordId);
+
+  final String recordId;
+
+  @override
+  List<Object?> get props => [recordId];
+}
+
+/// The user closed a clash or other-vault question without answering: stop
+/// asking now. The record stays in the queue and is offered again on the next
+/// unlock or resume.
+class DeferPasskeyAdoptionPrompt extends VaultEvent {
+  const DeferPasskeyAdoptionPrompt(this.recordId);
+
+  final String recordId;
+
+  @override
+  List<Object?> get props => [recordId];
 }

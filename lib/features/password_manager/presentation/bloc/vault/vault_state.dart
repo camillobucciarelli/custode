@@ -12,6 +12,8 @@ import '../../../domain/models/vault_entry_revision.dart';
 import '../../../domain/models/vault_group.dart';
 import '../../../domain/models/vault_health_report.dart';
 import '../../coordinators/android_autofill_save_coordinator.dart';
+import '../../coordinators/pending_passkey_adoption_coordinator.dart'
+    show PasskeyClashRequest, PendingPasskeyOtherVault;
 import '../../../data/services/vault_csv_import_service.dart'
     show CsvImportOutcome;
 
@@ -60,6 +62,8 @@ class VaultState extends Equatable {
     this.isDuplicatesLoading = false,
     this.pendingAppleAutofillAssociations = const [],
     this.pendingAndroidAutofillSave,
+    this.passkeyClashes = const [],
+    this.passkeyOtherVault = const [],
     this.healthReport = VaultHealthReport.empty,
     this.lastCsvImportOutcome,
     this.mergeReview,
@@ -152,6 +156,11 @@ class VaultState extends Equatable {
   /// user to confirm whether it becomes a new entry or updates one. The
   /// captured password lives inside it and is never rendered.
   final AndroidAutofillPendingSave? pendingAndroidAutofillSave;
+
+  /// Passkeys-all-platforms T014: adoption questions still waiting on the
+  /// user. Ids and labels only, never key material (SR-1).
+  final List<PasskeyClashRequest> passkeyClashes;
+  final List<PendingPasskeyOtherVault> passkeyOtherVault;
 
   /// spec-005 T3: computed on unlock and after every write (never per
   /// keystroke) — see `VaultBloc._computeHealth`.
@@ -248,6 +257,8 @@ class VaultState extends Equatable {
     bool? isDuplicatesLoading,
     List<AppleAutofillV2PendingAssociation>? pendingAppleAutofillAssociations,
     AndroidAutofillPendingSave? pendingAndroidAutofillSave,
+    List<PasskeyClashRequest>? passkeyClashes,
+    List<PendingPasskeyOtherVault>? passkeyOtherVault,
     VaultHealthReport? healthReport,
     CsvImportOutcome? lastCsvImportOutcome,
     MergeReviewSummary? mergeReview,
@@ -328,6 +339,8 @@ class VaultState extends Equatable {
       pendingAndroidAutofillSave: clearPendingAndroidAutofillSave
           ? null
           : pendingAndroidAutofillSave ?? this.pendingAndroidAutofillSave,
+      passkeyClashes: passkeyClashes ?? this.passkeyClashes,
+      passkeyOtherVault: passkeyOtherVault ?? this.passkeyOtherVault,
       healthReport: healthReport ?? this.healthReport,
       lastCsvImportOutcome: clearCsvImportOutcome
           ? null
@@ -438,6 +451,8 @@ class VaultState extends Equatable {
     isDuplicatesLoading,
     pendingAppleAutofillAssociations,
     pendingAndroidAutofillSave,
+    passkeyClashes,
+    passkeyOtherVault,
     // Deliberately NOT `healthReport` itself (plan.md risk: "Adding
     // healthReport to VaultState triggers rebuild storms" — its
     // categories carry full entryIds lists that would make every
