@@ -1985,6 +1985,25 @@ void main() {
       );
     });
 
+    test('a response carrying privateKeyPem is rejected', () async {
+      bridge.overrideData = (_) => {
+        'credentialId': 'AQIDBAU',
+        'authenticatorData': 'YXV0aA',
+        'signature': 'c2ln',
+        'clientDataJSON': 'Y2xpZW50',
+        'privateKeyPem': '-----BEGIN PRIVATE KEY-----',
+      };
+
+      final response = await handleNativeHostRequest(request(), store: store);
+
+      expect(response['ok'], isFalse);
+      expect(
+        (response['error']! as Map<String, Object?>)['code'],
+        'app_bridge_invalid_response',
+      );
+      expect(jsonEncode(response), isNot(contains('PRIVATE KEY')));
+    });
+
     test(
       'the challenge and credential ids never echo back in an error',
       () async {
@@ -2112,6 +2131,56 @@ void main() {
 
     test('an old host answers unsupported_type, so the page falls back', () {
       expect(_preSlice009MessageTypes, isNot(contains('passkeyCreate')));
+    });
+
+    test('a {reason} refusal is passed through unchanged', () async {
+      bridge.refusalReason = 'user_cancelled';
+
+      final response = await handleNativeHostRequest(request(), store: store);
+
+      expect(response['ok'], isTrue);
+      expect(response['data'], {'reason': 'user_cancelled'});
+    });
+
+    for (final missing in [
+      'credentialId',
+      'attestationObject',
+      'clientDataJSON',
+    ]) {
+      test('a response without $missing is refused', () async {
+        bridge.overrideData = (_) => {
+          'credentialId': 'AQIDBAU',
+          'attestationObject': 'YXR0',
+          'clientDataJSON': 'Y2xpZW50',
+        }..remove(missing);
+
+        final response = await handleNativeHostRequest(request(), store: store);
+
+        expect(response['ok'], isFalse);
+        expect(
+          (response['error']! as Map<String, Object?>)['code'],
+          'app_bridge_invalid_response',
+        );
+      });
+    }
+
+    test('a response carrying privateKeyPem is rejected', () async {
+      bridge.overrideData = (_) => {
+        'credentialId': 'AQIDBAU',
+        'attestationObject': 'YXR0',
+        'clientDataJSON': 'Y2xpZW50',
+        'publicKeyCose': 'Y29zZQ',
+        'privateKeyPem': '-----BEGIN PRIVATE KEY-----',
+      };
+
+      final response = await handleNativeHostRequest(request(), store: store);
+
+      expect(response['ok'], isFalse);
+      expect(
+        (response['error']! as Map<String, Object?>)['code'],
+        'app_bridge_invalid_response',
+      );
+      expect(jsonEncode(response), isNot(contains('PRIVATE KEY')));
     });
   });
 }

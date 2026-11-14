@@ -854,6 +854,16 @@ Future<Map<String, Object?>> _passkeyAssertResponse({
   }
 
   final data = call.data;
+  // The private key never crosses the native messaging boundary (see
+  // _passkeyCreateResponse): refuse the whole response rather than drop it.
+  if (data != null && data.containsKey('privateKeyPem')) {
+    return nativeHostErrorResponse(
+      id: id,
+      type: type,
+      code: 'app_bridge_invalid_response',
+      message: _publicRevealErrorMessage('app_bridge_invalid_response'),
+    );
+  }
   // A refusal: the app answers 200 with a reason so the page can fall
   // through to the browser's own authenticator. Passed on verbatim, and the
   // reasons are coarse on purpose — none of them says whether this vault
@@ -995,6 +1005,17 @@ Future<Map<String, Object?>> _passkeyCreateResponse({
   }
 
   final data = call.data;
+  // The private key never crosses the native messaging boundary. Whitelisting
+  // below would drop it silently; a response carrying one means the app is
+  // broken or impersonated, so refuse the whole response.
+  if (data != null && data.containsKey('privateKeyPem')) {
+    return nativeHostErrorResponse(
+      id: id,
+      type: type,
+      code: 'app_bridge_invalid_response',
+      message: _publicRevealErrorMessage('app_bridge_invalid_response'),
+    );
+  }
   final reason = _safeOptionalString(data?['reason'], maxLength: 64);
   if (reason != null) {
     return _successResponse(id: id, type: type, data: {'reason': reason});

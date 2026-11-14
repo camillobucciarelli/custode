@@ -98,6 +98,12 @@ already exists with that site as its website: the app will not invent a record
 while the site is waiting, so if there is no matching record it says so and the
 browser handles the registration instead.
 
+**Windows and Linux.** There, passkeys work in browsers through this extension
+only. Neither platform has a system-level passkey provider for Custode to
+register with: Windows 11's provider API requires MSIX packaging, which Custode
+does not ship, and Linux has no system provider API. Ed25519 passkeys can now
+sign in, alongside ES256. No permission or manifest change is involved.
+
 ## One global switch, and revoke
 
 - The overlay is **off by default**. The user turns it on from the popup, which
