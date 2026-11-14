@@ -200,7 +200,8 @@ void _expectCommitted(String path, Map<String, Object?> json) {
     return;
   }
   expect(
-    file.readAsStringSync(),
+    // Windows checkouts may convert LF to CRLF; the JSON content is what matters.
+    file.readAsStringSync().replaceAll('\r\n', '\n'),
     expected,
     reason:
         '$path is out of date. If the change is deliberate, rerun with '
