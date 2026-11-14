@@ -7,6 +7,11 @@ import XCTest
 
 class RunnerTests: XCTestCase {
 
+  func testXCTestHostGuardIsActiveAndFlutterNotStarted() {
+    XCTAssertTrue(XCTestHost.isActive)
+    XCTAssertFalse(NSApp.windows.contains { $0.contentViewController is FlutterViewController })
+  }
+
   func testPossibleMatchesUseTargetTokensWithoutGenericWords() {
     let entries = [
       makeMetadata(

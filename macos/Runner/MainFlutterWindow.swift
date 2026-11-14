@@ -7,6 +7,22 @@ private let autofillLog = Logger(
   category: "autofill-host"
 )
 
+/// True only when this process is the host of an XCTest bundle. RunnerTests is
+/// hosted by the real app (TEST_HOST); letting Flutter start there runs Dart
+/// startup, which calls native `clearCredentials` and can wipe the real
+/// App Group autofill cache and keychain key. Requires the XCTest class AND an
+/// XCTest-set environment variable, so neither alone (a stray env var in a
+/// normal launch, or a linked XCTest) can blank the app. No user-settable flag.
+enum XCTestHost {
+  static let isActive: Bool = {
+    guard NSClassFromString("XCTestCase") != nil else { return false }
+    let env = ProcessInfo.processInfo.environment
+    return env["XCTestConfigurationFilePath"] != nil
+      || env["XCTestBundlePath"] != nil
+      || env["XCTestSessionIdentifier"] != nil
+  }()
+}
+
 final class OtpAuthDeepLinkForwarder {
   static let shared = OtpAuthDeepLinkForwarder()
 
@@ -42,6 +58,11 @@ final class OtpAuthDeepLinkForwarder {
 
 class MainFlutterWindow: NSWindow {
   override func awakeFromNib() {
+    if XCTestHost.isActive {
+      autofillLog.info("XCTest host: Flutter not started")
+      super.awakeFromNib()
+      return
+    }
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
     self.contentViewController = flutterViewController

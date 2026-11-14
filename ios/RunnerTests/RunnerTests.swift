@@ -7,6 +7,15 @@ import XCTest
 
 class RunnerTests: XCTestCase {
 
+  func testXCTestHostGuardIsActiveAndFlutterNotStarted() {
+    XCTAssertTrue(XCTestHost.isActive, "guard inactive")
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let roots = scenes.flatMap(\.windows).compactMap(\.rootViewController)
+    for case let vc as FlutterViewController in roots {
+      XCTAssertNil(vc.engine.isolateId, "Dart isolate is running under XCTest")
+    }
+  }
+
   func testPossibleMatchesUseTargetTokensWithoutGenericWords() {
     let entries = [
       makeMetadata(
