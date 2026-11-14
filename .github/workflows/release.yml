@@ -646,4 +646,9 @@ jobs:
           # The page goes last, so its links never point at a file that is not there yet.
           sed "s/__VERSION__/$VERSION/g" docs/download/index.html > build/site/index.html
           tool/release/r2_upload.sh build/site/index.html index.html 'text/html; charset=utf-8' "$short"
+          # latest.json is what the app's opt-in update check reads: marketing version and build of
+          # this release. It goes after the page, so it never names a build that is not uploaded yet.
+          # VERSION is X.Y.Z.N: split at the last dot.
+          printf '{"version":"%s","build":%s}\n' "${VERSION%.*}" "${VERSION##*.}" > build/site/latest.json
+          tool/release/r2_upload.sh build/site/latest.json latest.json application/json "$short"
           echo "- Download site: https://custode.camillobucciarelli.dev/ ($VERSION)" >> "$GITHUB_STEP_SUMMARY"

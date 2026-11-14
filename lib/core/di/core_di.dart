@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../update/http_update_check_gateway.dart';
+import '../update/update_check_gateway.dart';
+
 Future<void> registerCoreDependencies(
   GetIt sl, {
   required SharedPreferences sharedPreferences,
@@ -12,4 +15,7 @@ Future<void> registerCoreDependencies(
   sl.registerLazySingleton(() => const FlutterSecureStorage());
   sl.registerLazySingleton(() => LocalAuthentication());
   sl.registerLazySingleton<http.Client>(() => http.Client());
+  sl.registerLazySingleton<UpdateCheckGateway>(
+    () => HttpUpdateCheckGateway(sl(), sl()),
+  );
 }

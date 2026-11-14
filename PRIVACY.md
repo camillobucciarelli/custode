@@ -3,13 +3,15 @@
 **Application:** Custode Password Manager
 **Data controller:** Camillo Bucciarelli
 **Contact:** bucciarelli.camillo92@gmail.com
-**Last updated:** 2026-08-21
+**Last updated:** 2026-11-14
 
 ## Summary
 
 This application collects nothing. There is no account, no telemetry, no
-analytics, no crash reporting, and no advertising. The developer operates no
-server and receives no data from your device, ever.
+analytics, no crash reporting, and no advertising. The developer receives no
+data from your device. The only server the developer operates is a static file
+host used by the optional, off-by-default update check described below; it
+receives no identifiers and no vault data.
 
 ## Data stored on your device
 
@@ -18,7 +20,7 @@ server and receives no data from your device, ever.
 | Vault contents (entries, passwords, notes, TOTP secrets) | Encrypted `.kdbx` file in a location you choose | The core function of the application |
 | Master password, only if you enable biometric unlock for a database | Platform keystore (Apple Keychain, Android Keystore, OS secure store on desktop), in an entry scoped to that database | Serving a biometric unlock of that same database. Removed immediately when you disable biometric unlock. Without biometric unlock the master password is never written to the keystore; it exists only in memory while the vault is unlocked. |
 | Google OAuth tokens, only if you enable cloud sync | Platform keystore | Authenticating to your own cloud storage |
-| Preferences (theme, selected database path) | Application preferences storage | Restoring your settings |
+| Preferences (theme, selected database path, update-check setting and the last version seen) | Application preferences storage | Restoring your settings |
 
 This data never leaves your device except through the cloud sync you explicitly
 enable, described below. It is not accessible to the developer.
@@ -41,6 +43,24 @@ Disabling sync stops all uploads. Deleting the file from your Google Drive
 removes the cloud copy; the developer cannot do this for you because the
 developer has no access.
 
+## Optional update check
+
+The update check is off by default, and the application makes no request for it
+until you turn on "Check for updates" in Settings. If you enable it:
+
+- The application sends one HTTPS GET request per day (and one when you turn the
+  setting on) to `https://custode.camillobucciarelli.dev/latest.json`, a static
+  file hosted on Cloudflare R2 and operated by the developer.
+- The request carries no identifiers and no vault data. As with any web
+  request, the server sees your IP address and standard HTTP request metadata.
+  The developer does not use these to profile you.
+- The file contains only the latest version number. The application compares it
+  with its own version and, if a newer one exists, shows a link to the download
+  page, which opens in your system browser only when you tap it.
+
+Turning the setting off stops all such requests. The web build never performs
+this check.
+
 ## Autofill
 
 The autofill integrations (Android autofill service, Apple credential provider,
@@ -57,22 +77,25 @@ The application connects only to:
   enable cloud sync
 - `www.googleapis.com` — Google Drive upload and download, only when you enable
   cloud sync
+- `custode.camillobucciarelli.dev` — the update check, only when you enable
+  "Check for updates"
 - `127.0.0.1` on a local port — detecting the desktop native messaging host for
   browser autofill. This connection never leaves your computer.
 
-Opening the browser extension page or the native host download uses links
-handed to your system browser; the application itself makes no request to those
-sites.
+Opening the browser extension page, the native host download or the download
+page uses links handed to your system browser; the application itself makes no
+request to those sites.
 
-No connection is made to any server operated by the developer, because none
-exists.
+The only connection to a server operated by the developer is the optional
+update check above. It is off unless you turn it on.
 
 ## Third parties
 
 There are no analytics providers, advertising networks, or data processors. No
 data is sold, shared, or disclosed, because none is collected. The only third
-party involved is Google, and only for the cloud sync you choose to enable,
-under your own account.
+parties involved are Google, only for the cloud sync you choose to enable under
+your own account, and Cloudflare, which hosts the static file of the optional
+update check.
 
 ## Your rights
 
