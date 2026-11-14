@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'update_check_gateway.dart';
 
 /// Marketing version, mirrored by hand from `pubspec.yaml` `version:`.
 /// `.github/workflows/release.yml` only bumps the build number after the `+`,
@@ -13,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 const kApplicationVersion = '0.7.0';
 
 const kDownloadPageUrl = 'https://custode.camillobucciarelli.dev/';
-const _latestUrl = 'https://custode.camillobucciarelli.dev/latest.json';
 
 final _versionPattern = RegExp(r'^\d+\.\d+\.\d+$');
 
@@ -51,27 +49,21 @@ class UpdateCheckState {
 /// No network request is ever made while the setting is off.
 class UpdateCheckCubit extends Cubit<UpdateCheckState> {
   UpdateCheckCubit(
-    this._prefs,
-    this._client, {
+    this._gateway, {
     DateTime Function()? now,
     this.supported = !kIsWeb,
   }) : _now = now ?? DateTime.now,
-       super(_initial(_prefs, supported));
+       super(_initial(_gateway, supported));
 
-  static const enabledKey = 'update_check_enabled';
-  static const lastCheckKey = 'update_check_last_ms';
-  static const latestKey = 'update_check_latest_version';
-  static const notifiedKey = 'update_check_notified_version';
   static const interval = Duration(hours: 24);
 
-  final SharedPreferences _prefs;
-  final http.Client _client;
+  final UpdateCheckGateway _gateway;
   final DateTime Function() _now;
   final bool supported;
 
-  static UpdateCheckState _initial(SharedPreferences prefs, bool supported) {
-    final enabled = supported && (prefs.getBool(enabledKey) ?? false);
-    final latest = prefs.getString(latestKey);
+  static UpdateCheckState _initial(UpdateCheckGateway gateway, bool supported) {
+    final enabled = supported && gateway.enabled;
+    final latest = gateway.latestVersion;
     return UpdateCheckState(
       enabled: enabled,
       availableVersion:
@@ -88,42 +80,30 @@ class UpdateCheckCubit extends Cubit<UpdateCheckState> {
 
   Future<void> setEnabled(bool value) async {
     if (!supported) return;
-    await _prefs.setBool(enabledKey, value);
+    await _gateway.setEnabled(value);
     emit(UpdateCheckState(enabled: value));
     if (value) await _check(force: true);
   }
 
   Future<void> _check({required bool force}) async {
-    if (!supported || !(_prefs.getBool(enabledKey) ?? false)) return;
+    if (!supported || !_gateway.enabled) return;
     final nowMs = _now().millisecondsSinceEpoch;
-    final last = _prefs.getInt(lastCheckKey);
+    final last = _gateway.lastCheckMs;
     if (!force && last != null && nowMs - last < interval.inMilliseconds) {
       return;
     }
-    final String version;
-    try {
-      final response = await _client
-          .get(Uri.parse(_latestUrl))
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) return;
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      final raw = body is Map ? body['version'] : null;
-      // The payload is untrusted: only a strict X.Y.Z is ever used.
-      if (raw is! String || !_versionPattern.hasMatch(raw)) return;
-      version = raw;
-    } catch (_) {
-      return;
-    }
+    final version = await _gateway.fetchLatestVersion();
+    if (version == null) return;
     if (isClosed) return;
-    await _prefs.setInt(lastCheckKey, nowMs);
-    await _prefs.setString(latestKey, version);
-    if (!(_prefs.getBool(enabledKey) ?? false)) return;
+    await _gateway.setLastCheckMs(nowMs);
+    await _gateway.setLatestVersion(version);
+    if (!_gateway.enabled) return;
     if (!isNewerVersion(version, kApplicationVersion)) {
       emit(UpdateCheckState(enabled: true));
       return;
     }
-    final announce = _prefs.getString(notifiedKey) != version;
-    if (announce) await _prefs.setString(notifiedKey, version);
+    final announce = _gateway.notifiedVersion != version;
+    if (announce) await _gateway.setNotifiedVersion(version);
     emit(
       UpdateCheckState(
         enabled: true,

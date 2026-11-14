@@ -13,6 +13,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:password_manager/core/theme/app_theme.dart';
 import 'package:password_manager/core/utils/clipboard_guard.dart';
 import 'package:http/http.dart' as http;
+import 'package:password_manager/core/update/http_update_check_gateway.dart';
 import 'package:password_manager/core/update/update_check_cubit.dart';
 import 'package:password_manager/core/theme/theme_cubit.dart';
 import 'package:password_manager/features/password_manager/data/datasources/biometric_data_source.dart';
@@ -150,7 +151,9 @@ Future<Widget> pumpableVaultShell({
     providers: [
       BlocProvider<ThemeCubit>(create: (_) => ThemeCubit(sharedPreferences)),
       BlocProvider<UpdateCheckCubit>(
-        create: (_) => UpdateCheckCubit(sharedPreferences, http.Client()),
+        create: (_) => UpdateCheckCubit(
+          HttpUpdateCheckGateway(sharedPreferences, http.Client()),
+        ),
       ),
     ],
     child: Builder(

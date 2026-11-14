@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:password_manager/core/update/update_check_cubit.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:password_manager/core/update/update_check_gateway.dart';
 
 void main() {
   test('isNewerVersion compares components numerically', () {
@@ -15,114 +13,124 @@ void main() {
     }
   });
 
-  late int calls;
+  late _FakeGateway gateway;
   late DateTime clock;
 
-  Future<UpdateCheckCubit> build(
-    Map<String, Object> prefs,
-    http.Response Function() respond, {
+  UpdateCheckCubit build({
+    bool enabled = false,
+    String? latest,
+    String? Function()? respond,
     bool supported = true,
-  }) async {
-    SharedPreferences.setMockInitialValues(prefs);
-    calls = 0;
-    return UpdateCheckCubit(
-      await SharedPreferences.getInstance(),
-      MockClient((_) async {
-        calls++;
-        return respond();
-      }),
-      now: () => clock,
-      supported: supported,
-    );
+  }) {
+    gateway = _FakeGateway(enabled: enabled, latest: latest, respond: respond);
+    return UpdateCheckCubit(gateway, now: () => clock, supported: supported);
   }
-
-  http.Response ok(String version) =>
-      http.Response('{"version":"$version","build":5}', 200);
 
   setUp(() => clock = DateTime(2026, 1, 1, 12));
 
-  test('disabled setting makes no HTTP call', () async {
-    final cubit = await build({}, () => ok('9.0.0'));
+  test('disabled setting makes no fetch', () async {
+    final cubit = build(respond: () => '9.0.0');
     await cubit.checkOnStart();
-    expect(calls, 0);
+    expect(gateway.calls, 0);
     expect(cubit.state.enabled, isFalse);
     expect(cubit.state.availableVersion, isNull);
   });
 
   test('unsupported platform never checks nor enables', () async {
-    final cubit = await build(
-      {UpdateCheckCubit.enabledKey: true},
-      () => ok('9.0.0'),
+    final cubit = build(
+      enabled: true,
+      respond: () => '9.0.0',
       supported: false,
     );
     await cubit.checkOnStart();
     await cubit.setEnabled(true);
-    expect(calls, 0);
+    expect(gateway.calls, 0);
     expect(cubit.state.enabled, isFalse);
   });
 
   test(
     'enabling checks immediately and surfaces a newer version once',
     () async {
-      final cubit = await build({}, () => ok('9.0.0'));
+      final cubit = build(respond: () => '9.0.0');
       await cubit.setEnabled(true);
-      expect(calls, 1);
+      expect(gateway.calls, 1);
       expect(cubit.state.availableVersion, '9.0.0');
       expect(cubit.state.announce, isTrue);
       // Same version again: shown in settings, but not announced twice.
       clock = clock.add(const Duration(hours: 25));
       await cubit.checkOnStart();
-      expect(calls, 2);
+      expect(gateway.calls, 2);
       expect(cubit.state.availableVersion, '9.0.0');
       expect(cubit.state.announce, isFalse);
     },
   );
 
   test('start check is throttled to once per 24 hours', () async {
-    final cubit = await build({
-      UpdateCheckCubit.enabledKey: true,
-    }, () => ok('9.0.0'));
+    final cubit = build(enabled: true, respond: () => '9.0.0');
     await cubit.checkOnStart();
-    expect(calls, 1);
+    expect(gateway.calls, 1);
     clock = clock.add(const Duration(hours: 23));
     await cubit.checkOnStart();
-    expect(calls, 1);
+    expect(gateway.calls, 1);
     clock = clock.add(const Duration(hours: 2));
     await cubit.checkOnStart();
-    expect(calls, 2);
+    expect(gateway.calls, 2);
   });
 
-  test('failures are silent and leave state and throttle unchanged', () async {
-    for (final respond in <http.Response Function()>[
-      () => http.Response('nope', 500),
-      () => http.Response('not json', 200),
-      () => http.Response('{"version":"1.0"}', 200),
-      () => http.Response('{"version":"<b>9.0.0</b>"}', 200),
-      () => http.Response('[]', 200),
-      () => throw Exception('offline'),
-    ]) {
-      final cubit = await build({UpdateCheckCubit.enabledKey: true}, respond);
+  test(
+    'a failed fetch is silent and leaves state and throttle alone',
+    () async {
+      final cubit = build(enabled: true, respond: () => null);
       await cubit.checkOnStart();
-      expect(calls, 1);
+      expect(gateway.calls, 1);
       expect(cubit.state.availableVersion, isNull);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getInt(UpdateCheckCubit.lastCheckKey), isNull);
-    }
-  });
+      expect(gateway.lastCheckMs, isNull);
+      expect(gateway.latestVersion, isNull);
+    },
+  );
 
   test('a remote version that is not newer shows nothing', () async {
-    final cubit = await build({
-      UpdateCheckCubit.enabledKey: true,
-    }, () => ok(kApplicationVersion));
+    final cubit = build(enabled: true, respond: () => kApplicationVersion);
     await cubit.checkOnStart();
     expect(cubit.state.availableVersion, isNull);
+    expect(gateway.lastCheckMs, isNotNull);
   });
 
-  test('a known newer version is restored from preferences', () async {
-    final cubit = await build({
-      UpdateCheckCubit.enabledKey: true,
-      UpdateCheckCubit.latestKey: '9.0.0',
-    }, () => ok('9.0.0'));
+  test('a known newer version is restored from the gateway', () {
+    final cubit = build(enabled: true, latest: '9.0.0');
     expect(cubit.state.availableVersion, '9.0.0');
   });
+}
+
+class _FakeGateway implements UpdateCheckGateway {
+  _FakeGateway({required this.enabled, String? latest, this.respond})
+    : latestVersion = latest;
+
+  final String? Function()? respond;
+  int calls = 0;
+
+  @override
+  bool enabled;
+  @override
+  int? lastCheckMs;
+  @override
+  String? latestVersion;
+  @override
+  String? notifiedVersion;
+
+  @override
+  Future<void> setEnabled(bool value) async => enabled = value;
+  @override
+  Future<void> setLastCheckMs(int value) async => lastCheckMs = value;
+  @override
+  Future<void> setLatestVersion(String value) async => latestVersion = value;
+  @override
+  Future<void> setNotifiedVersion(String value) async =>
+      notifiedVersion = value;
+
+  @override
+  Future<String?> fetchLatestVersion() async {
+    calls++;
+    return respond?.call();
+  }
 }

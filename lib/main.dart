@@ -72,9 +72,7 @@ class PasswordManagerApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => ThemeCubit(di.sl())),
-        BlocProvider(
-          create: (_) => UpdateCheckCubit(di.sl(), di.sl())..checkOnStart(),
-        ),
+        BlocProvider(create: (_) => UpdateCheckCubit(di.sl())..checkOnStart()),
         BlocProvider(
           create: (_) =>
               di.sl<DatabaseSelectionBloc>()..add(CheckInitialDatabase()),
