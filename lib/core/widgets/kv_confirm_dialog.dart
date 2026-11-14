@@ -19,7 +19,7 @@ Future<bool?> showKvConfirmDialog(
     context: context,
     useRootNavigator: true,
     barrierDismissible: dismissible,
-    builder: (dialogContext) => _KvClosableDialog(
+    builder: (dialogContext) => KvClosableDialog(
       closeWhen: closeWhen,
       child: AlertDialog(
         title: Text(title),
@@ -49,17 +49,17 @@ Future<bool?> showKvConfirmDialog(
 ///
 /// Pops through the dialog's own context, so it can only ever close this route
 /// and never something pushed over it.
-class _KvClosableDialog extends StatefulWidget {
-  const _KvClosableDialog({required this.child, this.closeWhen});
+class KvClosableDialog extends StatefulWidget {
+  const KvClosableDialog({super.key, required this.child, this.closeWhen});
 
   final Widget child;
   final ValueListenable<bool>? closeWhen;
 
   @override
-  State<_KvClosableDialog> createState() => _KvClosableDialogState();
+  State<KvClosableDialog> createState() => _KvClosableDialogState();
 }
 
-class _KvClosableDialogState extends State<_KvClosableDialog> {
+class _KvClosableDialogState extends State<KvClosableDialog> {
   @override
   void initState() {
     super.initState();

@@ -903,9 +903,6 @@ class _VaultViewState extends State<_VaultView> with WidgetsBindingObserver {
                                     // confirmation. Draws nothing until a
                                     // page asks for a signature.
                                     const _PasskeyApprovalListener(),
-                                    // Passkeys-all-platforms T014: draws
-                                    // nothing; asks the adoption questions.
-                                    const _PasskeyAdoptionListener(),
                                     Expanded(
                                       child: _VaultEntriesCardSection(
                                         layout: _effectiveLayout(context),
@@ -959,6 +956,11 @@ class _VaultViewState extends State<_VaultView> with WidgetsBindingObserver {
                             },
                           ),
                         ),
+                        // Passkeys-all-platforms T014: draws nothing; asks
+                        // the adoption questions. Here, not in the vault
+                        // pane, so it is mounted once for every destination:
+                        // the Settings "Passkeys waiting" row asks too.
+                        const _PasskeyAdoptionListener(),
                         BlocSelector<VaultBloc, VaultState, bool>(
                           selector: (state) => state.isSaving,
                           builder: (context, isSaving) {
