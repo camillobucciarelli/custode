@@ -125,6 +125,8 @@ class PasskeyAuthActivity : FragmentActivity() {
                 challenge = challenge,
                 origin = PasskeyCallerOrigin.origin(this, request.callingAppInfo, rpId),
                 androidPackageName = PasskeyCallerOrigin.androidPackageName(this, request.callingAppInfo),
+                callerIsVerifiedBrowser =
+                    PasskeyCallerOrigin.isVerifiedBrowser(this, request.callingAppInfo),
                 suppliedClientDataHash = option.clientDataHash,
             )
         } catch (error: Exception) {
@@ -214,6 +216,13 @@ internal object PasskeyCallerOrigin {
         // the relying party sees client data it did not expect.
         return if (browserOrigin(context, info) == null) info.packageName else null
     }
+
+    /**
+     * True only for a caller on the privileged allowlist that populated an
+     * origin: the one case in which its `clientDataHash` may be signed.
+     */
+    fun isVerifiedBrowser(context: Context, info: CallingAppInfo): Boolean =
+        browserOrigin(context, info) != null
 
     /**
      * The web origin a privileged browser vouched for, or null.

@@ -84,12 +84,31 @@ internal object PasskeyAssertionBuilder {
         return json.toString().toByteArray(Charsets.UTF_8)
     }
 
+    /**
+     * The caller-supplied `clientDataHash` to sign in place of our own, or
+     * null to sign the provider-built `clientDataJSON`.
+     *
+     * Any app can put a hash in its `GetPublicKeyCredentialOption`, and that
+     * hash can be of a clientDataJSON claiming `https://bank.example`. Signing
+     * it would hand an unlisted native app an assertion the bank accepts as a
+     * web sign-in, so it is honoured only for a caller already verified as a
+     * privileged browser (the condition under which [PasskeyCallerOrigin]
+     * yields a web origin). Everyone else gets a signature over client data
+     * whose origin is their own `android:apk-key-hash:`.
+     */
+    fun clientDataHashToHonour(
+        callerIsVerifiedBrowser: Boolean,
+        suppliedClientDataHash: ByteArray?,
+    ): ByteArray? =
+        if (callerIsVerifiedBrowser) suppliedClientDataHash?.takeIf { it.isNotEmpty() } else null
+
     fun assert(
         passkey: AndroidAutofillPasskey,
         challenge: String,
         origin: String,
         androidPackageName: String?,
-        suppliedClientDataHash: ByteArray? = null,
+        callerIsVerifiedBrowser: Boolean,
+        suppliedClientDataHash: ByteArray?,
     ): Assertion {
         val authData = authenticatorData(
             rpId = passkey.rpId,
@@ -103,7 +122,7 @@ internal object PasskeyAssertionBuilder {
         // relying party, so the signature must cover its hash, not ours. The
         // clientDataJSON in the response is then only a well-formed
         // placeholder: the library documents nothing about it in this case.
-        val clientDataHash = suppliedClientDataHash?.takeIf { it.isNotEmpty() }
+        val clientDataHash = clientDataHashToHonour(callerIsVerifiedBrowser, suppliedClientDataHash)
             ?: MessageDigest.getInstance("SHA-256").digest(clientData)
         val message = authData + clientDataHash
 

@@ -128,7 +128,10 @@ MCowBQYDK2VwAyEAfvhLh0hetAAPqudMFN0ZkH6r6IFukCxUBJERIDY8dSc=
     }
 
     private fun assertion(pem: String, algorithm: AndroidPasskeyAlgorithm) =
-        PasskeyAssertionBuilder.assert(passkey(pem, algorithm), challenge, origin, null)
+        PasskeyAssertionBuilder.assert(
+            passkey(pem, algorithm), challenge, origin, null,
+            callerIsVerifiedBrowser = false, suppliedClientDataHash = null,
+        )
 
     @Test
     fun authenticatorDataMatchesVector() {
@@ -228,32 +231,57 @@ MCowBQYDK2VwAyEAfvhLh0hetAAPqudMFN0ZkH6r6IFukCxUBJERIDY8dSc=
         }
     }
 
+    private val nativeOrigin = "android:apk-key-hash:AAAA"
+    private val spoofedHash =
+        MessageDigest.getInstance("SHA-256").digest("browser client data".toByteArray())
+
+    private fun gated(verifiedBrowser: Boolean, hash: ByteArray?) = PasskeyAssertionBuilder.assert(
+        passkey(es256PrivateKeyPem, AndroidPasskeyAlgorithm.Es256),
+        challenge,
+        if (verifiedBrowser) origin else nativeOrigin,
+        if (verifiedBrowser) null else "com.evil.app",
+        callerIsVerifiedBrowser = verifiedBrowser,
+        suppliedClientDataHash = hash,
+    )
+
+    private fun overProviderBuilt(a: PasskeyAssertionBuilder.Assertion) =
+        verifyOver(a.authenticatorData + MessageDigest.getInstance("SHA-256").digest(a.clientDataJson), a)
+
     @Test
-    fun suppliedClientDataHashIsSignedInsteadOfOurOwn() {
-        val supplied = MessageDigest.getInstance("SHA-256").digest("browser client data".toByteArray())
-        val a = PasskeyAssertionBuilder.assert(
-            passkey(es256PrivateKeyPem, AndroidPasskeyAlgorithm.Es256),
-            challenge, origin, null, suppliedClientDataHash = supplied,
-        )
-        assertTrue(verifyOver(a.authenticatorData + supplied, a))
-        assertTrue(
-            !verifyOver(
-                a.authenticatorData + MessageDigest.getInstance("SHA-256").digest(a.clientDataJson),
-                a,
-            ),
-        )
+    fun nonPrivilegedCallerCannotChooseTheSignedHash() {
+        // Origin spoofing: a native app supplies the hash of a clientDataJSON
+        // claiming a web origin. It must get a signature over its own
+        // android:apk-key-hash client data and nothing else.
+        val a = gated(verifiedBrowser = false, hash = spoofedHash)
+        assertTrue(overProviderBuilt(a))
+        assertTrue(!verifyOver(a.authenticatorData + spoofedHash, a))
+        val clientData = JSONObject(String(a.clientDataJson))
+        assertEquals(nativeOrigin, clientData.getString("origin"))
+        assertEquals("com.evil.app", clientData.getString("androidPackageName"))
     }
 
     @Test
-    fun nullOrEmptyClientDataHashKeepsProviderBuiltClientData() {
+    fun privilegedBrowserHashIsSignedInsteadOfOurOwn() {
+        val a = gated(verifiedBrowser = true, hash = spoofedHash)
+        assertTrue(verifyOver(a.authenticatorData + spoofedHash, a))
+        assertTrue(!overProviderBuilt(a))
+    }
+
+    @Test
+    fun privilegedBrowserWithoutHashKeepsProviderBuiltClientData() {
         for (hash in listOf(null, ByteArray(0))) {
-            val a = PasskeyAssertionBuilder.assert(
-                passkey(es256PrivateKeyPem, AndroidPasskeyAlgorithm.Es256),
-                challenge, origin, null, suppliedClientDataHash = hash,
-            )
-            assertTrue(
-                verify("EC", "SHA256withECDSA", es256PublicKeyPem, a),
-            )
+            assertTrue(overProviderBuilt(gated(verifiedBrowser = true, hash = hash)))
         }
+    }
+
+    @Test
+    fun clientDataHashToHonourRequiresAVerifiedBrowser() {
+        assertNull(PasskeyAssertionBuilder.clientDataHashToHonour(false, spoofedHash))
+        assertNull(PasskeyAssertionBuilder.clientDataHashToHonour(true, null))
+        assertNull(PasskeyAssertionBuilder.clientDataHashToHonour(true, ByteArray(0)))
+        assertArrayEquals(
+            spoofedHash,
+            PasskeyAssertionBuilder.clientDataHashToHonour(true, spoofedHash),
+        )
     }
 }
