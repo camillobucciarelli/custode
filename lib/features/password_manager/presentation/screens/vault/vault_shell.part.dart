@@ -440,6 +440,9 @@ class _VaultViewState extends State<_VaultView> with WidgetsBindingObserver {
       _lockedAt = null;
     });
     _resetInactivityTimer();
+    // PR #250 review: a resume that locked skipped adoption, and the unlock
+    // is the first moment a pending passkey may be asked about again.
+    context.read<VaultBloc>().add(const AdoptPendingPasskeys());
   }
 
   @override

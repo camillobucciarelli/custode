@@ -11,6 +11,8 @@ import 'package:password_manager/features/password_manager/presentation/coordina
 import 'package:password_manager/features/password_manager/presentation/coordinators/vault_session_coordinator.dart';
 
 import '../../bloc/vault/vault_bloc_harness.dart';
+import 'package:password_manager/injection_container.dart' as di;
+import 'package:password_manager/features/password_manager/data/datasources/biometric_data_source.dart';
 import 'vault_shell_test_utils.dart';
 
 const _clash = PasskeyClashRequest(
@@ -56,6 +58,17 @@ class _LockingSessionCoordinator implements VaultSessionCoordinator {
 
   @override
   Future<Set<String>> getProtectedKeyFilePaths() async => const {};
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _AcceptingBiometric implements BiometricDataSource {
+  @override
+  Future<bool> isBiometricAvailable() async => true;
+
+  @override
+  Future<bool> authenticate({required String reason}) async => true;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -209,6 +222,31 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    // PR #250 review: a resume that locked skipped adoption, so the unlock
+    // has to run it.
+    testWidgets('unlocking the overlay adopts what is waiting', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final coordinator = FakePendingPasskeyAdoptionCoordinator();
+      await tester.pumpWidget(
+        await pumpableVaultShell(
+          vaultKdbxService: FakeVaultKdbxService(snapshot: nestedSnapshot()),
+          pendingPasskeyAdoptionCoordinator: coordinator,
+          debugInitiallyLocked: true,
+        ),
+      );
+      di.sl.unregister<BiometricDataSource>();
+      di.sl.registerLazySingleton<BiometricDataSource>(
+        () => _AcceptingBiometric(),
+      );
+      await tester.pumpAndSettle();
+
+      // Only the load-time run so far; the unlock ran another.
+      expect(coordinator.adoptCalls, 2);
     });
   });
 
