@@ -463,7 +463,7 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
           ),
           child: const LicensePage(
             applicationName: _kApplicationName,
-            applicationVersion: _kApplicationVersion,
+            applicationVersion: kApplicationVersion,
             applicationLegalese: _kApplicationLegalese,
           ),
         ),
@@ -490,6 +490,8 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<CustodeColors>()!;
+    final updateCheck = context.read<UpdateCheckCubit>();
+    final updateState = context.watch<UpdateCheckCubit>().state;
     return BlocBuilder<VaultBloc, VaultState>(
       buildWhen: (previous, current) =>
           previous.databasePath != current.databasePath,
@@ -724,9 +726,33 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
               _SettingsRow(
                 glyph: AppGlyph.info,
                 title: 'Version',
-                subtitle: _kApplicationVersion,
+                subtitle: kApplicationVersion,
                 onTap: null,
               ),
+              if (updateCheck.supported) ...[
+                const SizedBox(height: 8),
+                _SettingsSwitchRow(
+                  glyph: AppGlyph.linkSimple,
+                  iconBackground: colors.positiveTint,
+                  iconColor: colors.positiveText,
+                  title: 'Check for updates',
+                  subtitle:
+                      'Contacts custode.camillobucciarelli.dev once a day',
+                  value: updateState.enabled,
+                  onChanged: (value) => unawaited(
+                    context.read<UpdateCheckCubit>().setEnabled(value),
+                  ),
+                ),
+                if (updateState.availableVersion != null) ...[
+                  const SizedBox(height: 8),
+                  _SettingsRow(
+                    glyph: AppGlyph.info,
+                    title: 'Version ${updateState.availableVersion} available',
+                    subtitle: null,
+                    onTap: () => _openExternal(context, kDownloadPageUrl),
+                  ),
+                ],
+              ],
               const SizedBox(height: 8),
               _SettingsRow(
                 glyph: AppGlyph.fileText,
@@ -757,12 +783,6 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
 }
 
 const _kApplicationName = 'Custode';
-
-/// Marketing version, mirrored by hand from `pubspec.yaml` `version:`.
-/// `.github/workflows/release.yml` only bumps the build number after the `+`,
-/// so this string changes only on a deliberate release bump. Kept literal so
-/// no runtime dependency (e.g. `package_info_plus`) has to be added.
-const _kApplicationVersion = '0.8.0';
 
 const _kApplicationLegalese =
     'Copyright (C) 2026 Camillo Bucciarelli - AGPL-3.0';

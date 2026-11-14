@@ -23,6 +23,7 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/theme/custode_colors.dart';
 import '../../../../../core/theme/theme_cubit.dart';
+import '../../../../../core/update/update_check_cubit.dart';
 import '../../../../../core/utils/clipboard_guard.dart';
 import '../../../../../core/utils/format_bytes.dart';
 import '../../../../../core/utils/mobile_file_storage.dart';

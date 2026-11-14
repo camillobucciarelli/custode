@@ -8,6 +8,7 @@ import 'package:loggy/loggy.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_cubit.dart';
+import 'core/update/update_check_cubit.dart';
 import 'injection_container.dart' as di;
 import 'features/password_manager/presentation/bloc/database_selection/database_selection_bloc.dart';
 import 'features/password_manager/presentation/bloc/database_selection/database_selection_event.dart';
@@ -71,6 +72,7 @@ class PasswordManagerApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => ThemeCubit(di.sl())),
+        BlocProvider(create: (_) => UpdateCheckCubit(di.sl())..checkOnStart()),
         BlocProvider(
           create: (_) =>
               di.sl<DatabaseSelectionBloc>()..add(CheckInitialDatabase()),
@@ -89,9 +91,20 @@ class PasswordManagerApp extends StatelessWidget {
               final overlayStyle = brightness == Brightness.light
                   ? SystemUiOverlayStyle.dark
                   : SystemUiOverlayStyle.light;
-              return AnnotatedRegion<SystemUiOverlayStyle>(
-                value: overlayStyle,
-                child: child ?? const SizedBox.shrink(),
+              return BlocListener<UpdateCheckCubit, UpdateCheckState>(
+                listenWhen: (_, current) => current.announce,
+                listener: (context, state) => ScaffoldMessenger.of(context)
+                    .showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Version ${state.availableVersion} is available',
+                        ),
+                      ),
+                    ),
+                child: AnnotatedRegion<SystemUiOverlayStyle>(
+                  value: overlayStyle,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               );
             },
           );
