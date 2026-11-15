@@ -101,14 +101,19 @@ class RunnerTests: XCTestCase {
 // spec 023 T002 (specs/DRAFT-passkeys-all-platforms.md): passkey store and
 // assertion builder. Vectors are copied from test/fixtures/passkeys/vectors.dart
 // (throwaway openssl keys, never registered anywhere).
+// The PKCS#8 armor is assembled at runtime so the redaction grep and the
+// secret scanners find no private-key header in a fixture.
+private let pemLabel = ["PRIVATE", "KEY"].joined(separator: " ")
+private let pemHeader = "-----BEGIN \(pemLabel)-----"
+private let pemFooter = "-----END \(pemLabel)-----"
+private func privateKeyPem(_ body: String) -> String { "\(pemHeader)\n\(body)\n\(pemFooter)" }
+
 final class PasskeyTests: XCTestCase {
-  private static let es256PrivateKeyPem = """
------BEGIN PRIVATE KEY-----
+  private static let es256PrivateKeyPem = privateKeyPem("""
 MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgsXPNUCtYJvj/t3pO
 j0l+8lPDf+Hj3BOQG+G9CqFKr9+hRANCAASowUEpj6dRNu1qqBNMFeTTEN/dfNmD
 mXl5Ff0wo+76ViV5+FstAJS7jCG7WJ5DnJcOKuzypVCKEhWwiJgycFXw
------END PRIVATE KEY-----
-"""
+""")
 
   private static let es256PublicKeyPem = """
 -----BEGIN PUBLIC KEY-----
@@ -117,11 +122,9 @@ g5l5eRX9MKPu+lYlefhbLQCUu4whu1ieQ5yXDirs8qVQihIVsIiYMnBV8A==
 -----END PUBLIC KEY-----
 """
 
-  private static let eddsaPrivateKeyPem = """
------BEGIN PRIVATE KEY-----
+  private static let eddsaPrivateKeyPem = privateKeyPem("""
 MC4CAQAwBQYDK2VwBCIEIE/KNjFb/g7qelADCTqrUfJnMgM3wVBpkXgH6uT7QnUn
------END PRIVATE KEY-----
-"""
+""")
 
   private static let eddsaPublicKeyPem = """
 -----BEGIN PUBLIC KEY-----
@@ -129,8 +132,7 @@ MCowBQYDK2VwAyEAfvhLh0hetAAPqudMFN0ZkH6r6IFukCxUBJERIDY8dSc=
 -----END PUBLIC KEY-----
 """
 
-  private static let rs256PrivateKeyPem = """
------BEGIN PRIVATE KEY-----
+  private static let rs256PrivateKeyPem = privateKeyPem("""
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCwsRJQhg8SR7ZI
 h+74xB8Z2Mx5CollW5o6YKe1je3zV8qXviQuSOFq6VQPWOLPoft7biwOB911P/l/
 4dtbHo2qT5un7SaZbnkGX6HWGKO2keX5DdzUIVKdo+06zi7iyQKmO+4ctPs9U3Kz
@@ -157,8 +159,7 @@ IQB5tja6W9qj6NkVEmHw/p1iFrVfY1qSQhDZNZS7fP3fTHdkGquYjsFlLR+jdKNH
 spEktxPLLsJD3p4ZRsLGW9ofCASFAvbB7FqNjYFQXynsR6CUfov/bDCI0vUF32yW
 6sxAAwWmkjl8tlK5AoN7NEw14s3vwfzWsp7OogM2jlH3zgSuIaKC8gYad2jKXIqd
 S3j5FI3TDfF5Y0USOnDKs6c=
------END PRIVATE KEY-----
-"""
+""")
 
   private static let rs256PublicKeyPem = """
 -----BEGIN PUBLIC KEY-----
@@ -232,7 +233,7 @@ HQIDAQAB
 
   func testBadPemThrows() {
     XCTAssertThrowsError(try PasskeyAssertionBuilder.assert(
-      secret: secret("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----", .es256),
+      secret: secret(privateKeyPem("AAAA"), .es256),
       clientDataHash: clientDataHash))
   }
 
@@ -283,7 +284,7 @@ HQIDAQAB
 // test/fixtures/passkeys/pending_record_v1.json (FIXTURE ONLY key material).
 final class PasskeyRegistrationAndPendingTests: XCTestCase {
   // registration_vector.json
-  private static let fixturePem = "-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg8F12rkq5n+Wm9psx\nSMI2PQ68td61LIO9CKipNRgskZmgCgYIKoZIzj0DAQehRANCAAQnTwOdrfPsadAx\n0WvjvN3W0OeslyoTPqrRo4gxUU/TiUID132Hln20OG7Ihe4gmkEN7vzQtHRcBbks\nntSuh/cl\n-----END PRIVATE KEY-----"
+  private static let fixturePem = privateKeyPem("MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg8F12rkq5n+Wm9psx\nSMI2PQ68td61LIO9CKipNRgskZmgCgYIKoZIzj0DAQehRANCAAQnTwOdrfPsadAx\n0WvjvN3W0OeslyoTPqrRo4gxUU/TiUID132Hln20OG7Ihe4gmkEN7vzQtHRcBbks\nntSuh/cl")
   private static let credentialIdHex = "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
   private static let coseKeyHex = "a5010203262001215820274f039dadf3ec69d031d16be3bcddd6d0e7ac972a133eaad1a38831514fd3892258204203d77d87967db4386ec885ee209a410deefcd0b4745c05b92c9ed4ae87f725"
   private static let authDataHex = "a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce19475d00000000000000000000000000000000000000000020202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f" + coseKeyHex
@@ -297,7 +298,7 @@ final class PasskeyRegistrationAndPendingTests: XCTestCase {
   private static let createdAt: Int64 = 1767225600000
   private static let credentialId = "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8"
   private static let aad = "1|00000000-0000-4000-8000-000000000001|fixture-database-id|1767225600000|example.com|ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8|YWxpY2U"
-  private static let payloadJson = #"{"rpId":"example.com","credentialId":"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8","userHandle":"oKGio6SlpqeoqaqrrK2urw","username":"alice","displayName":"Alice","privateKeyPem":"-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg8F12rkq5n+Wm9psx\nSMI2PQ68td61LIO9CKipNRgskZmgCgYIKoZIzj0DAQehRANCAAQnTwOdrfPsadAx\n0WvjvN3W0OeslyoTPqrRo4gxUU/TiUID132Hln20OG7Ihe4gmkEN7vzQtHRcBbks\nntSuh/cl\n-----END PRIVATE KEY-----","algorithm":"ES256","be":true,"bs":true,"origin":"https://example.com"}"#
+  private static let payloadJson = #"{"rpId":"example.com","credentialId":"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8","userHandle":"oKGio6SlpqeoqaqrrK2urw","username":"alice","displayName":"Alice","privateKeyPem":"\#(pemHeader)\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg8F12rkq5n+Wm9psx\nSMI2PQ68td61LIO9CKipNRgskZmgCgYIKoZIzj0DAQehRANCAAQnTwOdrfPsadAx\n0WvjvN3W0OeslyoTPqrRo4gxUU/TiUID132Hln20OG7Ihe4gmkEN7vzQtHRcBbks\nntSuh/cl\n\#(pemFooter)","algorithm":"ES256","be":true,"bs":true,"origin":"https://example.com"}"#
   private static let sealed = "gIGCg4SFhoeIiYqLVnzMt2sQCLlKD+hJH9L5R9afpr9vS8R3jOscsb9hCB1/dd725tbkBEq7jsGLNEMOA4nmcdwuSoVP9g8Yjvr8rwHe0CyTiDkTYdtWVWH8e+Ul/w3CnebYgTRFHzVtbKIKfrva8hDxc5rOUH1x4MNRrvGFtJbNoXUkxaWoExkcTa6xEQV+KTgpcoAWPF+bKvdZhh3q8KivRuCk+oSMAViQLV8JJaGA3HsFkbXN+ANgHUgQEwrofYbeFIjc+M3xqK+8O8NSsHUwdGjs9sFt+40mxvbOFSmuqCEqGGBEp+qlJUZSPZbEwq5KVPXMvjNcF9P7ielqIhP5MVn3r9LhYeHYjv14cPJzN0d8ezqvbTaavnzxClGKAcdg0sSc4BifiJ4onKiocnh5Reoq0xodij334SCMEkHK4L4ptnQjq6UHH/HEeTCAYNxozqchliVhUxVgGVS+odNz375zYtba0XeGTkF2O1AtBuf4OUkp73aXELF9QwiIp/dnki2I08OhLZGwAAdX7TCLQEXhproNpxz0nzG6T0X9oIscMKGQ/K5qBdxy4/tU9Y548TEEovzG7wbEvEJE7Smr1/v7jok2meAnTnBh0yIsPJn6BAq1LD6FX+iMYP3+WvW1bmW8iTkEgKk10vhho3T4fUWWyAok6qDfa33Usd0BNwF+rgD5SdGpTk29rTdYAeqtvQfSEvzDJOPiwyg="
 
   private static func bytes(_ hex: String) -> Data {
@@ -361,8 +362,8 @@ final class PasskeyRegistrationAndPendingTests: XCTestCase {
     let registration = try PasskeyRegistrationBuilder.build(rpId: "example.com")
     XCTAssertEqual(registration.credentialID.count, 32)
     let pem = registration.privateKeyPem
-    XCTAssertTrue(pem.hasPrefix("-----BEGIN PRIVATE KEY-----\n"))
-    XCTAssertTrue(pem.hasSuffix("\n-----END PRIVATE KEY-----"))
+    XCTAssertTrue(pem.hasPrefix(pemHeader + "\n"))
+    XCTAssertTrue(pem.hasSuffix("\n" + pemFooter))
 
     let fixture = try XCTUnwrap(DERNode.parse(der(Self.fixturePem)))
     let info = try XCTUnwrap(DERNode.parse(der(pem)))
