@@ -7,6 +7,41 @@ private let autofillLog = Logger(
   category: "autofill-host"
 )
 
+/// True only when this process is the host of an XCTest bundle. RunnerTests is
+/// hosted by the real app (TEST_HOST); letting Flutter start there runs Dart
+/// startup, which calls native `clearCredentials` and can wipe the real
+/// App Group autofill cache and keychain key. Requires the XCTest class AND an
+/// XCTest-set environment variable, so neither alone (a stray env var in a
+/// normal launch, or a linked XCTest) can blank the app. No user-settable flag.
+enum XCTestHost {
+  static let isActive: Bool = {
+    guard NSClassFromString("XCTestCase") != nil else { return false }
+    let env = ProcessInfo.processInfo.environment
+    return env["XCTestConfigurationFilePath"] != nil
+      || env["XCTestBundlePath"] != nil
+      || env["XCTestSessionIdentifier"] != nil
+  }()
+}
+
+/// Main.storyboard's root controller. Under an XCTest host it never loads its
+/// view, so the Flutter engine is never run (see XCTestHost). Identical to
+/// FlutterViewController in every normal launch.
+@objc(RunnerViewController)
+final class RunnerViewController: FlutterViewController {
+  override func loadView() {
+    if XCTestHost.isActive {
+      view = UIView()
+      return
+    }
+    super.loadView()
+  }
+
+  override func viewDidLoad() {
+    if XCTestHost.isActive { return }
+    super.viewDidLoad()
+  }
+}
+
 final class OtpAuthDeepLinkForwarder {
   static let shared = OtpAuthDeepLinkForwarder()
 
@@ -57,6 +92,10 @@ final class OtpAuthDeepLinkForwarder {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    if XCTestHost.isActive {
+      autofillLog.info("XCTest host: Flutter not started")
+      return true
+    }
     wipeLegacyAutofillPlaintextArtifacts(reason: "app launch")
     excludeManagedStorageFromBackup()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)

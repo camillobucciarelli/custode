@@ -23,10 +23,13 @@ import 'package:password_manager/features/password_manager/domain/models/apple_a
 import 'package:password_manager/features/password_manager/domain/repositories/autofill_ports.dart';
 import 'package:password_manager/features/password_manager/domain/services/apple_autofill_v2_payload_mapper.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/android_autofill_save_coordinator.dart';
+import 'package:password_manager/features/password_manager/presentation/coordinators/pending_passkey_adoption_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/session_secret_holder.dart';
 import 'package:password_manager/features/password_manager/data/services/vault_kdbx_service.dart';
 import 'package:password_manager/injection_container.dart' as di;
 
+import '../bloc/vault/vault_bloc_harness.dart'
+    show FakePendingPasskeyAdoptionCoordinator;
 import 'database_selection_unlock_test_utils.dart';
 
 void main() {
@@ -126,6 +129,49 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(client.resolved, isEmpty);
+    });
+  });
+
+  // Passkeys-all-platforms FR-9: the pre-unlock banner.
+  group('Waiting passkeys banner', () {
+    Future<void> pumpWith(WidgetTester tester, int? waiting) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      if (waiting != null) {
+        di.sl.registerLazySingleton<PendingPasskeyAdoptionCoordinator>(
+          () => FakePendingPasskeyAdoptionCoordinator(waiting: waiting),
+        );
+      }
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows the count before unlock', (tester) async {
+      await pumpWith(tester, 2);
+
+      expect(find.text('2 passkeys are waiting'), findsOneWidget);
+      expect(find.textContaining('Unlock to add them'), findsOneWidget);
+    });
+
+    testWidgets('singular wording for one', (tester) async {
+      await pumpWith(tester, 1);
+
+      expect(find.text('1 passkey is waiting'), findsOneWidget);
+    });
+
+    testWidgets('hidden at zero', (tester) async {
+      await pumpWith(tester, 0);
+
+      expect(find.textContaining('waiting'), findsNothing);
+    });
+
+    testWidgets('hidden where no coordinator is registered', (tester) async {
+      await pumpWith(tester, null);
+
+      expect(find.textContaining('waiting'), findsNothing);
     });
   });
 

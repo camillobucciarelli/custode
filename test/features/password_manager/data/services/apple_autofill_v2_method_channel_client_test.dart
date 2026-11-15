@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/features/password_manager/data/services/apple_autofill_v2_method_channel_client.dart';
 import 'package:password_manager/features/password_manager/domain/models/apple_autofill_v2_models.dart';
+import 'package:password_manager/features/password_manager/domain/models/pending_passkey_registration.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_passkey.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -339,6 +342,221 @@ void main() {
         throwsUnsupportedError,
       );
       expect(await client.takePendingCaptureToken(), isNull);
+    });
+  });
+
+  group('pending passkey registrations', () {
+    const channel = MethodChannel(
+      AppleAutofillV2MethodChannelClient.channelName,
+    );
+    const sentinel = 'SENTINEL-PRIVATE-KEY';
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+
+    Map<String, Object?> record({String recordId = 'rec-1'}) => {
+      'recordId': recordId,
+      'databaseId': 'db-1',
+      'createdAtEpochMs': 1700000000000,
+      'rpId': 'example.com',
+      'credentialId': 'AQID',
+      'userHandle': 'BAU',
+      'username': 'alice',
+      'displayName': 'Alice',
+      'privateKeyPem': sentinel,
+      'algorithm': 'ES256',
+      'be': true,
+      'bs': true,
+      'origin': 'https://example.com',
+    };
+
+    late List<MethodCall> calls;
+
+    void answer(Future<Object?> Function(MethodCall call) handler) {
+      messenger.setMockMethodCallHandler(channel, (call) {
+        calls.add(call);
+        return handler(call);
+      });
+    }
+
+    setUp(() => calls = []);
+
+    tearDown(() {
+      messenger.setMockMethodCallHandler(channel, null);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    // One Dart client serves both native sides over the same channel name.
+    for (final platform in [
+      TargetPlatform.iOS,
+      TargetPlatform.macOS,
+      TargetPlatform.android,
+    ]) {
+      group(platform.name, () {
+        setUp(() => debugDefaultTargetPlatformOverride = platform);
+
+        test('reads records and the native unreadable count', () async {
+          answer(
+            (_) async => {
+              'records': [
+                record(),
+                {...record(recordId: 'rec-2'), 'userHandle': null}
+                  ..['displayName'] = null,
+              ],
+              'unreadableCount': 2,
+            },
+          );
+
+          final result = await AppleAutofillV2MethodChannelClient(
+            channel: channel,
+          ).readPendingPasskeyRegistrations();
+
+          expect(calls.single.method, 'readPendingPasskeyRegistrations');
+          expect(calls.single.arguments, isNull);
+          expect(result.unreadableCount, 2);
+          expect(result.records, hasLength(2));
+          final first = result.records.first;
+          expect(first.recordId, 'rec-1');
+          expect(first.databaseId, 'db-1');
+          expect(
+            first.createdAt,
+            DateTime.fromMillisecondsSinceEpoch(1700000000000, isUtc: true),
+          );
+          expect(first.rpId, 'example.com');
+          expect(first.credentialId, [1, 2, 3]);
+          expect(first.userHandle, [4, 5]);
+          expect(first.username, 'alice');
+          expect(first.displayName, 'Alice');
+          expect(first.privateKeyPem, sentinel);
+          expect(first.algorithm, VaultPasskeyAlgorithm.es256);
+          expect(first.be, isTrue);
+          expect(first.bs, isTrue);
+          expect(first.origin, 'https://example.com');
+          expect(result.records.last.userHandle, isNull);
+          expect(result.records.last.displayName, isNull);
+        });
+
+        test('a native side without the method has nothing pending', () async {
+          // No handler registered: the binding answers MissingPluginException,
+          // which is also what `result.notImplemented()` becomes.
+          final client = AppleAutofillV2MethodChannelClient(channel: channel);
+
+          expect(
+            await client.readPendingPasskeyRegistrations(),
+            const PendingPasskeyRegistrations(),
+          );
+          expect(await client.resolvePendingPasskeyRegistration('r'), isFalse);
+        });
+
+        test('malformed records are counted, never thrown', () async {
+          answer(
+            (_) async => {
+              'records': [
+                record(),
+                'not a map',
+                {...record(), 'privateKeyPem': null},
+                {...record(), 'credentialId': '***'},
+                {...record(), 'userHandle': 7},
+                {...record(), 'algorithm': 'PS512'},
+                {...record(), 'createdAtEpochMs': 'yesterday'},
+                {...record()}..remove('recordId'),
+              ],
+              'unreadableCount': 1,
+            },
+          );
+
+          final result = await AppleAutofillV2MethodChannelClient(
+            channel: channel,
+          ).readPendingPasskeyRegistrations();
+
+          expect(result.records.single.recordId, 'rec-1');
+          expect(result.unreadableCount, 8);
+        });
+
+        test('a result of the wrong shape reads as empty', () async {
+          answer((_) async => {'records': 'nope', 'unreadableCount': 'x'});
+
+          expect(
+            await AppleAutofillV2MethodChannelClient(channel: channel)
+                .readPendingPasskeyRegistrations(),
+            const PendingPasskeyRegistrations(),
+          );
+        });
+
+        test('count asks the native side for a number, no arguments', () async {
+          answer((_) async => 4);
+
+          final count = await AppleAutofillV2MethodChannelClient(
+            channel: channel,
+          ).countPendingPasskeyRegistrations();
+
+          expect(count, 4);
+          expect(calls.single.method, 'countPendingPasskeyRegistrations');
+          expect(calls.single.arguments, isNull);
+        });
+
+        test('count is 0 when not implemented or failing', () async {
+          final client = AppleAutofillV2MethodChannelClient(channel: channel);
+          // No handler: MissingPluginException.
+          expect(await client.countPendingPasskeyRegistrations(), 0);
+          answer((_) async => throw PlatformException(code: 'io'));
+          expect(await client.countPendingPasskeyRegistrations(), 0);
+        });
+
+        test('resolve sends the record id', () async {
+          answer((_) async => true);
+
+          final resolved = await AppleAutofillV2MethodChannelClient(
+            channel: channel,
+          ).resolvePendingPasskeyRegistration('rec-1');
+
+          expect(resolved, isTrue);
+          expect(calls.single.method, 'resolvePendingPasskeyRegistration');
+          expect(calls.single.arguments, {'recordId': 'rec-1'});
+        });
+
+        test('a native resolve failure is not swallowed', () async {
+          answer((_) async => throw PlatformException(code: 'io'));
+
+          expect(
+            AppleAutofillV2MethodChannelClient(channel: channel)
+                .resolvePendingPasskeyRegistration('rec-1'),
+            throwsA(isA<PlatformException>()),
+          );
+        });
+      });
+    }
+
+    for (final platform in [TargetPlatform.windows, TargetPlatform.linux]) {
+      test('${platform.name} answers empty without a channel call', () async {
+        debugDefaultTargetPlatformOverride = platform;
+        answer((_) async => fail('channel must not be called'));
+        final client = AppleAutofillV2MethodChannelClient(channel: channel);
+
+        expect(
+          await client.readPendingPasskeyRegistrations(),
+          const PendingPasskeyRegistrations(),
+        );
+        expect(await client.resolvePendingPasskeyRegistration('r'), isFalse);
+        expect(await client.countPendingPasskeyRegistrations(), 0);
+        expect(calls, isEmpty);
+      });
+    }
+
+    test('the private key is absent from props and toString', () async {
+      final parsed = PendingPasskeyRegistration.tryFromChannelMap(record())!;
+      final result = PendingPasskeyRegistrations(records: [parsed]);
+
+      expect(parsed.privateKeyPem, sentinel);
+      for (final text in [
+        parsed.toString(),
+        parsed.props.toString(),
+        result.toString(),
+        result.props.toString(),
+      ]) {
+        expect(text, isNot(contains(sentinel)));
+      }
+      expect(parsed.toString(), contains('rec-1'));
+      expect(parsed.toString(), contains('example.com'));
     });
   });
 }

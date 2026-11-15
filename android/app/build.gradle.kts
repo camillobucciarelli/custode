@@ -99,6 +99,9 @@ dependencies {
     // (FR-013).
     implementation("androidx.credentials:credentials:1.6.0")
     testImplementation("junit:junit:4.13.2")
+    // android.jar stubs org.json on the JVM (every method throws "not mocked");
+    // the AndroidAutofillJson tests need a real implementation.
+    testImplementation("org.json:json:20231013")
 }
 
 play {

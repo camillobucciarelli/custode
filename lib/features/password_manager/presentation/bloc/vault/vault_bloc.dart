@@ -32,6 +32,7 @@ import '../../coordinators/apple_autofill_v2_coordinator.dart';
 import '../../coordinators/duplicate_merge_coordinator.dart';
 import '../../coordinators/entry_history_coordinator.dart';
 import '../../coordinators/passkey_coordinator.dart';
+import '../../coordinators/pending_passkey_adoption_coordinator.dart';
 import '../../coordinators/session_secret_holder.dart';
 import '../../coordinators/sync_merge_coordinator.dart';
 import '../../utils/cloud_storage_error_presentation.dart';
@@ -67,6 +68,7 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
     this.entryHistoryCoordinator,
     this.duplicateMergeCoordinator,
     this.passkeyCoordinator,
+    this.pendingPasskeyAdoptionCoordinator,
     this.resolveDatabaseId,
     this.resolveDisplayName,
     this.now = DateTime.now,
@@ -142,6 +144,11 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
     on<DeleteEntryRevision>(_onDeleteEntryRevision);
     on<ClearEntryHistoryInFile>(_onClearEntryHistoryInFile);
     on<DeletePasskey>(_onDeletePasskey);
+    on<AdoptPendingPasskeys>(_onAdoptPendingPasskeys);
+    on<ResolvePasskeyClash>(_onResolvePasskeyClash);
+    on<MovePendingPasskeyToThisVault>(_onMovePendingPasskey);
+    on<DiscardPendingPasskey>(_onDiscardPendingPasskey);
+    on<DeferPasskeyAdoptionPrompt>(_onDeferPasskeyAdoptionPrompt);
     on<LoadDuplicates>(_onLoadDuplicates);
     on<DeleteDuplicateEntry>(_onDeleteDuplicateEntry);
     on<MergeDuplicateEntries>(_onMergeDuplicateEntries);
@@ -189,6 +196,17 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
   /// spec 023: dated backup + delete sequencing for passkeys. Null only in
   /// tests that never delete one.
   final PasskeyCoordinator? passkeyCoordinator;
+
+  /// Passkeys-all-platforms T014: adopts passkeys queued by an autofill
+  /// surface. Null where the queue does not exist (and in tests that never
+  /// adopt): every adoption event is then a no-op.
+  final PendingPasskeyAdoptionCoordinator? pendingPasskeyAdoptionCoordinator;
+
+  // In-memory, per bloc (one unlocked session): records the user chose to
+  // decide later, hidden from automatic runs; and records whose queue copy
+  // could not be removed, reported once.
+  final Set<String> _deferredPasskeyIds = {};
+  final Set<String> _reportedPasskeyResolveFailures = {};
 
   /// Maps the open database path to its registry id, the only identity the
   /// merge port accepts. Kept as a callback so this BLoC holds no registry.
@@ -257,6 +275,7 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
       _computeDuplicates(emit);
       _computeHealth(emit);
       add(const BackgroundDriveSync());
+      add(const AdoptPendingPasskeys());
     } catch (e, st) {
       logError('Failed to initialize vault.', e, st);
       _safeEmit(
@@ -2001,6 +2020,221 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
           ),
         );
     }
+  }
+
+  // -- Passkeys-all-platforms T014: adoption (FR-8, FR-9) -------------------
+  // Translate and delegate: the coordinator sequences backup, write, verify
+  // and delete; this only maps results to state and messages.
+
+  Future<void> _onAdoptPendingPasskeys(
+    AdoptPendingPasskeys event,
+    Emitter<VaultState> emit,
+  ) async {
+    final coordinator = pendingPasskeyAdoptionCoordinator;
+    if (coordinator == null) return;
+    if (event.includeDeferred) _deferredPasskeyIds.clear();
+    final result = await coordinator.adoptPending(
+      databasePath: state.databasePath,
+      keyFilePath: _keyFilePath,
+    );
+    // The automatic run re-reads the whole queue, so it replaces the open
+    // questions; a locked vault there is not worth a message.
+    if (result.status == PendingPasskeyAdoptionStatus.vaultLocked) return;
+    await _applyAdoption(emit, result);
+  }
+
+  Future<void> _onResolvePasskeyClash(
+    ResolvePasskeyClash event,
+    Emitter<VaultState> emit,
+  ) async {
+    final coordinator = pendingPasskeyAdoptionCoordinator;
+    if (coordinator == null) return;
+    _safeEmit(emit, state.copyWith(isSaving: true, clearError: true));
+    final result = await coordinator.applyClashDecision(
+      databasePath: state.databasePath,
+      keyFilePath: _keyFilePath,
+      recordId: event.recordId,
+      decision: event.decision,
+      replaceEntryId: event.replaceEntryId,
+    );
+    await _applyAdoption(emit, result, handledRecordId: event.recordId);
+  }
+
+  Future<void> _onMovePendingPasskey(
+    MovePendingPasskeyToThisVault event,
+    Emitter<VaultState> emit,
+  ) async {
+    final coordinator = pendingPasskeyAdoptionCoordinator;
+    if (coordinator == null) return;
+    _safeEmit(emit, state.copyWith(isSaving: true, clearError: true));
+    final result = await coordinator.moveToOpenVault(
+      databasePath: state.databasePath,
+      keyFilePath: _keyFilePath,
+      recordId: event.recordId,
+    );
+    await _applyAdoption(emit, result, handledRecordId: event.recordId);
+  }
+
+  Future<void> _onDiscardPendingPasskey(
+    DiscardPendingPasskey event,
+    Emitter<VaultState> emit,
+  ) async {
+    final coordinator = pendingPasskeyAdoptionCoordinator;
+    if (coordinator == null) return;
+    PendingPasskeyOtherVault? target;
+    for (final item in state.passkeyOtherVault) {
+      if (item.recordId == event.recordId) target = item;
+    }
+    try {
+      final removed = await coordinator.discard(event.recordId);
+      _safeEmit(
+        emit,
+        state.copyWith(
+          passkeyOtherVault: _withoutRecord(
+            state.passkeyOtherVault,
+            event.recordId,
+          ),
+          infoMessage: removed
+              ? 'The waiting passkey${_forSite(target)} was discarded.'
+              : 'That passkey is no longer waiting.',
+        ),
+      );
+    } catch (e, st) {
+      // Type only: a platform message must never be echoed (SR-1).
+      logError(
+        'Failed discarding a waiting passkey (${e.runtimeType}).',
+        null,
+        st,
+      );
+      _safeEmit(
+        emit,
+        state.copyWith(
+          errorMessage:
+              'Unable to discard this passkey. It is still waiting and '
+              'nothing was deleted.',
+        ),
+      );
+    }
+  }
+
+  void _onDeferPasskeyAdoptionPrompt(
+    DeferPasskeyAdoptionPrompt event,
+    Emitter<VaultState> emit,
+  ) {
+    _deferredPasskeyIds.add(event.recordId);
+    _safeEmit(
+      emit,
+      state.copyWith(
+        passkeyClashes: _withoutRecord(state.passkeyClashes, event.recordId),
+        passkeyOtherVault: _withoutRecord(
+          state.passkeyOtherVault,
+          event.recordId,
+        ),
+      ),
+    );
+  }
+
+  List<T> _withoutRecord<T extends PendingPasskeyRef>(
+    List<T> items,
+    String recordId,
+  ) => items.where((i) => i.recordId != recordId).toList(growable: false);
+
+  String _forSite(PendingPasskeyRef? ref) =>
+      ref == null ? '' : ' for ${ref.rpId}';
+
+  String _passkeyLabel(PendingPasskeyRef ref) {
+    final user = ref.username.trim();
+    return user.isEmpty ? ref.rpId : '${ref.rpId} ($user)';
+  }
+
+  /// Folds an adoption result into state: reload when something was written
+  /// (which also republishes the autofill cache, FR-8 g), then the open
+  /// questions and the messages.
+  Future<void> _applyAdoption(
+    Emitter<VaultState> emit,
+    PendingPasskeyAdoptionResult result, {
+    String? handledRecordId,
+  }) async {
+    if (result.status != PendingPasskeyAdoptionStatus.done) {
+      _safeEmit(
+        emit,
+        state.copyWith(
+          isSaving: false,
+          errorMessage:
+              result.status == PendingPasskeyAdoptionStatus.vaultLocked
+              ? 'The vault is locked. Nothing was changed.'
+              : 'Unable to read the waiting passkeys. Nothing was changed.',
+        ),
+      );
+      return;
+    }
+    if (result.adopted.isNotEmpty || result.alreadyHeld.isNotEmpty) {
+      try {
+        await _reload(
+          emit,
+          currentGroupId: state.currentGroupId,
+          keepLoadingFlag: false,
+        );
+        await _loadRecycleBinEntries(emit, isInitialLoad: true);
+        _computeDuplicates(emit);
+        _computeHealth(emit);
+        _scheduleAutoSync();
+      } catch (e, st) {
+        logError('Failed reloading after adopting passkeys.', e, st);
+      }
+    }
+    // A resolve failure means the vault holds the credential: say that once
+    // per record and session, not the "added" line as well.
+    final resolveFailed = {
+      for (final f in result.failures)
+        if (f.stage == PendingPasskeyFailureStage.resolve) f.recordId,
+    };
+    final info = <String>[
+      for (final a in result.adopted)
+        if (!resolveFailed.contains(a.recordId))
+          'Passkey for ${_passkeyLabel(a)} was added to your vault. '
+              'A backup was saved as ${p.basename(a.backupPath)}.',
+      if (result.unreadableCount == 1)
+        '1 waiting passkey could not be read.'
+      else if (result.unreadableCount > 1)
+        '${result.unreadableCount} waiting passkeys could not be read.',
+    ];
+    final errors = <String>[
+      for (final f in result.failures)
+        if (f.stage != PendingPasskeyFailureStage.resolve)
+          'Unable to add the passkey for ${_passkeyLabel(f)}. It is still '
+              'waiting and nothing was deleted.'
+              '${f.backupPath == null ? '' : ' The backup ${p.basename(f.backupPath!)} was kept.'}'
+        else if (_reportedPasskeyResolveFailures.add(f.recordId))
+          'The passkey for ${_passkeyLabel(f)} is in your vault; its '
+              'waiting copy on this device could not be removed.',
+    ];
+    // An automatic run re-reads the queue and replaces the open questions; an
+    // answer to one record only retires that record and adds what came back.
+    final newClashes = result.clashes
+        .where((c) => !_deferredPasskeyIds.contains(c.recordId))
+        .toList();
+    final clashes = handledRecordId == null
+        ? newClashes
+        : [
+            ..._withoutRecord(state.passkeyClashes, handledRecordId),
+            ...newClashes,
+          ];
+    final otherVault = handledRecordId == null
+        ? result.otherVault
+              .where((o) => !_deferredPasskeyIds.contains(o.recordId))
+              .toList()
+        : _withoutRecord(state.passkeyOtherVault, handledRecordId);
+    _safeEmit(
+      emit,
+      state.copyWith(
+        isSaving: false,
+        passkeyClashes: List.unmodifiable(clashes),
+        passkeyOtherVault: List.unmodifiable(otherVault),
+        infoMessage: info.isEmpty ? null : info.join('\n'),
+        errorMessage: errors.isEmpty ? null : errors.join('\n'),
+      ),
+    );
   }
 
   /// Reload, tell the user, and re-read the history if its view is still

@@ -1362,38 +1362,40 @@ void main() {
       },
     );
 
-    test(
-      'EdDSA cannot be signed here and says so rather than failing',
-      () async {
-        final (:descriptor, prompts: _) = await startWithPasskey(
-          entries: [
-            _entry(
-              id: 'entry-1',
-              username: 'alice',
-              password: '',
-              url: 'https://example.com/login',
-              passkeys: [
-                _passkey(
-                  pem: eddsaPrivateKeyPem,
-                  algorithm: VaultPasskeyAlgorithm.eddsa,
-                ),
-              ],
-            ),
-          ],
-        );
+    test('EdDSA is signed here like any other algorithm', () async {
+      final (:descriptor, prompts: _) = await startWithPasskey(
+        entries: [
+          _entry(
+            id: 'entry-1',
+            username: 'alice',
+            password: '',
+            url: 'https://example.com/login',
+            passkeys: [
+              _passkey(
+                pem: eddsaPrivateKeyPem,
+                algorithm: VaultPasskeyAlgorithm.eddsa,
+              ),
+            ],
+          ),
+        ],
+      );
 
-        final response = await _postBridge(
-          descriptor: descriptor,
-          path: '/passkey-assert',
-          body: body(descriptor),
-        );
+      final response = await _postBridge(
+        descriptor: descriptor,
+        path: '/passkey-assert',
+        body: body(descriptor),
+      );
 
-        expect(
-          (response.json['data']! as Map)['reason'],
-          'unsupported_algorithm',
-        );
-      },
-    );
+      expect(response.json['ok'], isTrue);
+      expect(
+        base64Url.decode(
+          base64Url.normalize(
+            (response.json['data']! as Map)['signature']! as String,
+          ),
+        ),
+        hasLength(64),
+      );
+    });
 
     // A passkey-only entry is held for signing, not for filling: answering
     // /reveal for it would hand the popup an empty password.

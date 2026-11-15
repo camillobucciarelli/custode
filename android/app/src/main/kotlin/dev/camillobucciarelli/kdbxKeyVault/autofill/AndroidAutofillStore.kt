@@ -200,6 +200,14 @@ internal class AndroidAutofillStore(context: Context) {
         )
     }
 
+    /**
+     * spec 024: the id of the published cache, verbatim as the app sent it
+     * (`sha256:<hex>` of the database path), or null when none is published.
+     * Pending passkeys are bound to it and matched on it byte for byte.
+     */
+    fun publishedDatabaseId(): String? =
+        status().takeIf { it.cacheAvailable }?.databaseId?.takeIf { it.isNotEmpty() }
+
     fun readAuthSession(): AndroidAutofillAuthSession {
         return runCatching {
             if (!authSessionFile.exists()) {

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:pointycastle/export.dart';
 
 import '../../domain/models/vault_passkey.dart';
+import 'ed25519_signer.dart';
 import 'passkey_parser.dart';
 
 /// What the browser extension needs to answer `navigator.credentials.get`
@@ -35,7 +36,7 @@ class DesktopPasskeySignException implements Exception {
 
 /// Spec 023 T014 — signs WebAuthn assertions in the app process for the
 /// desktop bridge (plan D5/D6). ES256 and RS256 through `pointycastle`;
-/// EdDSA is unusable here (research R10). No CBOR: assertions need none.
+/// EdDSA through [Ed25519Signer]. No CBOR: assertions need none.
 class DesktopPasskeySigner {
   const DesktopPasskeySigner();
 
@@ -102,9 +103,7 @@ class DesktopPasskeySigner {
       case VaultPasskeyAlgorithm.rs256:
         signature = _signRs256(passkey.privateKeyPem, message);
       case VaultPasskeyAlgorithm.eddsa:
-        throw const DesktopPasskeySignException(
-          VaultPasskeyUnusableReason.unsupportedOnPlatform,
-        );
+        signature = _signEd25519(passkey.privateKeyPem, message);
       case VaultPasskeyAlgorithm.unknown:
         throw const DesktopPasskeySignException(
           VaultPasskeyUnusableReason.unsupportedAlgorithm,
@@ -145,6 +144,17 @@ class DesktopPasskeySigner {
         ),
       );
     return signer.generateSignature(message).bytes;
+  }
+
+  /// PKCS#8 → `OCTET STRING { seed }`; anything but 32 bytes is `badKey`.
+  static Uint8List _signEd25519(String pem, Uint8List message) {
+    final seed = _pkcs8PrivateKey(pem).content;
+    if (seed.length != 32) {
+      throw const DesktopPasskeySignException(
+        VaultPasskeyUnusableReason.badKey,
+      );
+    }
+    return Ed25519Signer.sign(seed, message);
   }
 
   /// The algorithm-specific structure inside PKCS#8's `privateKey` OCTET

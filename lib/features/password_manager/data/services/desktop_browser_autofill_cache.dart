@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 import '../../domain/models/vault_entry.dart';
+import '../../domain/services/host_identity.dart' as domain_host;
 import '../../domain/services/url_field_keys.dart';
 import 'browser_exact_origin.dart';
 
@@ -873,29 +873,18 @@ class DesktopBrowserAutofillMetadataMapper {
     );
   }
 
-  static String databaseIdForPath(String databasePath) {
-    return 'sha256:${sha256.convert(utf8.encode(databasePath.trim()))}';
-  }
+  static String databaseIdForPath(String databasePath) =>
+      domain_host.databaseIdForPath(databasePath);
 
   /// The host of [rawValue], lowercased and collapsed onto its bare form.
   ///
   /// Set [stripPrefixes] to `false` to get the host *as served*, keeping the
   /// `www.`/`m.`/`mobile.` label. Only security predicates need that form; see
   /// [_cannotObtainWebPkiCertificate].
-  static String? normalizedHost(String? rawValue, {bool stripPrefixes = true}) {
-    final value = rawValue?.trim() ?? '';
-    if (value.isEmpty) {
-      return null;
-    }
-    if (_isNativeAppValue(value)) {
-      return null;
-    }
-    final uri = Uri.tryParse(_valueWithDefaultScheme(value));
-    final rawHost = (uri != null && uri.host.isNotEmpty)
-        ? uri.host
-        : value.split('/').first.split(':').first;
-    return _cleanHost(rawHost, stripPrefixes: stripPrefixes);
-  }
+  static String? normalizedHost(
+    String? rawValue, {
+    bool stripPrefixes = true,
+  }) => domain_host.normalizedHost(rawValue, stripPrefixes: stripPrefixes);
 
   static String? normalizedOrigin(String? rawValue) {
     final value = rawValue?.trim() ?? '';
@@ -1329,45 +1318,14 @@ class DesktopBrowserAutofillMetadataMapper {
     return port == null ? host : '$host:$port';
   }
 
-  static String _valueWithDefaultScheme(String value) {
-    if (value.contains('://')) {
-      return value;
-    }
-    if (value.startsWith('//')) {
-      return 'https:$value';
-    }
-    return 'https://$value';
-  }
+  static String _valueWithDefaultScheme(String value) =>
+      domain_host.valueWithDefaultScheme(value);
 
-  static String? _cleanHost(String? rawHost, {bool stripPrefixes = true}) {
-    var host = rawHost?.trim().toLowerCase() ?? '';
-    if (host.startsWith('[') && host.endsWith(']')) {
-      host = host.substring(1, host.length - 1);
-    }
-    while (host.endsWith('.')) {
-      host = host.substring(0, host.length - 1);
-    }
-    if (stripPrefixes) {
-      for (final prefix in const ['www.', 'm.', 'mobile.']) {
-        if (host.startsWith(prefix)) {
-          host = host.substring(prefix.length);
-          break;
-        }
-      }
-    }
-    if (host.isEmpty ||
-        host.length > 253 ||
-        host.contains(RegExp(r'[\s/@:]'))) {
-      return null;
-    }
-    return host;
-  }
+  static String? _cleanHost(String? rawHost, {bool stripPrefixes = true}) =>
+      domain_host.cleanHost(rawHost, stripPrefixes: stripPrefixes);
 
-  static bool _isNativeAppValue(String value) {
-    final normalized = value.trim().toLowerCase();
-    return normalized.startsWith('androidapp:') ||
-        normalized.startsWith('iosbundleid:');
-  }
+  static bool _isNativeAppValue(String value) =>
+      domain_host.isNativeAppValue(value);
 }
 
 DesktopBrowserAutofillAssociationTarget? _normalizedPendingAssociationTarget(

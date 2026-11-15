@@ -53,6 +53,41 @@ Future<void> deletePasskey({
 Caller (`PasskeyCoordinator`) is responsible for confirmation and the dated
 backup; the service does neither.
 
+## Adoption writes (passkeys on all platforms, T011)
+
+A passkey whose key was generated elsewhere needs no method of its own:
+`createPasskey` takes a complete `VaultPasskey` (rpId, credential id, user
+handle, username, PEM, algorithm, BE/BS) and writes it as given.
+
+```
+Future<String> createEntryWithPasskey({
+  required String databasePath, required String password, String? keyFilePath,
+  required String groupId, required String title, required String username,
+  required String url, required VaultPasskey passkey,
+})
+
+Future<({String? credentialEntryId, List<String> accountEntryIds})>
+findPasskeyHolders({
+  required String databasePath, required String password, String? keyFilePath,
+  required String relyingPartyId, required Uint8List credentialId,
+  Uint8List? userHandle,
+})
+```
+
+- `createEntryWithPasskey` writes a new entry (empty password and notes) and
+  its passkey in **one** save and returns the entry id. The `KPEX_PASSKEY_*`
+  fields and their `Protected` attributes are the ones `createPasskey` writes
+  (both go through `passkeyFieldsFor`). Same path as every other write:
+  `DatabasePathMutex`, safe writer; a failed save leaves the file unchanged.
+- `findPasskeyHolders` is read-only, one open under the mutex.
+  `credentialEntryId` is the entry holding `(rpId, credentialId)` or null;
+  `accountEntryIds` lists every entry holding a passkey for
+  `(rpId, userHandle)`, with the null-handle rule `createPasskey` uses for a
+  clash (no handle matches only no handle). The recycle bin is not searched.
+- The caller (adoption coordinator) owns the dated backup, as for
+  `createPasskey` and `deletePasskey`; the service takes none.
+- The PEM appears in no exception message, log line, `toString` or `props`.
+
 ## `PasskeyParser` (pure, `data/services/passkey_parser.dart`)
 
 ```

@@ -34,6 +34,7 @@ import '../data/services/vault_csv_import_service.dart';
 import '../data/services/vault_duplicate_service.dart';
 import '../data/services/vault_kdbx_service.dart';
 import '../data/services/metadata_recovery_service.dart';
+import '../domain/repositories/passkey_adoption_vault_port.dart';
 import '../domain/repositories/database_file_repository.dart';
 import '../domain/repositories/database_registry_repository.dart';
 import '../domain/repositories/database_security_repository.dart';
@@ -145,6 +146,11 @@ void registerPasswordManagerDataDependencies(GetIt sl) {
   sl.registerLazySingleton<AppleAutofillV2Client>(
     () => AppleAutofillV2MethodChannelClient(),
   );
+  // Same channel, stateless client: a second instance keeps the pending
+  // passkey queue port apart from the wider autofill client interface.
+  sl.registerLazySingleton<PendingPasskeyRegistrationPort>(
+    () => AppleAutofillV2MethodChannelClient(),
+  );
   // spec 008 T104/T105: one process-wide instance, shared by every database
   // writer below — a writer holding a private mutex would void the
   // serialization guarantee.
@@ -159,6 +165,9 @@ void registerPasswordManagerDataDependencies(GetIt sl) {
   sl.registerLazySingleton(() => VaultDuplicateService());
   sl.registerLazySingleton(
     () => VaultKdbxService(mutex: sl(), fileHashRecorder: sl()),
+  );
+  sl.registerLazySingleton<PasskeyAdoptionVaultPort>(
+    () => sl<VaultKdbxService>(),
   );
   sl.registerLazySingleton(
     () => DatabaseImportService(

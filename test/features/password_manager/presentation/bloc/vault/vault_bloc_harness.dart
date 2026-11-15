@@ -24,6 +24,7 @@ import 'package:password_manager/features/password_manager/presentation/bloc/vau
 import 'package:password_manager/features/password_manager/presentation/coordinators/apple_autofill_v2_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/entry_history_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/passkey_coordinator.dart';
+import 'package:password_manager/features/password_manager/presentation/coordinators/pending_passkey_adoption_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/session_secret_holder.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/link_database_to_remote_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/sync_database_now_usecase.dart';
@@ -59,6 +60,7 @@ VaultBloc buildTestVaultBloc({
   String databasePath = testDatabasePath,
   EntryHistoryCoordinator? entryHistoryCoordinator,
   PasskeyCoordinator? passkeyCoordinator,
+  PendingPasskeyAdoptionCoordinator? pendingPasskeyAdoptionCoordinator,
   SessionSecretHolder? sessionSecretHolder,
 }) {
   final syncRepository = FakeSyncRepository();
@@ -84,6 +86,7 @@ VaultBloc buildTestVaultBloc({
     folderExpansionPreferences: folderExpansionPreferences,
     entryHistoryCoordinator: entryHistoryCoordinator,
     passkeyCoordinator: passkeyCoordinator,
+    pendingPasskeyAdoptionCoordinator: pendingPasskeyAdoptionCoordinator,
   );
 }
 
@@ -331,4 +334,72 @@ VaultSnapshot nestedSnapshot({String currentGroupId = 'root'}) {
     entries: entries,
     allEntries: entries,
   );
+}
+
+/// Passkeys-all-platforms T014: scripted adoption coordinator. Every result is
+/// whatever the test set; calls are recorded so a test can assert the decision
+/// the bloc handed over. Carries no key material.
+class FakePendingPasskeyAdoptionCoordinator
+    implements PendingPasskeyAdoptionCoordinator {
+  FakePendingPasskeyAdoptionCoordinator({
+    this.waiting = 0,
+    this.adoptResult = const PendingPasskeyAdoptionResult(),
+    this.actionResult = const PendingPasskeyAdoptionResult(),
+  });
+
+  int waiting;
+  PendingPasskeyAdoptionResult adoptResult;
+  PendingPasskeyAdoptionResult actionResult;
+  Object? discardError;
+  bool discardResult = true;
+
+  int adoptCalls = 0;
+  final List<(String, PasskeyClashDecision, String?)> clashDecisions = [];
+  final List<String> moved = [];
+  final List<String> discarded = [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
+  Future<int> waitingCount() async => waiting;
+
+  @override
+  Future<PendingPasskeyAdoptionResult> adoptPending({
+    required String databasePath,
+    String? keyFilePath,
+  }) async {
+    adoptCalls++;
+    return adoptResult;
+  }
+
+  @override
+  Future<PendingPasskeyAdoptionResult> applyClashDecision({
+    required String databasePath,
+    String? keyFilePath,
+    required String recordId,
+    required PasskeyClashDecision decision,
+    String? replaceEntryId,
+  }) async {
+    clashDecisions.add((recordId, decision, replaceEntryId));
+    return actionResult;
+  }
+
+  @override
+  Future<PendingPasskeyAdoptionResult> moveToOpenVault({
+    required String databasePath,
+    String? keyFilePath,
+    required String recordId,
+  }) async {
+    moved.add(recordId);
+    return actionResult;
+  }
+
+  @override
+  Future<bool> discard(String recordId) async {
+    discarded.add(recordId);
+    final error = discardError;
+    if (error != null) throw error;
+    return discardResult;
+  }
 }

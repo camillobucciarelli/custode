@@ -27,6 +27,7 @@ import '../bloc/database_unlock/database_unlock_event.dart';
 import '../bloc/database_unlock/database_unlock_state.dart';
 import '../coordinators/android_autofill_save_coordinator.dart';
 import '../coordinators/database_session_coordinator.dart';
+import '../coordinators/pending_passkey_adoption_coordinator.dart';
 import '../../data/datasources/biometric_data_source.dart';
 import '../widgets/managed_key_picker_gate.dart';
 import '../../domain/errors/database_access_failure.dart';
@@ -81,13 +82,30 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
   bool _hasPendingCapture = false;
   bool _unlocked = false;
 
+  /// Passkeys-all-platforms FR-9: records waiting in the native queue, shown
+  /// before unlock. Needs no session. Stays 0 where the coordinator is not
+  /// registered, which keeps the banner out of every scene that has none.
+  int _waitingPasskeys = 0;
+
   @override
   void initState() {
     super.initState();
+    if (di.sl.isRegistered<PendingPasskeyAdoptionCoordinator>()) {
+      unawaited(
+        _loadWaitingPasskeys(di.sl<PendingPasskeyAdoptionCoordinator>()),
+      );
+    }
     if (di.sl.isRegistered<AndroidAutofillSaveCoordinator>()) {
       _autofillSaveCoordinator = di.sl<AndroidAutofillSaveCoordinator>();
     }
     unawaited(_checkPendingCapture());
+  }
+
+  Future<void> _loadWaitingPasskeys(
+    PendingPasskeyAdoptionCoordinator coordinator,
+  ) async {
+    final count = await coordinator.waitingCount();
+    if (mounted && count > 0) setState(() => _waitingPasskeys = count);
   }
 
   Future<void> _checkPendingCapture() async {
@@ -218,6 +236,10 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
                   state.phase != UnlockPhase.unlocked &&
                   state.phase != UnlockPhase.decrypting)
                 const _PendingCaptureNotice(),
+              if (_waitingPasskeys > 0 &&
+                  state.phase != UnlockPhase.unlocked &&
+                  state.phase != UnlockPhase.decrypting)
+                _WaitingPasskeysNotice(count: _waitingPasskeys),
               Expanded(child: _phaseView(context, state)),
             ],
           );

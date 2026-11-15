@@ -88,7 +88,7 @@ enum PasskeyAssertionBuilder {
       signature = try signRS256(pkcs8PrivateKey: privateKey, message: message)
     }
 
-    log.info("assertion built rpId=\(secret.rpId, privacy: .public)")
+    log.info("assertion built rpId=\(secret.rpId, privacy: .private(mask: .hash))")
     return Assertion(
       credentialID: credentialID,
       authenticatorData: authData,

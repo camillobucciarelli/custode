@@ -34,6 +34,7 @@ import 'package:password_manager/features/password_manager/presentation/coordina
 import 'package:password_manager/features/password_manager/presentation/coordinators/entry_history_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/google_drive_reconnect_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/otpauth_deep_link_coordinator.dart';
+import 'package:password_manager/features/password_manager/presentation/coordinators/pending_passkey_adoption_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/vault_session_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/screens/vault_screen.dart';
 import 'package:password_manager/injection_container.dart' as di;
@@ -79,6 +80,8 @@ Future<Widget> pumpableVaultShell({
   DesktopPasskeyApprovalService? passkeyApprovalService,
   // spec 023 T207: the merge sequence, when a test needs the merge to run.
   DuplicateMergeCoordinator? duplicateMergeCoordinator,
+  // Passkeys-all-platforms T014: drives the adoption questions.
+  PendingPasskeyAdoptionCoordinator? pendingPasskeyAdoptionCoordinator,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final sharedPreferences = await SharedPreferences.getInstance();
@@ -144,6 +147,7 @@ Future<Widget> pumpableVaultShell({
           appleAutofillV2Coordinator ?? const NoopAppleAutofillV2Coordinator(),
       entryHistoryCoordinator: entryHistoryCoordinator,
       duplicateMergeCoordinator: duplicateMergeCoordinator,
+      pendingPasskeyAdoptionCoordinator: pendingPasskeyAdoptionCoordinator,
     ),
   );
 

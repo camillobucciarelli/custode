@@ -22,6 +22,7 @@ class SceneDelegate: FlutterSceneDelegate {
   }
 
   private func configureOtpAuthChannelIfPossible() {
+    if XCTestHost.isActive { return }
     if let controller = window?.rootViewController as? FlutterViewController {
       OtpAuthDeepLinkForwarder.shared.configure(binaryMessenger: controller.binaryMessenger)
       AppleAutofillV2Channel.shared.configure(binaryMessenger: controller.binaryMessenger)

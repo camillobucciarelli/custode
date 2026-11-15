@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../domain/models/apple_autofill_v2_models.dart';
+import '../../domain/models/pending_passkey_registration.dart';
 import '../../domain/repositories/autofill_ports.dart';
 
-class AppleAutofillV2MethodChannelClient implements AppleAutofillV2Client {
+class AppleAutofillV2MethodChannelClient
+    implements AppleAutofillV2Client, PendingPasskeyRegistrationPort {
   AppleAutofillV2MethodChannelClient({
     MethodChannel? channel,
     this._isSupportedOverride,
@@ -180,6 +182,71 @@ class AppleAutofillV2MethodChannelClient implements AppleAutofillV2Client {
       // An older native side that has no such method: not available, which is
       // the honest answer rather than an error the settings row cannot show.
       return const AndroidPasskeyProviderAvailability.unsupported();
+    }
+  }
+
+  @override
+  Future<PendingPasskeyRegistrations> readPendingPasskeyRegistrations() async {
+    if (!isSupported) {
+      return const PendingPasskeyRegistrations();
+    }
+    final Map<dynamic, dynamic>? result;
+    try {
+      result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'readPendingPasskeyRegistrations',
+      );
+    } on MissingPluginException {
+      // A native side without the queue has nothing pending.
+      return const PendingPasskeyRegistrations();
+    }
+    final rawRecords = result?['records'];
+    final rawUnreadable = result?['unreadableCount'];
+    final records = <PendingPasskeyRegistration>[];
+    var unreadable = rawUnreadable is int && rawUnreadable > 0
+        ? rawUnreadable
+        : 0;
+    // Malformed records are counted, never thrown and never logged: the map
+    // carries a private key.
+    for (final raw in rawRecords is List ? rawRecords : const []) {
+      final record = PendingPasskeyRegistration.tryFromChannelMap(raw);
+      record == null ? unreadable++ : records.add(record);
+    }
+    return PendingPasskeyRegistrations(
+      records: List.unmodifiable(records),
+      unreadableCount: unreadable,
+    );
+  }
+
+  @override
+  Future<int> countPendingPasskeyRegistrations() async {
+    if (!isSupported) {
+      return 0;
+    }
+    try {
+      return await _channel.invokeMethod<int>(
+            'countPendingPasskeyRegistrations',
+          ) ??
+          0;
+    } on MissingPluginException {
+      return 0;
+    } on PlatformException {
+      return 0;
+    }
+  }
+
+  @override
+  Future<bool> resolvePendingPasskeyRegistration(String recordId) async {
+    if (!isSupported) {
+      return false;
+    }
+    try {
+      return await _channel.invokeMethod<bool>(
+            'resolvePendingPasskeyRegistration',
+            {'recordId': recordId},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
     }
   }
 

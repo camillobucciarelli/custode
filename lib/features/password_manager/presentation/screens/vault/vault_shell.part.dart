@@ -440,6 +440,9 @@ class _VaultViewState extends State<_VaultView> with WidgetsBindingObserver {
       _lockedAt = null;
     });
     _resetInactivityTimer();
+    // PR #250 review: a resume that locked skipped adoption, and the unlock
+    // is the first moment a pending passkey may be asked about again.
+    context.read<VaultBloc>().add(const AdoptPendingPasskeys());
   }
 
   @override
@@ -504,6 +507,9 @@ class _VaultViewState extends State<_VaultView> with WidgetsBindingObserver {
 
     if (!shouldLock) {
       _resetInactivityTimer();
+      // Passkeys-all-platforms FR-8: an autofill surface may have queued a
+      // passkey while the app was away.
+      context.read<VaultBloc>().add(const AdoptPendingPasskeys());
     }
     // A save request brings the app forward with a new capture waiting.
     _androidAutofillCapturePulled = false;
@@ -953,6 +959,11 @@ class _VaultViewState extends State<_VaultView> with WidgetsBindingObserver {
                             },
                           ),
                         ),
+                        // Passkeys-all-platforms T014: draws nothing; asks
+                        // the adoption questions. Here, not in the vault
+                        // pane, so it is mounted once for every destination:
+                        // the Settings "Passkeys waiting" row asks too.
+                        const _PasskeyAdoptionListener(),
                         BlocSelector<VaultBloc, VaultState, bool>(
                           selector: (state) => state.isSaving,
                           builder: (context, isSaving) {

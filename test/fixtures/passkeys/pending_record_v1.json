@@ -1,0 +1,47 @@
+{
+  "note": "FIXTURE ONLY. The key material in this file is public test data. It must never be used for a real credential or to protect real data.",
+  "payloadSerialisation": "payloadJson is the exact plaintext that was sealed: UTF-8, compact (no whitespace between tokens), keys in payloadKeyOrder, \"/\" not escaped, newlines inside privateKeyPem escaped as \\n. Absent userHandle or displayName are written as JSON null, not omitted. A writer should emit this shape; a reader must parse the decrypted JSON and not compare its bytes, since records sealed by another encoder may differ in escaping.",
+  "payloadKeyOrder": [
+    "rpId",
+    "credentialId",
+    "userHandle",
+    "username",
+    "displayName",
+    "privateKeyPem",
+    "algorithm",
+    "be",
+    "bs",
+    "origin"
+  ],
+  "envelopeKeyOrder": [
+    "version",
+    "algorithm",
+    "keyId",
+    "recordId",
+    "databaseId",
+    "createdAtEpochMs",
+    "rpId",
+    "credentialId",
+    "username",
+    "sealed"
+  ],
+  "sealedLayout": "base64 (standard, padded) of nonce (12 bytes) + ciphertext + tag (16 bytes); AES-256-GCM, AAD = UTF-8 of aad.",
+  "aadLayout": "aad is the UTF-8 bytes of version|recordId|databaseId|createdAtEpochMs|rpId|credentialId|usernameB64, joined with \"|\" and built from the envelope fields. createdAtEpochMs is written in decimal, credentialId is the envelope string as is (unpadded base64url), and usernameB64 is the unpadded base64url of the username UTF-8 bytes (aadUsernameB64 here), so a username containing \"|\" cannot make two envelopes share an AAD. The envelope rpId, credentialId and username are plaintext so records can be listed and matched without decrypting; they are authenticated by the AAD, so altering any of them makes the seal fail to open. After opening, a reader must also check that the payload rpId, credentialId and username equal the envelope values and treat any mismatch as an unreadable record.",
+  "aesKeyHex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+  "nonceHex": "808182838485868788898a8b",
+  "aad": "1|00000000-0000-4000-8000-000000000001|fixture-database-id|1767225600000|example.com|ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8|YWxpY2U",
+  "aadUsernameB64": "YWxpY2U",
+  "payloadJson": "{\"rpId\":\"example.com\",\"credentialId\":\"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8\",\"userHandle\":\"oKGio6SlpqeoqaqrrK2urw\",\"username\":\"alice\",\"displayName\":\"Alice\",\"privateKeyPem\":\"-----BEGIN PRIVATE KEY-----\\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg8F12rkq5n+Wm9psx\\nSMI2PQ68td61LIO9CKipNRgskZmgCgYIKoZIzj0DAQehRANCAAQnTwOdrfPsadAx\\n0WvjvN3W0OeslyoTPqrRo4gxUU/TiUID132Hln20OG7Ihe4gmkEN7vzQtHRcBbks\\nntSuh/cl\\n-----END PRIVATE KEY-----\",\"algorithm\":\"ES256\",\"be\":true,\"bs\":true,\"origin\":\"https://example.com\"}",
+  "envelope": {
+    "version": 1,
+    "algorithm": "AES-256-GCM",
+    "keyId": "passkey-pending-v1",
+    "recordId": "00000000-0000-4000-8000-000000000001",
+    "databaseId": "fixture-database-id",
+    "createdAtEpochMs": 1767225600000,
+    "rpId": "example.com",
+    "credentialId": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+    "username": "alice",
+    "sealed": "gIGCg4SFhoeIiYqLVnzMt2sQCLlKD+hJH9L5R9afpr9vS8R3jOscsb9hCB1/dd725tbkBEq7jsGLNEMOA4nmcdwuSoVP9g8Yjvr8rwHe0CyTiDkTYdtWVWH8e+Ul/w3CnebYgTRFHzVtbKIKfrva8hDxc5rOUH1x4MNRrvGFtJbNoXUkxaWoExkcTa6xEQV+KTgpcoAWPF+bKvdZhh3q8KivRuCk+oSMAViQLV8JJaGA3HsFkbXN+ANgHUgQEwrofYbeFIjc+M3xqK+8O8NSsHUwdGjs9sFt+40mxvbOFSmuqCEqGGBEp+qlJUZSPZbEwq5KVPXMvjNcF9P7ielqIhP5MVn3r9LhYeHYjv14cPJzN0d8ezqvbTaavnzxClGKAcdg0sSc4BifiJ4onKiocnh5Reoq0xodij334SCMEkHK4L4ptnQjq6UHH/HEeTCAYNxozqchliVhUxVgGVS+odNz375zYtba0XeGTkF2O1AtBuf4OUkp73aXELF9QwiIp/dnki2I08OhLZGwAAdX7TCLQEXhproNpxz0nzG6T0X9oIscMKGQ/K5qBdxy4/tU9Y548TEEovzG7wbEvEJE7Smr1/v7jok2meAnTnBh0yIsPJn6BAq1LD6FX+iMYP3+WvW1bmW8iTkEgKk10vhho3T4fUWWyAok6qDfa33Usd0BNwF+rgD5SdGpTk29rTdYAeqtvQfSEvzDJOPiwyg="
+  }
+}

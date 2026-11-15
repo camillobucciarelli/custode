@@ -12,6 +12,7 @@ import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialUnknownException
 import androidx.credentials.exceptions.NoCredentialException
+import androidx.credentials.provider.CallingAppInfo
 import androidx.credentials.provider.PendingIntentHandler
 import androidx.credentials.provider.ProviderGetCredentialRequest
 import androidx.credentials.GetPublicKeyCredentialOption
@@ -40,11 +41,15 @@ class PasskeyAuthActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
 
         val entryId = intent.getStringExtra(KeyVaultCredentialProviderService.EXTRA_ENTRY_ID)
+        val pendingRecordId =
+            intent.getStringExtra(KeyVaultCredentialProviderService.EXTRA_PENDING_RECORD_ID)
         val rpId = intent.getStringExtra(KeyVaultCredentialProviderService.EXTRA_RP_ID)
         val credentialId =
             intent.getStringExtra(KeyVaultCredentialProviderService.EXTRA_CREDENTIAL_ID)
         val request = PendingIntentHandler.retrieveProviderGetCredentialRequest(intent)
-        if (entryId.isNullOrBlank() || rpId.isNullOrBlank() || request == null) {
+        if ((entryId.isNullOrBlank() && pendingRecordId.isNullOrBlank()) ||
+            rpId.isNullOrBlank() || request == null
+        ) {
             finishWith(GetCredentialUnknownException("incomplete passkey request"))
             return
         }
@@ -57,12 +62,19 @@ class PasskeyAuthActivity : FragmentActivity() {
                 finishWith(GetCredentialCancellationException())
                 return@require
             }
-            sign(entryId = entryId, rpId = rpId, credentialId = credentialId, request = request)
+            sign(
+                entryId = entryId,
+                pendingRecordId = pendingRecordId,
+                rpId = rpId,
+                credentialId = credentialId,
+                request = request,
+            )
         }
     }
 
     private fun sign(
-        entryId: String,
+        entryId: String?,
+        pendingRecordId: String?,
         rpId: String,
         credentialId: String?,
         request: ProviderGetCredentialRequest,
@@ -76,10 +88,22 @@ class PasskeyAuthActivity : FragmentActivity() {
         }
 
         // The secret is unsealed only here, after the prompt succeeded.
-        val secret = AndroidAutofillStore(applicationContext).readCredentialSecret(entryId)
-        val passkey = secret?.passkeys?.firstOrNull { passkey ->
-            passkey.rpId.equals(rpId, ignoreCase = true) &&
-                (credentialId == null || passkey.credentialId == credentialId)
+        val store = AndroidAutofillStore(applicationContext)
+        val passkey = if (!pendingRecordId.isNullOrBlank()) {
+            // spec 024 FR-10: a pending record signs only while the cache of
+            // its own vault is still published.
+            PasskeyProviderLogic.pendingPasskey(
+                records = listOfNotNull(AndroidPendingPasskeyStore(applicationContext).readRecord(pendingRecordId)),
+                publishedDatabaseId = store.publishedDatabaseId(),
+                recordId = pendingRecordId,
+                rpId = rpId,
+                credentialId = credentialId,
+            )
+        } else {
+            store.readCredentialSecret(entryId.orEmpty())?.passkeys?.firstOrNull { passkey ->
+                passkey.rpId.equals(rpId, ignoreCase = true) &&
+                    (credentialId == null || passkey.credentialId == credentialId)
+            }
         }
         if (passkey == null) {
             // The vault changed under the sheet — synced, edited, locked.
@@ -99,8 +123,11 @@ class PasskeyAuthActivity : FragmentActivity() {
             PasskeyAssertionBuilder.assert(
                 passkey = passkey,
                 challenge = challenge,
-                origin = effectiveOrigin(request, rpId),
-                androidPackageName = androidPackageName(request),
+                origin = PasskeyCallerOrigin.origin(this, request.callingAppInfo, rpId),
+                androidPackageName = PasskeyCallerOrigin.androidPackageName(this, request.callingAppInfo),
+                callerIsVerifiedBrowser =
+                    PasskeyCallerOrigin.isVerifiedBrowser(this, request.callingAppInfo),
+                suppliedClientDataHash = option.clientDataHash,
             )
         } catch (error: Exception) {
             Log.w(TAG, "assertion failed: ${error.javaClass.simpleName}")
@@ -121,67 +148,6 @@ class PasskeyAuthActivity : FragmentActivity() {
         finish()
     }
 
-    /**
-     * What goes into `clientDataJSON.origin`.
-     *
-     * A browser passes its page origin through `callingAppInfo`, and the
-     * relying party checks exactly that string. A native app has no web
-     * origin, so WebAuthn's Android binding uses the caller's signing
-     * certificate hash instead; when even that is unavailable the rp id's own
-     * https origin is the honest remaining answer.
-     */
-    private fun effectiveOrigin(request: ProviderGetCredentialRequest, rpId: String): String {
-        browserOrigin(request)?.let { return it }
-
-        val fingerprint = signingCertificateSha256(request)
-        return if (fingerprint != null) "android:apk-key-hash:$fingerprint" else "https://$rpId"
-    }
-
-    private fun androidPackageName(request: ProviderGetCredentialRequest): String? {
-        // Set only for a native caller: a web sign-in must not carry it, or
-        // the relying party sees client data it did not expect.
-        return if (browserOrigin(request) == null) request.callingAppInfo.packageName else null
-    }
-
-    /**
-     * The web origin a privileged browser vouched for, or null.
-     *
-     * Any app can put an origin in its request, so it is trusted only when
-     * the caller's package and signing certificate are on the privileged
-     * allowlist (`res/raw/passkey_privileged_apps.json`, refreshed by
-     * `tool/update_passkey_privileged_apps.sh`). Anyone else is treated as
-     * the native app it is: an unlisted app claiming `https://bank.example`
-     * must not get a signature that bank would accept.
-     */
-    private fun browserOrigin(request: ProviderGetCredentialRequest): String? {
-        val callingAppInfo = request.callingAppInfo
-        if (!callingAppInfo.isOriginPopulated()) return null
-        val origin = try {
-            callingAppInfo.getOrigin(privilegedAllowlist())
-        } catch (error: Exception) {
-            // Thrown for a caller that is not on the list, or a list that
-            // does not parse; both mean "no trusted origin".
-            Log.i(TAG, "origin not trusted: ${error.javaClass.simpleName}")
-            null
-        }
-        return origin?.takeIf { it.isNotEmpty() }
-    }
-
-    private fun privilegedAllowlist(): String =
-        resources.openRawResource(R.raw.passkey_privileged_apps)
-            .bufferedReader()
-            .use { it.readText() }
-
-    private fun signingCertificateSha256(request: ProviderGetCredentialRequest): String? {
-        val certificate = request.callingAppInfo.signingInfo
-            .apkContentsSigners
-            .firstOrNull()
-            ?.toByteArray()
-            ?: return null
-        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(certificate)
-        return PasskeyAssertionBuilder.base64Url(digest)
-    }
-
     private fun finishWith(error: androidx.credentials.exceptions.GetCredentialException) {
         val response = Intent()
         PendingIntentHandler.setGetCredentialException(response, error)
@@ -200,7 +166,8 @@ class PasskeyAuthActivity : FragmentActivity() {
          */
         fun pendingIntent(
             context: Context,
-            entryId: String,
+            entryId: String?,
+            pendingRecordId: String?,
             rpId: String,
             credentialId: String,
             requestCode: Int,
@@ -210,10 +177,88 @@ class PasskeyAuthActivity : FragmentActivity() {
             KeyVaultCredentialProviderService.intentFor(
                 context = context,
                 entryId = entryId,
+                pendingRecordId = pendingRecordId,
                 rpId = rpId,
                 credentialId = credentialId,
             ),
             KeyVaultCredentialProviderService.pendingIntentFlags(),
         )
+    }
+}
+
+/**
+ * The caller's origin for `clientDataJSON`, shared by the assertion path
+ * (spec 023 T404) and the registration path (spec 024 T022) so both derive it
+ * the same way (SR-2).
+ */
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+internal object PasskeyCallerOrigin {
+    private const val TAG = "CustodePasskey"
+
+    /**
+     * What goes into `clientDataJSON.origin`.
+     *
+     * A browser passes its page origin through `callingAppInfo`, and the
+     * relying party checks exactly that string. A native app has no web
+     * origin, so WebAuthn's Android binding uses the caller's signing
+     * certificate hash instead; when even that is unavailable the rp id's own
+     * https origin is the honest remaining answer.
+     */
+    fun origin(context: Context, info: CallingAppInfo, rpId: String): String {
+        browserOrigin(context, info)?.let { return it }
+
+        val fingerprint = signingCertificateSha256(info)
+        return if (fingerprint != null) "android:apk-key-hash:$fingerprint" else "https://$rpId"
+    }
+
+    fun androidPackageName(context: Context, info: CallingAppInfo): String? {
+        // Set only for a native caller: a web sign-in must not carry it, or
+        // the relying party sees client data it did not expect.
+        return if (browserOrigin(context, info) == null) info.packageName else null
+    }
+
+    /**
+     * True only for a caller on the privileged allowlist that populated an
+     * origin: the one case in which its `clientDataHash` may be signed.
+     */
+    fun isVerifiedBrowser(context: Context, info: CallingAppInfo): Boolean =
+        browserOrigin(context, info) != null
+
+    /**
+     * The web origin a privileged browser vouched for, or null.
+     *
+     * Any app can put an origin in its request, so it is trusted only when
+     * the caller's package and signing certificate are on the privileged
+     * allowlist (`res/raw/passkey_privileged_apps.json`, refreshed by
+     * `tool/update_passkey_privileged_apps.sh`). Anyone else is treated as
+     * the native app it is: an unlisted app claiming `https://bank.example`
+     * must not get a signature that bank would accept.
+     */
+    private fun browserOrigin(context: Context, callingAppInfo: CallingAppInfo): String? {
+        if (!callingAppInfo.isOriginPopulated()) return null
+        val origin = try {
+            callingAppInfo.getOrigin(privilegedAllowlist(context))
+        } catch (error: Exception) {
+            // Thrown for a caller that is not on the list, or a list that
+            // does not parse; both mean "no trusted origin".
+            Log.i(TAG, "origin not trusted: ${error.javaClass.simpleName}")
+            null
+        }
+        return origin?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun privilegedAllowlist(context: Context): String =
+        context.resources.openRawResource(R.raw.passkey_privileged_apps)
+            .bufferedReader()
+            .use { it.readText() }
+
+    private fun signingCertificateSha256(info: CallingAppInfo): String? {
+        val certificate = info.signingInfo
+            .apkContentsSigners
+            .firstOrNull()
+            ?.toByteArray()
+            ?: return null
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(certificate)
+        return PasskeyAssertionBuilder.base64Url(digest)
     }
 }

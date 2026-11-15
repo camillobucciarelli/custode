@@ -16,6 +16,7 @@ import '../../domain/models/vault_entry_revision.dart';
 import '../../domain/models/vault_group.dart';
 import '../../domain/models/vault_passkey.dart';
 import '../../domain/models/vault_snapshot.dart';
+import '../../domain/repositories/passkey_adoption_vault_port.dart';
 import '../../domain/services/url_field_keys.dart';
 import 'database_file_hash_recorder.dart';
 import 'database_path_mutex.dart';
@@ -32,7 +33,7 @@ class KdbxCredentialChange {
   final String backupPath;
 }
 
-class VaultKdbxService {
+class VaultKdbxService implements PasskeyAdoptionVaultPort {
   VaultKdbxService({
     this.credentialTempWriter,
     DatabasePathMutex? mutex,
@@ -97,6 +98,7 @@ class VaultKdbxService {
     return file.recycleBin?.uuid.uuid;
   }
 
+  @override
   Future<VaultSnapshot> loadVault({
     required String databasePath,
     required String password,
@@ -225,6 +227,60 @@ class VaultKdbxService {
     required String url,
     required String notes,
     List<VaultCustomField> customFields = const [],
+  }) => _createEntry(
+    databasePath: databasePath,
+    password: password,
+    keyFilePath: keyFilePath,
+    groupId: groupId,
+    title: title,
+    username: username,
+    entryPassword: entryPassword,
+    url: url,
+    notes: notes,
+    customFields: customFields,
+  );
+
+  /// Adoption (passkeys on all platforms, T011) — a new entry and its passkey
+  /// in ONE save, so the file never holds the entry without the credential.
+  ///
+  /// The passkey fields are the ones [createPasskey] writes, with the same
+  /// protection flags. No backup here: that is the coordinator's, as for
+  /// [createPasskey]. Returns the new entry's id.
+  @override
+  Future<String> createEntryWithPasskey({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String groupId,
+    required String title,
+    required String username,
+    required String url,
+    required VaultPasskey passkey,
+  }) => _createEntry(
+    databasePath: databasePath,
+    password: password,
+    keyFilePath: keyFilePath,
+    groupId: groupId,
+    title: title,
+    username: username,
+    entryPassword: '',
+    url: url,
+    notes: '',
+    passkey: passkey,
+  );
+
+  Future<String> _createEntry({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String groupId,
+    required String title,
+    required String username,
+    required String entryPassword,
+    required String url,
+    required String notes,
+    List<VaultCustomField> customFields = const [],
+    VaultPasskey? passkey,
   }) {
     return _mutex.withDatabaseLock([databasePath], () async {
       final file = await _openFile(
@@ -245,6 +301,7 @@ class VaultKdbxService {
       entry.setString(KdbxKeyCommon.URL, PlainValue(url));
       entry.setString(_notesKey, PlainValue(notes));
       _setCustomFields(entry, customFields);
+      if (passkey != null) _writePasskeyFields(entry, passkey);
       group.addEntry(entry);
 
       await _save(databasePath, file);
@@ -583,6 +640,7 @@ class VaultKdbxService {
   ///
   /// Written into the first free suffix group, so an entry that already holds
   /// a passkey gains a second rather than losing the first.
+  @override
   Future<void> createPasskey({
     required String databasePath,
     required String password,
@@ -617,18 +675,69 @@ class VaultKdbxService {
         _removePasskeyGroup(entry, clash.fieldSuffix);
       }
 
-      final suffix = _nextPasskeySuffix(entry);
-      for (final field in passkeyFieldsFor(passkey, suffix: suffix).entries) {
-        entry.setString(
-          KdbxKey(field.key),
-          field.value.isProtected
-              ? ProtectedValue.fromString(field.value.value)
-              : PlainValue(field.value.value),
-        );
-      }
+      _writePasskeyFields(entry, passkey);
 
       await _save(databasePath, file);
     });
+  }
+
+  /// Adoption (passkeys on all platforms, T011) — where the vault already
+  /// holds this credential or this account, from one open of the file.
+  ///
+  /// `credentialEntryId`: the entry holding `(relyingPartyId, credentialId)`,
+  /// or null. `accountEntryIds`: every entry holding a passkey for
+  /// `(relyingPartyId, userHandle)`, compared as [createPasskey] compares a
+  /// clash. Read-only. The recycle bin is not searched, as in
+  /// [loadAllEntries]: a binned credential is not one the user can sign in
+  /// with, so adoption writes it again rather than dropping it.
+  @override
+  Future<({String? credentialEntryId, List<String> accountEntryIds})>
+  findPasskeyHolders({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required String relyingPartyId,
+    required Uint8List credentialId,
+    Uint8List? userHandle,
+  }) {
+    return _mutex.withDatabaseLock([databasePath], () async {
+      final file = await _openFile(
+        databasePath: databasePath,
+        password: password,
+        keyFilePath: keyFilePath,
+      );
+      final recycleBinUuid = file.recycleBin?.uuid.uuid;
+      String? credentialEntryId;
+      final accountEntryIds = <String>[];
+      for (final entry in file.body.rootGroup.getAllEntries()) {
+        if (_isInsideRecycleBin(entry, recycleBinUuid)) continue;
+        final passkeys = _mapPasskeys(entry)
+            .where((passkey) => passkey.relyingPartyId == relyingPartyId);
+        if (passkeys.any((p) => _sameBytes(p.credentialId, credentialId))) {
+          credentialEntryId ??= entry.uuid.uuid;
+        }
+        if (passkeys.any((p) => _sameHandle(p.userHandle, userHandle))) {
+          accountEntryIds.add(entry.uuid.uuid);
+        }
+      }
+      return (
+        credentialEntryId: credentialEntryId,
+        accountEntryIds: accountEntryIds,
+      );
+    });
+  }
+
+  /// Writes [passkey] into the entry's first free suffix group.
+  void _writePasskeyFields(KdbxEntry entry, VaultPasskey passkey) {
+    final suffix = _nextPasskeySuffix(entry);
+    for (final field in passkeyFieldsFor(passkey, suffix: suffix).entries) {
+      entry.setString(
+        KdbxKey(field.key),
+        field.value.isProtected
+            ? ProtectedValue.fromString(field.value.value)
+            : PlainValue(field.value.value),
+      );
+    }
   }
 
   /// The `KPEX_PASSKEY_*` fields for [passkey], in the KeePassXC layout, with

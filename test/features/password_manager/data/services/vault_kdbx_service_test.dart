@@ -1157,6 +1157,134 @@ void main() {
       expect(await rawPasskeyStrings(), before);
     });
 
+    // ---- Adoption (passkeys on all platforms, T011) --------------------
+
+    /// A passkey whose key came from elsewhere: nothing here is generated.
+    VaultPasskey adoptedPasskey() => VaultPasskey(
+      relyingPartyId: 'example.org',
+      credentialId: Uint8List.fromList([7, 7, 7]),
+      userHandle: Uint8List.fromList([8, 8]),
+      username: 'ada',
+      privateKeyPem: es256PrivateKeyPem,
+      algorithm: VaultPasskeyAlgorithm.es256,
+      backupEligible: false,
+      backupState: false,
+    );
+
+    test(
+      'createEntryWithPasskey writes the entry and the same fields and flags '
+      'as createPasskey, in one save',
+      () async {
+        final entryId = await createPlainEntry();
+        await service.createPasskey(
+          databasePath: databasePath,
+          password: password,
+          entryId: entryId,
+          passkey: adoptedPasskey(),
+        );
+        final viaCreatePasskey = await rawPasskeyStrings();
+        expect(viaCreatePasskey['KPEX_PASSKEY_FLAG_BE']!.$1, '0');
+        expect(viaCreatePasskey['KPEX_PASSKEY_FLAG_BS']!.$1, '0');
+        expect(viaCreatePasskey['KPEX_PASSKEY_PRIVATE_KEY_PEM'], (
+          es256PrivateKeyPem,
+          true,
+        ));
+
+        // A fresh vault, so `rawPasskeyStrings` sees a single entry again.
+        await File(databasePath).delete();
+        await _createDatabase(databasePath: databasePath, password: password);
+        final writer = _CountingSafeVaultFileWriter();
+        final newEntryId = await VaultKdbxService(safeWriter: writer)
+            .createEntryWithPasskey(
+              databasePath: databasePath,
+              password: password,
+              groupId: await _rootGroupId(service, databasePath, password),
+              title: 'example.org',
+              username: 'ada',
+              url: 'https://example.org',
+              passkey: adoptedPasskey(),
+            );
+
+        expect(writer.writes, 1);
+        expect(await rawPasskeyStrings(), viaCreatePasskey);
+        final entry = (await service.loadAllEntries(
+          databasePath: databasePath,
+          password: password,
+        )).single;
+        expect(entry.id, newEntryId);
+        expect(entry.title, 'example.org');
+        expect(entry.username, 'ada');
+        expect(entry.url, 'https://example.org');
+        expect(entry.passkeys.single.usable, isTrue);
+        expect(entry.passkeys.single.backupEligible, isFalse);
+      },
+    );
+
+    test('a failed createEntryWithPasskey leaves the file byte-identical and '
+        'the key out of the error', () async {
+      final groupId = await _rootGroupId(service, databasePath, password);
+      final before = await File(databasePath).readAsBytes();
+
+      Object? error;
+      try {
+        await VaultKdbxService(safeWriter: _FailingSafeVaultFileWriter())
+            .createEntryWithPasskey(
+              databasePath: databasePath,
+              password: password,
+              groupId: groupId,
+              title: 'example.org',
+              username: 'ada',
+              url: 'https://example.org',
+              passkey: adoptedPasskey(),
+            );
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error, isNotNull);
+      expect(error.toString(), isNot(contains('PRIVATE KEY')));
+      expect(await File(databasePath).readAsBytes(), before);
+    });
+
+    test('findPasskeyHolders reports the credential and the account', () async {
+      // Fixture entry: webauthn.io, credential `AQID`, handle `BAUG`.
+      final entryId = await createPasskeyEntry();
+      final before = await File(databasePath).readAsBytes();
+
+      // (credentialEntryId, accountEntryIds), flattened: a record holding a
+      // list compares the list by identity.
+      Future<(String?, List<String>)> find({
+        String relyingPartyId = 'webauthn.io',
+        List<int> credentialId = const [1, 2, 3],
+        List<int>? userHandle = const [4, 5, 6],
+      }) async {
+        final found = await service.findPasskeyHolders(
+          databasePath: databasePath,
+          password: password,
+          relyingPartyId: relyingPartyId,
+          credentialId: Uint8List.fromList(credentialId),
+          userHandle: userHandle == null
+              ? null
+              : Uint8List.fromList(userHandle),
+        );
+        return (found.credentialEntryId, found.accountEntryIds);
+      }
+
+      Matcher holders(String? credential, List<String> account) =>
+          isA<(String?, List<String>)>()
+              .having((r) => r.$1, 'credential', credential)
+              .having((r) => r.$2, 'account', account);
+
+      expect(await find(), holders(entryId, [entryId]));
+      // Same account, new credential: the replace-or-keep-both case.
+      expect(await find(credentialId: const [9]), holders(null, [entryId]));
+      expect(await find(userHandle: const [9]), holders(entryId, []));
+      // A missing handle matches only a passkey that has none.
+      expect(await find(userHandle: null), holders(entryId, []));
+      expect(await find(relyingPartyId: 'example.org'), holders(null, []));
+      expect(await File(databasePath).readAsBytes(), before);
+    });
+
     test(
       'a credential id that does not match throws, and writes nothing',
       () async {
@@ -3855,6 +3983,26 @@ class _HashRegistryRepository implements DatabaseRegistryRepository {
     }
     records.removeWhere((item) => item.databaseId == record.databaseId);
     records.add(record);
+  }
+}
+
+class _CountingSafeVaultFileWriter extends SafeVaultFileWriter {
+  int writes = 0;
+
+  @override
+  Future<SafeVaultFileWriteResult> write({
+    required String targetPath,
+    required Uint8List bytes,
+    bool backupExistingTarget = false,
+    String? operation,
+  }) {
+    writes++;
+    return super.write(
+      targetPath: targetPath,
+      bytes: bytes,
+      backupExistingTarget: backupExistingTarget,
+      operation: operation,
+    );
   }
 }
 

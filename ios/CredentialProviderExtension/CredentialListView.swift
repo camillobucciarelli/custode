@@ -204,35 +204,38 @@ private struct CredentialBadgeView: View {
   }
 }
 
-/// spec 023 T708 — what the extension shows when a site asks it to CREATE a
-/// passkey.
+/// spec 024 T018 — the sheet shown when a site asks this extension to CREATE
+/// a passkey: a confirmation naming site and account, a refusal with its
+/// reason, or the result.
 ///
-/// The decision this screen implements: a passkey is created by the Custode
-/// app, never by this extension. The extension is a plugin of the app and
-/// holds no logic the app does not know about — and here that is not a
-/// preference but the only correct behaviour. Creating a credential means
-/// writing it into the `.kdbx`, and this process has no master password, so it
-/// cannot write the vault at all. What it *could* do is mint a key, seal it
-/// into its own cache and answer the site "registered" in the hope the app
-/// adopts it later. That is the one failure FR-020 forbids: the site would
-/// retire the password for a credential the vault does not hold, and the
-/// account would be lost.
-///
-/// So the ceremony is refused, clearly and immediately, and the site gets an
-/// ordinary failure it can fall back from instead of a hung sheet. Nothing is
-/// staged, nothing is half-written, and the user is told where creating a
-/// passkey does work today.
-struct PasskeyRegistrationUnavailableView: View {
+/// The extension never writes the `.kdbx`. It queues the new passkey sealed
+/// on this device and the app adopts it at the next unlock, so the
+/// confirmation says so before the user agrees: completing the request
+/// dismisses the sheet, and the result screen may not stay visible.
+struct PasskeyRegistrationView: View {
+  enum Screen: Equatable {
+    case confirm(existingPasskey: Bool)
+    case refused(title: String, message: String)
+    case saved
+  }
+
   let relyingPartyId: String
   let userName: String
+  let screen: Screen
+  let onConfirm: () -> Void
   let onCancel: () -> Void
+
+  static let deviceOnlyNote = """
+  The passkey is saved on this device and will be added to your vault when \
+  Custode is opened. Until then it exists only on this device.
+  """
 
   var body: some View {
     VStack(spacing: 16) {
-      Image(systemName: "key.horizontal")
+      Image(systemName: icon)
         .font(.system(size: 48))
         .foregroundColor(.secondary)
-      Text("Create this passkey in Custode")
+      Text(title)
         .font(.headline)
         .multilineTextAlignment(.center)
       Text(detail)
@@ -240,23 +243,52 @@ struct PasskeyRegistrationUnavailableView: View {
         .foregroundColor(.secondary)
         .multilineTextAlignment(.center)
         .padding(.horizontal, 24)
-      Button("Cancel", action: onCancel)
-        .buttonStyle(.bordered)
+      if case .confirm(let existingPasskey) = screen {
+        if existingPasskey {
+          Text("Custode already has a passkey for this account on \(site). Creating another keeps both.")
+            .font(.footnote)
+            .foregroundColor(.orange)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
+        }
+        Button(existingPasskey ? "Create Another Passkey" : "Create Passkey", action: onConfirm)
+          .buttonStyle(.borderedProminent)
+        Button("Cancel", action: onCancel)
+          .buttonStyle(.bordered)
+      } else if case .refused = screen {
+        Button("Close", action: onCancel)
+          .buttonStyle(.bordered)
+      }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .padding()
   }
 
-  private var detail: String {
-    let site = relyingPartyId.isEmpty ? "this site" : relyingPartyId
-    let account = userName.isEmpty ? "" : " for \(userName)"
-    return """
-    A passkey is written into your vault, which only the Custode app can \
-    open. This AutoFill extension cannot write it, so it will not tell \(site) \
-    that a passkey exists when it does not.
+  private var site: String { relyingPartyId.isEmpty ? "this site" : relyingPartyId }
 
-    To add a passkey\(account), open Custode on a computer, unlock the vault, \
-    and register on \(site) from a browser with the Custode extension.
-    """
+  private var icon: String {
+    switch screen {
+    case .confirm: return "key.horizontal"
+    case .refused: return "key.slash"
+    case .saved: return "checkmark.circle"
+    }
+  }
+
+  private var title: String {
+    switch screen {
+    case .confirm: return "Create a passkey for \(site)?"
+    case .refused(let title, _): return title
+    case .saved: return "Passkey saved"
+    }
+  }
+
+  private var detail: String {
+    switch screen {
+    case .confirm:
+      let account = userName.isEmpty ? "" : "Account: \(userName)\n\n"
+      return account + Self.deviceOnlyNote
+    case .refused(_, let message): return message
+    case .saved: return Self.deviceOnlyNote
+    }
   }
 }

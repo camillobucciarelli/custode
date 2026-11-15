@@ -12,6 +12,7 @@ import '../presentation/coordinators/desktop_browser_autofill_coordinator.dart';
 import '../presentation/coordinators/duplicate_merge_coordinator.dart';
 import '../presentation/coordinators/entry_history_coordinator.dart';
 import '../presentation/coordinators/passkey_coordinator.dart';
+import '../presentation/coordinators/pending_passkey_adoption_coordinator.dart';
 import '../presentation/coordinators/google_drive_reconnect_coordinator.dart';
 import '../presentation/coordinators/otpauth_deep_link_coordinator.dart';
 import '../presentation/coordinators/session_secret_holder.dart';
@@ -146,6 +147,17 @@ void registerPasswordManagerPresentationDependencies(GetIt sl) {
     ),
   );
 
+  // Passkeys-all-platforms T013: adopts passkeys queued by the autofill surface.
+  sl.registerLazySingleton<PendingPasskeyAdoptionCoordinator>(
+    () => PendingPasskeyAdoptionCoordinator(
+      vault: sl(),
+      sessionSecretHolder: sl(),
+      databaseFileRepository: sl(),
+      pendingPasskeyPort: sl(),
+      databaseRegistry: sl(),
+    ),
+  );
+
   sl.registerFactory(
     () => DatabaseSelectionBloc(databaseSessionCoordinator: sl()),
   );
@@ -180,6 +192,7 @@ void registerPasswordManagerPresentationDependencies(GetIt sl) {
       entryHistoryCoordinator: sl(),
       duplicateMergeCoordinator: sl(),
       passkeyCoordinator: sl(),
+      pendingPasskeyAdoptionCoordinator: sl(),
       resolveDatabaseId: (databasePath) async {
         final records = await sl<DatabaseRegistryRepository>().list();
         for (final record in records) {

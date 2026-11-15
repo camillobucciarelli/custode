@@ -1,10 +1,10 @@
 package dev.camillobucciarelli.kdbxKeyVault.autofill
 
-import android.util.Base64
 import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.Signature
 import java.security.spec.PKCS8EncodedKeySpec
+import java.util.Base64
 import org.json.JSONObject
 
 /**
@@ -84,11 +84,31 @@ internal object PasskeyAssertionBuilder {
         return json.toString().toByteArray(Charsets.UTF_8)
     }
 
+    /**
+     * The caller-supplied `clientDataHash` to sign in place of our own, or
+     * null to sign the provider-built `clientDataJSON`.
+     *
+     * Any app can put a hash in its `GetPublicKeyCredentialOption`, and that
+     * hash can be of a clientDataJSON claiming `https://bank.example`. Signing
+     * it would hand an unlisted native app an assertion the bank accepts as a
+     * web sign-in, so it is honoured only for a caller already verified as a
+     * privileged browser (the condition under which [PasskeyCallerOrigin]
+     * yields a web origin). Everyone else gets a signature over client data
+     * whose origin is their own `android:apk-key-hash:`.
+     */
+    fun clientDataHashToHonour(
+        callerIsVerifiedBrowser: Boolean,
+        suppliedClientDataHash: ByteArray?,
+    ): ByteArray? =
+        if (callerIsVerifiedBrowser) suppliedClientDataHash?.takeIf { it.isNotEmpty() } else null
+
     fun assert(
         passkey: AndroidAutofillPasskey,
         challenge: String,
         origin: String,
         androidPackageName: String?,
+        callerIsVerifiedBrowser: Boolean,
+        suppliedClientDataHash: ByteArray?,
     ): Assertion {
         val authData = authenticatorData(
             rpId = passkey.rpId,
@@ -96,7 +116,14 @@ internal object PasskeyAssertionBuilder {
             backupState = passkey.backupState,
         )
         val clientData = clientDataJson(challenge, origin, androidPackageName)
-        val clientDataHash = MessageDigest.getInstance("SHA-256").digest(clientData)
+        // GetPublicKeyCredentialOption.clientDataHash: "a clientDataHash value
+        // to sign over in place of assembling and hashing clientDataJSON". A
+        // privileged caller (a browser) sends its own clientDataJSON to the
+        // relying party, so the signature must cover its hash, not ours. The
+        // clientDataJSON in the response is then only a well-formed
+        // placeholder: the library documents nothing about it in this case.
+        val clientDataHash = clientDataHashToHonour(callerIsVerifiedBrowser, suppliedClientDataHash)
+            ?: MessageDigest.getInstance("SHA-256").digest(clientData)
         val message = authData + clientDataHash
 
         val der = derFromPem(passkey.privateKeyPem) ?: throw BadKey()
@@ -172,9 +199,8 @@ internal object PasskeyAssertionBuilder {
             return null
         }
         return try {
-            Base64.decode(
+            Base64.getDecoder().decode(
                 lines.subList(1, lines.size - 1).joinToString(separator = ""),
-                Base64.DEFAULT,
             )
         } catch (error: IllegalArgumentException) {
             null
@@ -182,11 +208,11 @@ internal object PasskeyAssertionBuilder {
     }
 
     fun base64Url(bytes: ByteArray): String =
-        Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
 
     /** base64url, padded or not — KeePassXC omits the padding. */
     fun decodeBase64Url(value: String): ByteArray? = try {
-        Base64.decode(value, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        Base64.getUrlDecoder().decode(value)
     } catch (error: IllegalArgumentException) {
         null
     }

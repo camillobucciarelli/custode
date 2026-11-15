@@ -607,3 +607,69 @@ class _KeyFileSelector extends StatelessWidget {
     );
   }
 }
+
+/// Passkeys-all-platforms FR-9: a passkey created in the autofill surface is
+/// waiting for this unlock. Same styling as [_PendingCaptureNotice].
+class _WaitingPasskeysNotice extends StatelessWidget {
+  const _WaitingPasskeysNotice({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<CustodeColors>()!;
+    final title = count == 1
+        ? '1 passkey is waiting'
+        : '$count passkeys are waiting';
+    const body =
+        'Created on this device and not yet in your vault. Unlock to add '
+        'them. Until then they exist only on this device.';
+
+    return SafeArea(
+      bottom: false,
+      child: Semantics(
+        container: true,
+        liveRegion: true,
+        label: '$title. $body',
+        excludeSemantics: true,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(AppRadii.rowNested),
+            border: Border.all(color: colors.attentionText, width: 1.5),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(AppIcons.key, size: 20, color: colors.attentionText),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.rowTitle.copyWith(
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      body,
+                      style: AppTextStyles.secondary.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

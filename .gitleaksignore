@@ -24,3 +24,30 @@ accbbd2dd4f7b15ed8c869312fdbeb6aa0024c8c:test/fixtures/passkeys/vectors.dart:pri
 # by a value that is not PEM-shaped at all, since nothing in that layer parses
 # it; this fingerprint covers the commit it appeared in.
 5944cf0e03cafa8ce4bef2069133028ccf49a769:test/features/password_manager/presentation/screens/vault/vault_entry_passkeys_test.dart:private-key:19
+# Spec 023 registration-vector test keys (commit 1589f2f): throwaway P-256
+# keys in the shared Kotlin/Swift/Dart registration vector and the platform
+# test suites; they sign nothing outside the suites. Pinned to the commit, so a
+# rebase needs them regenerated (`gitleaks git`).
+1589f2f06d015151896323783a415c8a6d4b110e:test/fixtures/passkeys/pending_record_v1.json:private-key:34
+1589f2f06d015151896323783a415c8a6d4b110e:test/fixtures/passkeys/registration_vector.json:private-key:4
+1589f2f06d015151896323783a415c8a6d4b110e:test/fixtures/passkeys/registration_vector.json:generic-api-key:12
+1589f2f06d015151896323783a415c8a6d4b110e:android/app/src/test/kotlin/dev/camillobucciarelli/kdbxKeyVault/autofill/PasskeyAssertionBuilderTest.kt:private-key:24
+1589f2f06d015151896323783a415c8a6d4b110e:android/app/src/test/kotlin/dev/camillobucciarelli/kdbxKeyVault/autofill/PasskeyAssertionBuilderTest.kt:private-key:39
+1589f2f06d015151896323783a415c8a6d4b110e:android/app/src/test/kotlin/dev/camillobucciarelli/kdbxKeyVault/autofill/PasskeyAssertionBuilderTest.kt:private-key:82
+1589f2f06d015151896323783a415c8a6d4b110e:ios/RunnerTests/RunnerTests.swift:private-key:97
+1589f2f06d015151896323783a415c8a6d4b110e:ios/RunnerTests/RunnerTests.swift:private-key:112
+1589f2f06d015151896323783a415c8a6d4b110e:ios/RunnerTests/RunnerTests.swift:private-key:124
+1589f2f06d015151896323783a415c8a6d4b110e:ios/RunnerTests/RunnerTests.swift:private-key:291
+1589f2f06d015151896323783a415c8a6d4b110e:ios/RunnerTests/RunnerTests.swift:generic-api-key:279
+1589f2f06d015151896323783a415c8a6d4b110e:macos/RunnerTests/RunnerTests.swift:private-key:97
+1589f2f06d015151896323783a415c8a6d4b110e:macos/RunnerTests/RunnerTests.swift:private-key:112
+1589f2f06d015151896323783a415c8a6d4b110e:macos/RunnerTests/RunnerTests.swift:private-key:124
+1589f2f06d015151896323783a415c8a6d4b110e:macos/RunnerTests/RunnerTests.swift:private-key:298
+1589f2f06d015151896323783a415c8a6d4b110e:macos/RunnerTests/RunnerTests.swift:generic-api-key:286
+# Spec 023 registration builder (commit 1589f2f): historical false positives on
+# lines that no longer exist in the tree (rewritten in 222d0e7). The PEM header
+# string literal and the P256.Signing.PrivateKey signature contain no key
+# material.
+1589f2f06d015151896323783a415c8a6d4b110e:android/app/src/main/kotlin/dev/camillobucciarelli/kdbxKeyVault/autofill/PasskeyRegistrationBuilder.kt:private-key:136
+1589f2f06d015151896323783a415c8a6d4b110e:ios/CredentialProviderExtension/PasskeyRegistrationBuilder.swift:generic-api-key:39
+1589f2f06d015151896323783a415c8a6d4b110e:macos/CredentialProviderExtension/PasskeyRegistrationBuilder.swift:generic-api-key:39
