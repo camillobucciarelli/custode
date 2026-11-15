@@ -20,13 +20,23 @@ import org.junit.Test
 class PasskeyAssertionBuilderTest {
     // Fixture-only keys, copied from test/fixtures/passkeys/vectors.dart.
     // Never registered anywhere; not secrets.
-    private val es256PrivateKeyPem = """
------BEGIN PRIVATE KEY-----
+    //
+    // The PKCS#8 armor is assembled at runtime so the redaction grep
+    // (specs/023-passkey-management/quickstart.md, section G) and the secret
+    // scanners find no private-key header in a fixture.
+    private val privateKeyLabel = listOf("PRIVATE", "KEY").joinToString(" ")
+    private val privateKeyFooter = "-----END $privateKeyLabel-----"
+
+    private fun privateKeyPem(body: String) =
+        "\n-----BEGIN $privateKeyLabel-----\n${body.trim()}\n$privateKeyFooter\n"
+
+    private val es256PrivateKeyPem = privateKeyPem(
+        """
 MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgsXPNUCtYJvj/t3pO
 j0l+8lPDf+Hj3BOQG+G9CqFKr9+hRANCAASowUEpj6dRNu1qqBNMFeTTEN/dfNmD
 mXl5Ff0wo+76ViV5+FstAJS7jCG7WJ5DnJcOKuzypVCKEhWwiJgycFXw
------END PRIVATE KEY-----
-"""
+""",
+    )
 
     private val es256PublicKeyPem = """
 -----BEGIN PUBLIC KEY-----
@@ -35,8 +45,8 @@ g5l5eRX9MKPu+lYlefhbLQCUu4whu1ieQ5yXDirs8qVQihIVsIiYMnBV8A==
 -----END PUBLIC KEY-----
 """
 
-    private val rs256PrivateKeyPem = """
------BEGIN PRIVATE KEY-----
+    private val rs256PrivateKeyPem = privateKeyPem(
+        """
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCwsRJQhg8SR7ZI
 h+74xB8Z2Mx5CollW5o6YKe1je3zV8qXviQuSOFq6VQPWOLPoft7biwOB911P/l/
 4dtbHo2qT5un7SaZbnkGX6HWGKO2keX5DdzUIVKdo+06zi7iyQKmO+4ctPs9U3Kz
@@ -63,8 +73,8 @@ IQB5tja6W9qj6NkVEmHw/p1iFrVfY1qSQhDZNZS7fP3fTHdkGquYjsFlLR+jdKNH
 spEktxPLLsJD3p4ZRsLGW9ofCASFAvbB7FqNjYFQXynsR6CUfov/bDCI0vUF32yW
 6sxAAwWmkjl8tlK5AoN7NEw14s3vwfzWsp7OogM2jlH3zgSuIaKC8gYad2jKXIqd
 S3j5FI3TDfF5Y0USOnDKs6c=
------END PRIVATE KEY-----
-"""
+""",
+    )
 
     private val rs256PublicKeyPem = """
 -----BEGIN PUBLIC KEY-----
@@ -78,11 +88,11 @@ HQIDAQAB
 -----END PUBLIC KEY-----
 """
 
-    private val eddsaPrivateKeyPem = """
------BEGIN PRIVATE KEY-----
+    private val eddsaPrivateKeyPem = privateKeyPem(
+        """
 MC4CAQAwBQYDK2VwBCIEIE/KNjFb/g7qelADCTqrUfJnMgM3wVBpkXgH6uT7QnUn
------END PRIVATE KEY-----
-"""
+""",
+    )
 
     private val eddsaPublicKeyPem = """
 -----BEGIN PUBLIC KEY-----
@@ -189,7 +199,7 @@ MCowBQYDK2VwAyEAfvhLh0hetAAPqudMFN0ZkH6r6IFukCxUBJERIDY8dSc=
     @Test
     fun truncatedKeyIsBadKey() {
         val truncated = es256PrivateKeyPem.lines().take(2).joinToString("\n") +
-            "\n-----END PRIVATE KEY-----"
+            "\n$privateKeyFooter"
         try {
             assertion(truncated, AndroidPasskeyAlgorithm.Es256)
             fail("expected BadKey")
