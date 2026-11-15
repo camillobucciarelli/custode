@@ -156,7 +156,7 @@ When that situation arrives:
 3. Bump the patch digit on that line in the same PR — `0.5.0` → `0.5.1` — and
    leave the build counter after the `+` alone: the release workflow continues
    it from the highest tag on any line (see **Versioning and releases**). Mirror
-   `_kApplicationVersion` in the settings screen, as any version bump does.
+   `kApplicationVersion` in the settings screen, as any version bump does.
 4. Dispatch `release.yml` **from `release/X.Y.x`** to ship it: the workflow bumps
    and tags whichever branch it is dispatched on, so nothing else is needed.
 5. **Port the fix to `main`** in its own PR, by cherry-pick. This step is not
