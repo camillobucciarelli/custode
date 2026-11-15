@@ -2,8 +2,9 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
-/// The id a database is published under for autofill (`sha256:` of the trimmed
-/// path); pending passkey records are bound to it.
+/// The path-hash id of a database (`sha256:` of the trimmed path): what the
+/// desktop browser cache is published under, and the legacy / unregistered
+/// form of the mobile and Apple autofill id (see `autofillDatabaseIdsFor`).
 String databaseIdForPath(String databasePath) {
   return 'sha256:${sha256.convert(utf8.encode(databasePath.trim()))}';
 }

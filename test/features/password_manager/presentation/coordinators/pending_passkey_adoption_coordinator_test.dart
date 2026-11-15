@@ -13,6 +13,8 @@ import 'package:password_manager/features/password_manager/domain/models/vault_s
 import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_registry_repository.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/autofill_ports.dart';
+import 'package:password_manager/features/password_manager/domain/services/autofill_database_id.dart';
+import 'package:password_manager/features/password_manager/domain/services/host_identity.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/pending_passkey_adoption_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/session_secret_holder.dart';
 
@@ -161,8 +163,7 @@ PendingPasskeyRegistration _record(
   int cred = 1,
 }) => PendingPasskeyRegistration(
   recordId: id,
-  databaseId:
-      databaseId ?? PendingPasskeyAdoptionCoordinator.databaseIdFor(_path),
+  databaseId: databaseId ?? databaseIdForPath(_path),
   createdAt: DateTime.utc(2026, 11, 1),
   rpId: rpId,
   credentialId: Uint8List.fromList([cred, 2, 3]),
@@ -248,12 +249,7 @@ void main() {
     const otherPath = '/vaults/work.kdbx';
     port.pending = PendingPasskeyRegistrations(
       records: [
-        _record(
-          'r1',
-          databaseId: PendingPasskeyAdoptionCoordinator.databaseIdFor(
-            otherPath,
-          ),
-        ),
+        _record('r1', databaseId: databaseIdForPath(otherPath)),
         _record('r2', databaseId: 'sha256:unknown'),
       ],
     );
@@ -277,6 +273,161 @@ void main() {
     final result = await named.adoptPending(databasePath: _path);
 
     expect(result.otherVault.map((o) => o.vaultName), ['Work', null]);
+  });
+
+  // T036: records are bound to the registry id, which survives a path change.
+  group('registry database id', () {
+    DatabaseRecord row(String id, String path, {String name = 'Main'}) =>
+        DatabaseRecord(
+          databaseId: id,
+          canonicalPath: path,
+          displayName: name,
+          sourceType: DatabaseSourceType.local,
+          createdAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+        );
+
+    PendingPasskeyAdoptionCoordinator withRegistry(List<DatabaseRecord> rows) =>
+        PendingPasskeyAdoptionCoordinator(
+          vault: vault,
+          sessionSecretHolder: holder,
+          databaseFileRepository: FakeDatabaseFileRepository(),
+          pendingPasskeyPort: port,
+          databaseRegistry: _FakeRegistry(rows),
+        );
+
+    test('a record is adopted into its vault after the path relocates, '
+        'with no other-vault report', () async {
+      // Creation: the surface copies the id the cache was published under.
+      final rows = [row('vault-1', _path)];
+      final created = await autofillDatabaseIdsFor(_path, _FakeRegistry(rows));
+      expect(created.published, 'reg:vault-1');
+      port.pending = PendingPasskeyRegistrations(
+        records: [_record('r1', databaseId: created.published)],
+      );
+
+      // Relocation: same registry row, only its path is re-resolved.
+      final relocated = '${tempDir.path}/moved/vault.kdbx';
+      await Directory('${tempDir.path}/moved').create();
+      await File(_path).rename(relocated);
+      rows[0] = row('vault-1', relocated);
+
+      final result = await withRegistry(rows)
+          .adoptPending(databasePath: relocated);
+
+      expect(result.otherVault, isEmpty);
+      expect(result.adopted.single.recordId, 'r1');
+      expect(port.resolved, ['r1']);
+      expect(vault.writes, hasLength(1));
+    });
+
+    test('a legacy path-hash record is still adopted', () async {
+      port.pending = PendingPasskeyRegistrations(
+        records: [_record('r1', databaseId: databaseIdForPath(_path))],
+      );
+
+      final result = await withRegistry([row('vault-1', _path)])
+          .adoptPending(databasePath: _path);
+
+      expect(result.otherVault, isEmpty);
+      expect(result.adopted.single.recordId, 'r1');
+    });
+
+    test('a record of a different vault is still reported as other-vault, '
+        'named by either id form', () async {
+      const otherPath = '/vaults/work.kdbx';
+      port.pending = PendingPasskeyRegistrations(
+        records: [
+          _record('r1', databaseId: 'reg:vault-2'),
+          _record('r2', databaseId: databaseIdForPath(otherPath), cred: 2),
+          // Not an id of the open vault: no prefix or basename matching.
+          _record('r3', databaseId: 'vault-1', cred: 3),
+          _record('r4', databaseId: 'reg:vault-10', cred: 4),
+        ],
+      );
+
+      final result = await withRegistry([
+        row('vault-1', _path),
+        row('vault-2', otherPath, name: 'Work'),
+      ]).adoptPending(databasePath: _path);
+
+      expect(result.adopted, isEmpty);
+      expect(vault.writes, isEmpty);
+      expect(port.resolved, isEmpty);
+      expect(result.otherVault.map((o) => o.recordId), [
+        'r1',
+        'r2',
+        'r3',
+        'r4',
+      ]);
+      expect(result.otherVault.map((o) => o.vaultName), [
+        'Work',
+        'Work',
+        null,
+        null,
+      ]);
+    });
+
+    test('an unregistered path falls back to the path hash', () async {
+      final rows = [row('vault-2', '/vaults/work.kdbx', name: 'Work')];
+      final ids = await autofillDatabaseIdsFor(_path, _FakeRegistry(rows));
+      expect(ids.published, databaseIdForPath(_path));
+      port.pending = PendingPasskeyRegistrations(
+        records: [
+          _record('r1', databaseId: ids.published),
+          _record('r2', databaseId: 'reg:vault-2', cred: 2),
+        ],
+      );
+
+      final result = await withRegistry(rows).adoptPending(databasePath: _path);
+
+      expect(result.adopted.single.recordId, 'r1');
+      expect(result.otherVault.single.recordId, 'r2');
+    });
+
+    test('registry readable at publish but unreadable at adoption: reg '
+        'records stay pending and are not reported as other-vault', () async {
+      final published = await autofillDatabaseIdsFor(
+        _path,
+        _FakeRegistry([row('vault-1', _path)]),
+      );
+      port.pending = PendingPasskeyRegistrations(
+        records: [
+          _record('own', databaseId: published.published),
+          _record('other-reg', databaseId: 'reg:vault-2', cred: 2),
+          _record('legacy', databaseId: databaseIdForPath(_path), cred: 3),
+          _record('other-legacy', databaseId: 'sha256:other', cred: 4),
+        ],
+      );
+      final unreadable = PendingPasskeyAdoptionCoordinator(
+        vault: vault,
+        sessionSecretHolder: holder,
+        databaseFileRepository: FakeDatabaseFileRepository(),
+        pendingPasskeyPort: port,
+        databaseRegistry: _ThrowingRegistry(),
+      );
+
+      final result = await unreadable.adoptPending(databasePath: _path);
+
+      // Legacy matching still works; reg records are untouched and unlisted.
+      expect(result.adopted.single.recordId, 'legacy');
+      expect(result.otherVault.single.recordId, 'other-legacy');
+      expect(result.failures, isEmpty);
+      expect(port.resolved, ['legacy']);
+      expect(vault.writes, hasLength(1));
+
+      // Registry readable again: the vault's own record is adopted.
+      port.pending = PendingPasskeyRegistrations(
+        records: [
+          _record('own', databaseId: published.published),
+          _record('other-reg', databaseId: 'reg:vault-2', cred: 2),
+        ],
+      );
+      final later = await withRegistry([row('vault-1', _path)])
+          .adoptPending(databasePath: _path);
+      expect(later.adopted.single.recordId, 'own');
+      expect(later.otherVault.single.recordId, 'other-reg');
+    });
   });
 
   test(
@@ -586,7 +737,7 @@ void main() {
 
         final record = PendingPasskeyRegistration(
           recordId: 'r1',
-          databaseId: PendingPasskeyAdoptionCoordinator.databaseIdFor(_path),
+          databaseId: databaseIdForPath(_path),
           createdAt: DateTime.utc(2026, 11, 1),
           rpId: webauthnIoRpId,
           credentialId: Uint8List.fromList(List.generate(32, (i) => i + 1)),
@@ -653,7 +804,7 @@ void main() {
         records: [
           PendingPasskeyRegistration(
             recordId: 'r1',
-            databaseId: PendingPasskeyAdoptionCoordinator.databaseIdFor(_path),
+            databaseId: databaseIdForPath(_path),
             createdAt: DateTime.utc(2026, 11, 1),
             rpId: webauthnIoRpId,
             credentialId: Uint8List.fromList(List.generate(32, (i) => i + 1)),
@@ -704,6 +855,14 @@ class _RecordingFiles extends FakeDatabaseFileRepository {
     onCopy();
     await super.copyFile(sourcePath: sourcePath, targetPath: targetPath);
   }
+}
+
+class _ThrowingRegistry implements DatabaseRegistryRepository {
+  @override
+  Future<List<DatabaseRecord>> list() async => throw StateError('unreadable');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeRegistry implements DatabaseRegistryRepository {
