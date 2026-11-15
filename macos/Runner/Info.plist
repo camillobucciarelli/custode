@@ -43,5 +43,7 @@
 	<string>NSApplication</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
