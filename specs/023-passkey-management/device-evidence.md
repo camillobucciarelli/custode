@@ -27,10 +27,11 @@ Spec 024 tasks covered, and the rows each one accounts for:
 - T031 (Windows and Linux): sections F and K.
 - T032 (cross-client check): no rows of its own; its steps are the sign-in and KeePassXC steps in sections H, I and J.
 - T033 (redaction sweep): the second row of the T601 table.
+- T035 (macOS XCTest guard): no rows of its own. Accepted without the hosted macOS test run; see the paragraph below.
 - T002, T003, T034: no rows of their own in this ledger.
 - T005: no rows of its own. It is accepted without the KeePassXC fixture vault (`test/fixtures/passkeys/keepassxc_passkeys.kdbx`) having been created; no fixture file is added.
 
-T035 is not covered by this acceptance. The markers are not `pass`, so they do not satisfy the T034 criterion that every ledger row is `pass` or linked to an issue.
+T035 is accepted by owner decision on 2026-11-15, without the hosted macOS test run that its Verify step asks for having been executed. The guard code is in `macos/Runner/MainFlutterWindow.swift` and its unit test is in `macos/RunnerTests/RunnerTests.swift`. The macOS test target compiles. The hosted macOS test run (`xcodebuild test` on the macOS Runner scheme) was NOT executed: it would launch the real app against the owner's App Group container. No result of that run is recorded here. The markers are not `pass`, so they do not satisfy the T034 criterion that every ledger row is `pass` or linked to an issue.
 
 ## Devices used
 
