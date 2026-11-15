@@ -228,6 +228,10 @@ class PendingPasskeyAdoptionCoordinator {
     final out = _Builder()..unreadableCount = pending.unreadableCount;
     Map<String, String>? names;
     for (final record in pending.records) {
+      // Registry unreadable in this run: a `reg:` record may be this vault's
+      // own. Leave it queued and unreported, so it is neither written to the
+      // wrong vault nor offered for discard, until the registry reads again.
+      if (open.isUndecidable(record.databaseId)) continue;
       if (!open.matches(record.databaseId)) {
         names ??= await _knownVaultNames();
         out.otherVault.add(

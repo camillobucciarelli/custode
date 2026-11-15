@@ -385,10 +385,48 @@ void main() {
       expect(result.otherVault.single.recordId, 'r2');
     });
 
-    test('an unreadable registry falls back to the path hash', () async {
-      final ids = await autofillDatabaseIdsFor(_path, _ThrowingRegistry());
-      expect(ids.published, databaseIdForPath(_path));
-      expect(ids.matches('reg:vault-1'), isFalse);
+    test('registry readable at publish but unreadable at adoption: reg '
+        'records stay pending and are not reported as other-vault', () async {
+      final published = await autofillDatabaseIdsFor(
+        _path,
+        _FakeRegistry([row('vault-1', _path)]),
+      );
+      port.pending = PendingPasskeyRegistrations(
+        records: [
+          _record('own', databaseId: published.published),
+          _record('other-reg', databaseId: 'reg:vault-2', cred: 2),
+          _record('legacy', databaseId: databaseIdForPath(_path), cred: 3),
+          _record('other-legacy', databaseId: 'sha256:other', cred: 4),
+        ],
+      );
+      final unreadable = PendingPasskeyAdoptionCoordinator(
+        vault: vault,
+        sessionSecretHolder: holder,
+        databaseFileRepository: FakeDatabaseFileRepository(),
+        pendingPasskeyPort: port,
+        databaseRegistry: _ThrowingRegistry(),
+      );
+
+      final result = await unreadable.adoptPending(databasePath: _path);
+
+      // Legacy matching still works; reg records are untouched and unlisted.
+      expect(result.adopted.single.recordId, 'legacy');
+      expect(result.otherVault.single.recordId, 'other-legacy');
+      expect(result.failures, isEmpty);
+      expect(port.resolved, ['legacy']);
+      expect(vault.writes, hasLength(1));
+
+      // Registry readable again: the vault's own record is adopted.
+      port.pending = PendingPasskeyRegistrations(
+        records: [
+          _record('own', databaseId: published.published),
+          _record('other-reg', databaseId: 'reg:vault-2', cred: 2),
+        ],
+      );
+      final later = await withRegistry([row('vault-1', _path)])
+          .adoptPending(databasePath: _path);
+      expect(later.adopted.single.recordId, 'own');
+      expect(later.otherVault.single.recordId, 'other-reg');
     });
   });
 
