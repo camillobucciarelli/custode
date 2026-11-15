@@ -150,7 +150,7 @@ void registerPasswordManagerPresentationDependencies(GetIt sl) {
   // Passkeys-all-platforms T013: adopts passkeys queued by the autofill surface.
   sl.registerLazySingleton<PendingPasskeyAdoptionCoordinator>(
     () => PendingPasskeyAdoptionCoordinator(
-      vaultKdbxService: sl(),
+      vault: sl(),
       sessionSecretHolder: sl(),
       databaseFileRepository: sl(),
       pendingPasskeyPort: sl(),

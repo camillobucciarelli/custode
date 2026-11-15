@@ -1,13 +1,13 @@
 import 'package:flutter/services.dart';
 
-import '../../data/services/desktop_browser_autofill_cache.dart';
-import '../../data/services/vault_kdbx_service.dart';
 import '../../domain/models/pending_passkey_registration.dart';
 import '../../domain/models/vault_entry.dart';
 import '../../domain/models/vault_passkey.dart';
 import '../../domain/repositories/autofill_ports.dart';
 import '../../domain/repositories/database_file_repository.dart';
 import '../../domain/repositories/database_registry_repository.dart';
+import '../../domain/repositories/passkey_adoption_vault_port.dart';
+import '../../domain/services/host_identity.dart' as host_identity;
 import 'dated_backup_path.dart';
 import 'session_secret_holder.dart';
 
@@ -153,14 +153,14 @@ class PendingPasskeyAdoptionResult {
 /// between calls (SR-8).
 class PendingPasskeyAdoptionCoordinator {
   PendingPasskeyAdoptionCoordinator({
-    required this.vaultKdbxService,
+    required this.vault,
     required this.sessionSecretHolder,
     required this.databaseFileRepository,
     required this.pendingPasskeyPort,
     this.databaseRegistry,
   });
 
-  final VaultKdbxService vaultKdbxService;
+  final PasskeyAdoptionVaultPort vault;
   final SessionSecretHolder sessionSecretHolder;
   final DatabaseFileRepository databaseFileRepository;
   final PendingPasskeyRegistrationPort pendingPasskeyPort;
@@ -171,7 +171,7 @@ class PendingPasskeyAdoptionCoordinator {
   /// The id the autofill cache is published under for [databasePath]
   /// (`sha256:` of the trimmed path), which pending records are bound to.
   static String databaseIdFor(String databasePath) =>
-      DesktopBrowserAutofillMetadataMapper.databaseIdForPath(databasePath);
+      host_identity.databaseIdForPath(databasePath);
 
   /// Tail of the queue every queue-mutating call runs behind. The vault mutex
   /// is taken per read/write, not across check-then-write, so two overlapping
@@ -268,7 +268,7 @@ class PendingPasskeyAdoptionCoordinator {
   /// [PasskeyClashDecision.replace] and must still hold a passkey for the
   /// account.
   ///
-  /// keepBoth writes a NEW entry: [VaultKdbxService.createPasskey] on an entry
+  /// keepBoth writes a NEW entry: [PasskeyAdoptionVaultPort.createPasskey] on an entry
   /// that already holds a passkey for the same `(rpId, userHandle)` throws
   /// `PasskeyAlreadyExists`, and the clash is by definition that case.
   Future<PendingPasskeyAdoptionResult> applyClashDecision({
@@ -429,7 +429,7 @@ class PendingPasskeyAdoptionCoordinator {
     String databasePath,
     String? keyFilePath,
     PendingPasskeyRegistration record,
-  ) => vaultKdbxService.findPasskeyHolders(
+  ) => vault.findPasskeyHolders(
     databasePath: databasePath,
     password: sessionSecretHolder.read(),
     keyFilePath: keyFilePath,
@@ -443,16 +443,14 @@ class PendingPasskeyAdoptionCoordinator {
     String databasePath,
     String? keyFilePath,
   ) async {
-    final snapshot = await vaultKdbxService.loadVault(
+    final snapshot = await vault.loadVault(
       databasePath: databasePath,
       password: sessionSecretHolder.read(),
       keyFilePath: keyFilePath,
     );
     final rpId = record.rpId.toLowerCase();
     bool matches(VaultEntry entry) {
-      final host = DesktopBrowserAutofillMetadataMapper.normalizedHost(
-        entry.url,
-      );
+      final host = host_identity.normalizedHost(entry.url);
       return host != null &&
           (host == rpId || host.endsWith('.$rpId')) &&
           entry.username == record.username;
@@ -499,12 +497,12 @@ class PendingPasskeyAdoptionCoordinator {
     String writtenEntryId;
     try {
       if (newEntry) {
-        final snapshot = await vaultKdbxService.loadVault(
+        final snapshot = await vault.loadVault(
           databasePath: databasePath,
           password: password,
           keyFilePath: keyFilePath,
         );
-        writtenEntryId = await vaultKdbxService.createEntryWithPasskey(
+        writtenEntryId = await vault.createEntryWithPasskey(
           databasePath: databasePath,
           password: password,
           keyFilePath: keyFilePath,
@@ -516,7 +514,7 @@ class PendingPasskeyAdoptionCoordinator {
         );
       } else {
         writtenEntryId = entryId!;
-        await vaultKdbxService.createPasskey(
+        await vault.createPasskey(
           databasePath: databasePath,
           password: password,
           keyFilePath: keyFilePath,

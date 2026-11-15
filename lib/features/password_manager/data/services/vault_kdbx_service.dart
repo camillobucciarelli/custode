@@ -16,6 +16,7 @@ import '../../domain/models/vault_entry_revision.dart';
 import '../../domain/models/vault_group.dart';
 import '../../domain/models/vault_passkey.dart';
 import '../../domain/models/vault_snapshot.dart';
+import '../../domain/repositories/passkey_adoption_vault_port.dart';
 import '../../domain/services/url_field_keys.dart';
 import 'database_file_hash_recorder.dart';
 import 'database_path_mutex.dart';
@@ -32,7 +33,7 @@ class KdbxCredentialChange {
   final String backupPath;
 }
 
-class VaultKdbxService {
+class VaultKdbxService implements PasskeyAdoptionVaultPort {
   VaultKdbxService({
     this.credentialTempWriter,
     DatabasePathMutex? mutex,
@@ -97,6 +98,7 @@ class VaultKdbxService {
     return file.recycleBin?.uuid.uuid;
   }
 
+  @override
   Future<VaultSnapshot> loadVault({
     required String databasePath,
     required String password,
@@ -244,6 +246,7 @@ class VaultKdbxService {
   /// The passkey fields are the ones [createPasskey] writes, with the same
   /// protection flags. No backup here: that is the coordinator's, as for
   /// [createPasskey]. Returns the new entry's id.
+  @override
   Future<String> createEntryWithPasskey({
     required String databasePath,
     required String password,
@@ -637,6 +640,7 @@ class VaultKdbxService {
   ///
   /// Written into the first free suffix group, so an entry that already holds
   /// a passkey gains a second rather than losing the first.
+  @override
   Future<void> createPasskey({
     required String databasePath,
     required String password,
@@ -686,6 +690,7 @@ class VaultKdbxService {
   /// clash. Read-only. The recycle bin is not searched, as in
   /// [loadAllEntries]: a binned credential is not one the user can sign in
   /// with, so adoption writes it again rather than dropping it.
+  @override
   Future<({String? credentialEntryId, List<String> accountEntryIds})>
   findPasskeyHolders({
     required String databasePath,

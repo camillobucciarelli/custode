@@ -34,6 +34,7 @@ import '../data/services/vault_csv_import_service.dart';
 import '../data/services/vault_duplicate_service.dart';
 import '../data/services/vault_kdbx_service.dart';
 import '../data/services/metadata_recovery_service.dart';
+import '../domain/repositories/passkey_adoption_vault_port.dart';
 import '../domain/repositories/database_file_repository.dart';
 import '../domain/repositories/database_registry_repository.dart';
 import '../domain/repositories/database_security_repository.dart';
@@ -164,6 +165,9 @@ void registerPasswordManagerDataDependencies(GetIt sl) {
   sl.registerLazySingleton(() => VaultDuplicateService());
   sl.registerLazySingleton(
     () => VaultKdbxService(mutex: sl(), fileHashRecorder: sl()),
+  );
+  sl.registerLazySingleton<PasskeyAdoptionVaultPort>(
+    () => sl<VaultKdbxService>(),
   );
   sl.registerLazySingleton(
     () => DatabaseImportService(

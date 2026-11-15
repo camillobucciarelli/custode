@@ -207,7 +207,7 @@ void main() {
     vault = _FakeVault();
     holder = SessionSecretHolder()..set('secret');
     coordinator = PendingPasskeyAdoptionCoordinator(
-      vaultKdbxService: vault,
+      vault: vault,
       sessionSecretHolder: holder,
       databaseFileRepository: FakeDatabaseFileRepository(),
       pendingPasskeyPort: port,
@@ -258,7 +258,7 @@ void main() {
       ],
     );
     final named = PendingPasskeyAdoptionCoordinator(
-      vaultKdbxService: vault,
+      vault: vault,
       sessionSecretHolder: holder,
       databaseFileRepository: FakeDatabaseFileRepository(),
       pendingPasskeyPort: port,
@@ -602,7 +602,7 @@ void main() {
         final service = VaultKdbxService();
         var backupAtWrite = false;
         final real = PendingPasskeyAdoptionCoordinator(
-          vaultKdbxService: service,
+          vault: service,
           sessionSecretHolder: SessionSecretHolder()..set(password),
           databaseFileRepository: _RecordingFiles(() => backupAtWrite = true),
           pendingPasskeyPort: port,
@@ -668,7 +668,7 @@ void main() {
       );
       final service = VaultKdbxService();
       final real = PendingPasskeyAdoptionCoordinator(
-        vaultKdbxService: service,
+        vault: service,
         sessionSecretHolder: SessionSecretHolder()..set(password),
         databaseFileRepository: FakeDatabaseFileRepository(),
         pendingPasskeyPort: port,
