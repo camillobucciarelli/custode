@@ -1,12 +1,11 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'package:loggy/loggy.dart';
 
 import '../../domain/models/apple_autofill_v2_models.dart';
 import '../../domain/models/vault_entry.dart';
 import '../../domain/repositories/autofill_ports.dart';
+import '../../domain/repositories/database_registry_repository.dart';
 import '../../domain/services/apple_autofill_v2_payload_mapper.dart';
+import '../../domain/services/autofill_database_id.dart';
 
 abstract interface class AppleAutofillV2CoordinatorContract {
   Future<void> publishVault({
@@ -48,7 +47,11 @@ class NoopAppleAutofillV2Coordinator
 }
 
 class AppleAutofillV2Coordinator implements AppleAutofillV2CoordinatorContract {
-  AppleAutofillV2Coordinator({required this.client, required this.mapper});
+  AppleAutofillV2Coordinator({
+    required this.client,
+    required this.mapper,
+    this.databaseRegistry,
+  });
 
   /// Android only: how long one device authentication is reused before the
   /// picker prompts again. Long enough that filling a username field and then
@@ -59,6 +62,10 @@ class AppleAutofillV2Coordinator implements AppleAutofillV2CoordinatorContract {
   final AppleAutofillV2Client client;
   final AppleAutofillV2PayloadMapper mapper;
 
+  /// Resolves the stable id the cache is published under; without it (or for
+  /// an unregistered path) the id is the legacy path hash.
+  final DatabaseRegistryRepository? databaseRegistry;
+
   @override
   Future<void> publishVault({
     required String databasePath,
@@ -68,15 +75,15 @@ class AppleAutofillV2Coordinator implements AppleAutofillV2CoordinatorContract {
       return;
     }
 
-    final databaseId = _databaseIdForPath(databasePath);
-    if (databaseId == null) {
+    final ids = await _idsForPath(databasePath);
+    if (ids == null) {
       await clearCredentials();
       return;
     }
 
     try {
       await client.publishCredentials(
-        databaseId: databaseId,
+        databaseId: ids.published,
         credentials: mapper.mapEntries(entries),
         authSessionTtlMs: authSessionTtl.inMilliseconds,
       );
@@ -93,9 +100,7 @@ class AppleAutofillV2Coordinator implements AppleAutofillV2CoordinatorContract {
 
     try {
       await client.clearCredentials(
-        databaseId: databasePath == null
-            ? null
-            : _databaseIdForPath(databasePath),
+        databaseId: (await _idsForPath(databasePath))?.published,
       );
     } catch (e, st) {
       logWarning('Apple Autofill v2 clear failed.', e, st);
@@ -110,15 +115,16 @@ class AppleAutofillV2Coordinator implements AppleAutofillV2CoordinatorContract {
       return const [];
     }
 
-    final databaseId = _databaseIdForPath(databasePath);
-    if (databaseId == null) {
+    final ids = await _idsForPath(databasePath);
+    if (ids == null) {
       return const [];
     }
 
     try {
       final pendingAssociations = await client.readPendingAssociations();
       return pendingAssociations
-          .where((association) => association.databaseId == databaseId)
+          // Associations queued before the registry id carry the path hash.
+          .where((association) => ids.matches(association.databaseId))
           .toList(growable: false);
     } catch (e, st) {
       logWarning('Apple Autofill v2 read pending associations failed.', e, st);
@@ -139,11 +145,10 @@ class AppleAutofillV2Coordinator implements AppleAutofillV2CoordinatorContract {
     }
   }
 
-  String? _databaseIdForPath(String? databasePath) {
-    final normalized = databasePath?.trim();
-    if (normalized == null || normalized.isEmpty) {
+  Future<AutofillDatabaseIds?> _idsForPath(String? databasePath) async {
+    if (databasePath == null || databasePath.trim().isEmpty) {
       return null;
     }
-    return 'sha256:${sha256.convert(utf8.encode(normalized))}';
+    return autofillDatabaseIdsFor(databasePath, databaseRegistry);
   }
 }

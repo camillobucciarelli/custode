@@ -33,7 +33,11 @@ void registerPasswordManagerPresentationDependencies(GetIt sl) {
 
   sl.registerLazySingleton<AppleAutofillV2CoordinatorContract>(
     () => CompositeAutofillV2Coordinator([
-      AppleAutofillV2Coordinator(client: sl(), mapper: sl()),
+      AppleAutofillV2Coordinator(
+        client: sl(),
+        mapper: sl(),
+        databaseRegistry: sl(),
+      ),
       DesktopBrowserAutofillCoordinator(
         store: sl(),
         mapper: sl(),

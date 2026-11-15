@@ -7,6 +7,7 @@ import '../../domain/repositories/autofill_ports.dart';
 import '../../domain/repositories/database_file_repository.dart';
 import '../../domain/repositories/database_registry_repository.dart';
 import '../../domain/repositories/passkey_adoption_vault_port.dart';
+import '../../domain/services/autofill_database_id.dart';
 import '../../domain/services/host_identity.dart' as host_identity;
 import 'dated_backup_path.dart';
 import 'session_secret_holder.dart';
@@ -89,7 +90,7 @@ class PendingPasskeyOtherVault extends PendingPasskeyRef {
   final String databaseId;
 
   /// Display name of the known database this record is bound to; null when no
-  /// registered database hashes to [databaseId].
+  /// registered database has [databaseId] as its registry id or path hash.
   final String? vaultName;
 }
 
@@ -165,13 +166,9 @@ class PendingPasskeyAdoptionCoordinator {
   final DatabaseFileRepository databaseFileRepository;
   final PendingPasskeyRegistrationPort pendingPasskeyPort;
 
-  /// Only used to name the vault an other-vault record belongs to.
+  /// Resolves the open vault's stable id and names the vault an other-vault
+  /// record belongs to. Without it only the legacy path hash matches.
   final DatabaseRegistryRepository? databaseRegistry;
-
-  /// The id the autofill cache is published under for [databasePath]
-  /// (`sha256:` of the trimmed path), which pending records are bound to.
-  static String databaseIdFor(String databasePath) =>
-      host_identity.databaseIdForPath(databasePath);
 
   /// Tail of the queue every queue-mutating call runs behind. The vault mutex
   /// is taken per read/write, not across check-then-write, so two overlapping
@@ -224,11 +221,14 @@ class PendingPasskeyAdoptionCoordinator {
         readErrorCode: e.code,
       );
     }
-    final openId = databaseIdFor(databasePath);
+    // T036: the open vault is known by its registry id and, for records
+    // written before that id existed, by the hash of its path. Exact match on
+    // those two ids only: the id decides which vault a credential lands in.
+    final open = await autofillDatabaseIdsFor(databasePath, databaseRegistry);
     final out = _Builder()..unreadableCount = pending.unreadableCount;
     Map<String, String>? names;
     for (final record in pending.records) {
-      if (record.databaseId != openId) {
+      if (!open.matches(record.databaseId)) {
         names ??= await _knownVaultNames();
         out.otherVault.add(
           PendingPasskeyOtherVault(
@@ -250,13 +250,16 @@ class PendingPasskeyAdoptionCoordinator {
     return out.build();
   }
 
-  /// `databaseIdFor(path)` -> display name, for every registered database. A
-  /// registry that cannot be read only costs the name, never the adoption.
+  /// Both ids of every registered database (registry id and legacy path hash)
+  /// -> display name. A registry that cannot be read only costs the name.
   Future<Map<String, String>> _knownVaultNames() async {
     try {
       final records = await databaseRegistry?.list() ?? const [];
       return {
-        for (final r in records) databaseIdFor(r.canonicalPath): r.displayName,
+        for (final r in records) ...{
+          host_identity.databaseIdForPath(r.canonicalPath): r.displayName,
+          registryAutofillDatabaseId(r.databaseId): r.displayName,
+        },
       };
     } on Object {
       return const {};

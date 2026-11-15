@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
 import 'package:password_manager/features/password_manager/domain/models/apple_autofill_v2_models.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_entry.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/autofill_ports.dart';
+import 'package:password_manager/features/password_manager/domain/repositories/database_registry_repository.dart';
 import 'package:password_manager/features/password_manager/domain/services/apple_autofill_v2_payload_mapper.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/apple_autofill_v2_coordinator.dart';
 
@@ -38,6 +40,67 @@ void main() {
         );
       },
     );
+
+    // T036: a registered vault is published under its registry id, which
+    // does not move with the path. Unregistered paths keep the path hash
+    // (the test above, which has no registry).
+    test('publishes a registered vault under its registry id', () async {
+      final client = _FakeAppleAutofillV2Client();
+      final registry = _FakeRegistry('/private/vaults/main.kdbx');
+      final coordinator = AppleAutofillV2Coordinator(
+        client: client,
+        mapper: const AppleAutofillV2PayloadMapper(),
+        databaseRegistry: registry,
+      );
+
+      await coordinator.publishVault(
+        databasePath: '/private/vaults/main.kdbx',
+        entries: [_entry()],
+      );
+      expect(client.publishedDatabaseId, 'reg:vault-1');
+
+      registry.path = '/relocated/main.kdbx';
+      await coordinator.publishVault(
+        databasePath: '/relocated/main.kdbx',
+        entries: [_entry()],
+      );
+      expect(client.publishedDatabaseId, 'reg:vault-1');
+
+      await coordinator.publishVault(
+        databasePath: '/private/vaults/unregistered.kdbx',
+        entries: [_entry()],
+      );
+      expect(
+        client.publishedDatabaseId,
+        _databaseIdForPath('/private/vaults/unregistered.kdbx'),
+      );
+    });
+
+    test('readPendingAssociations accepts the registry id and the legacy '
+        'path hash of the open vault, nothing else', () async {
+      const databasePath = '/private/vaults/main.kdbx';
+      final client = _FakeAppleAutofillV2Client()
+        ..pendingAssociations = [
+          _pendingAssociation(id: 'p-reg', databaseId: 'reg:vault-1'),
+          _pendingAssociation(
+            id: 'p-legacy',
+            databaseId: _databaseIdForPath(databasePath),
+          ),
+          _pendingAssociation(id: 'p-other', databaseId: 'reg:vault-2'),
+          _pendingAssociation(id: 'p-bare', databaseId: 'vault-1'),
+        ];
+      final coordinator = AppleAutofillV2Coordinator(
+        client: client,
+        mapper: const AppleAutofillV2PayloadMapper(),
+        databaseRegistry: _FakeRegistry(databasePath),
+      );
+
+      final pending = await coordinator.readPendingAssociations(
+        databasePath: databasePath,
+      );
+
+      expect(pending.map((p) => p.id), ['p-reg', 'p-legacy']);
+    });
 
     test('clearCredentials delegates to client on Apple platforms', () async {
       final client = _FakeAppleAutofillV2Client();
@@ -301,4 +364,25 @@ class _FakeAppleAutofillV2Client implements AppleAutofillV2Client {
       cacheAvailable: false,
     );
   }
+}
+
+class _FakeRegistry implements DatabaseRegistryRepository {
+  _FakeRegistry(this.path);
+
+  String path;
+
+  @override
+  Future<List<DatabaseRecord>> list() async => [
+    DatabaseRecord(
+      databaseId: 'vault-1',
+      canonicalPath: path,
+      displayName: 'Main',
+      sourceType: DatabaseSourceType.local,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    ),
+  ];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
