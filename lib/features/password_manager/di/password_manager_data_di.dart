@@ -6,6 +6,7 @@ import '../data/datasources/database_security_local_data_source.dart';
 import '../data/datasources/google_token_data_source.dart';
 import '../data/datasources/key_file_names_data_source.dart';
 import '../data/datasources/local_data_source.dart';
+import '../data/datasources/qr_code_decoder_data_source.dart';
 import '../data/datasources/secure_data_source.dart';
 import '../data/datasources/sync_metadata_data_source.dart';
 import '../data/repositories/database_registry_repository_impl.dart';
@@ -44,6 +45,7 @@ import '../domain/repositories/autofill_ports.dart';
 import '../domain/repositories/cloud_storage_provider.dart';
 import '../domain/repositories/metadata_recovery_repository.dart';
 import '../domain/repositories/password_generator_settings_repository.dart';
+import '../domain/repositories/qr_code_decoder.dart';
 import '../domain/repositories/sync_merge_repository.dart';
 import '../domain/services/apple_autofill_v2_payload_mapper.dart';
 import '../domain/services/vault_autofill_matcher.dart';
@@ -111,6 +113,9 @@ void registerPasswordManagerDataDependencies(GetIt sl) {
   );
   sl.registerLazySingleton<BiometricDataSource>(
     () => BiometricDataSourceImpl(localAuthentication: sl()),
+  );
+  sl.registerLazySingleton<QrCodeDecoder>(
+    () => const QrCodeDecoderDataSource(),
   );
   sl.registerLazySingleton<GoogleTokenDataSource>(
     () => GoogleTokenDataSourceImpl(secureStorage: sl()),

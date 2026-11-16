@@ -1278,36 +1278,85 @@ class _OtpQrScannerScreen extends StatefulWidget {
 }
 
 class _OtpQrScannerScreenState extends State<_OtpQrScannerScreen> {
-  bool _isHandlingCapture = false;
   bool _startFailed = false;
   final _manualUriController = TextEditingController();
+  late final OtpQrFrameScanner _scanner;
+  CameraController? _camera;
+
+  @override
+  void initState() {
+    super.initState();
+    // Resolved here, never in dispose(): teardown must not need the locator.
+    _scanner = OtpQrFrameScanner(
+      decode: di.sl<QrCodeDecoder>().decode,
+      onOtpUri: _handleOtpUri,
+      onInvalidQr: _handleInvalidQr,
+    );
+    _startCamera();
+  }
 
   @override
   void dispose() {
+    _scanner.stop();
+    _camera?.dispose();
     _manualUriController.dispose();
     super.dispose();
   }
 
-  void _handleDetect(Code code) {
-    if (_isHandlingCapture) return;
-    final value = code.text?.trim();
-    if (value == null || value.isEmpty) return;
-
-    _isHandlingCapture = true;
-    if (value.startsWith('otpauth://')) {
-      VaultOperationScope.of(context).complete(OtpScanResult(value));
-      return;
+  // Any failed start (no permission, no camera, no platform implementation
+  // under `flutter test`) shows the camera-denied fallback.
+  Future<void> _startCamera() async {
+    try {
+      final cameras = await availableCameras();
+      final camera = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+      if (!mounted) return;
+      final controller = CameraController(
+        camera,
+        ResolutionPreset.high,
+        enableAudio: false,
+        // The platform decoders read plane 0: luminance (Y) on Android, the
+        // BGRA buffer on iOS.
+        imageFormatGroup: defaultTargetPlatform == TargetPlatform.iOS
+            ? ImageFormatGroup.bgra8888
+            : ImageFormatGroup.yuv420,
+      );
+      _camera = controller;
+      await controller.initialize();
+      await controller.startImageStream(_handleFrame);
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) setState(() => _startFailed = true);
     }
+  }
+
+  void _handleFrame(CameraImage image) {
+    final plane = image.planes.first;
+    _scanner.offer(
+      () => QrFrame(
+        // Copied: the plugin may reuse the buffer after this callback.
+        bytes: Uint8List.fromList(plane.bytes),
+        width: image.width,
+        height: image.height,
+        bytesPerRow: plane.bytesPerRow,
+      ),
+    );
+  }
+
+  void _handleOtpUri(String uri) {
+    if (!mounted) return;
+    // Fire-and-forget: dispose() tears the controller down right after.
+    _camera?.stopImageStream().catchError((Object _) {});
+    VaultOperationScope.of(context).complete(OtpScanResult(uri));
+  }
+
+  void _handleInvalidQr() {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('QR does not contain a valid OTP URI.')),
     );
-    _isHandlingCapture = false;
-  }
-
-  // The reader reports a failed camera start (no permission, no camera, no
-  // platform implementation under `flutter test`) as `error`.
-  void _handleControllerCreated(Object? controller, Exception? error) {
-    if (error != null && mounted) setState(() => _startFailed = true);
   }
 
   @override
@@ -1315,21 +1364,18 @@ class _OtpQrScannerScreenState extends State<_OtpQrScannerScreen> {
     if (_startFailed) {
       return _CameraDeniedScreen(manualUriController: _manualUriController);
     }
+    final camera = _camera;
     return _ScanningChrome(
-      onDetect: _handleDetect,
-      onControllerCreated: _handleControllerCreated,
+      camera: camera != null && camera.value.isStreamingImages ? camera : null,
     );
   }
 }
 
 class _ScanningChrome extends StatelessWidget {
-  const _ScanningChrome({
-    required this.onDetect,
-    required this.onControllerCreated,
-  });
+  const _ScanningChrome({required this.camera});
 
-  final void Function(Code) onDetect;
-  final void Function(CameraController?, Exception?) onControllerCreated;
+  /// Null until the camera is streaming.
+  final CameraController? camera;
 
   @override
   Widget build(BuildContext context) {
@@ -1369,21 +1415,10 @@ class _ScanningChrome extends StatelessWidget {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    // ZXing (native FFI), not ML Kit: keeps Google SDKs and
-                    // their telemetry out of the Android build.
-                    child: ReaderWidget(
-                      codeFormat: Format.qrCode,
-                      onScan: onDetect,
-                      onControllerCreated: onControllerCreated,
-                      // Whole frame: our own _ScanFrame is only a hint.
-                      cropPercent: 1,
-                      scanDelay: const Duration(milliseconds: 300),
-                      showScannerOverlay: false,
-                      showFlashlight: false,
-                      showToggleCamera: false,
-                      showGallery: false,
-                      allowPinchZoom: false,
-                    ),
+                    child: camera == null
+                        // Black while the camera starts, like a viewfinder.
+                        ? const ColoredBox(color: Color(0xFF000000))
+                        : _CameraCover(camera: camera!),
                   ),
                   Center(
                     child: Column(
@@ -1431,6 +1466,30 @@ class _ScanningChrome extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The camera preview scaled to cover its box (cropped, never letterboxed).
+class _CameraCover extends StatelessWidget {
+  const _CameraCover({required this.camera});
+
+  final CameraController camera;
+
+  @override
+  Widget build(BuildContext context) {
+    // previewSize is in sensor (landscape) terms.
+    final size = camera.value.previewSize!;
+    final portrait = MediaQuery.orientationOf(context) == Orientation.portrait;
+    return ClipRect(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: portrait ? size.height : size.width,
+          height: portrait ? size.width : size.height,
+          child: CameraPreview(camera),
         ),
       ),
     );

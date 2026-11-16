@@ -12,6 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:password_manager/core/utils/clipboard_guard.dart';
 import 'package:password_manager/core/widgets/kv_pill_button.dart';
+import 'package:password_manager/features/password_manager/data/datasources/qr_code_decoder_data_source.dart';
+import 'package:password_manager/features/password_manager/domain/repositories/qr_code_decoder.dart';
 import 'package:password_manager/features/password_manager/presentation/screens/vault_screen.dart';
 import 'package:password_manager/injection_container.dart' as di;
 import 'package:path/path.dart' as p;
@@ -327,15 +329,18 @@ void main() {
     // flutter_test's foundation-debug-var invariant check runs before
     // group-level tearDown callbacks would otherwise restore it.
     //
-    // flutter_zxing's ReaderWidget lists cameras through the `camera`
-    // plugin, which has no platform implementation under `flutter test`.
-    // The screen turns that failure into the camera-denied UI (exactly what
-    // we want to golden). `hangStart` never answers, so the reader stays in
-    // its "starting" state: used for the scanner-chrome golden so it can
+    // The scanner screen lists cameras through the `camera` plugin, which
+    // has no platform implementation under `flutter test`. The screen turns
+    // that failure into the camera-denied UI (exactly what we want to
+    // golden). `hangStart` never answers, so the screen stays in its
+    // "starting" state: used for the scanner-chrome golden so it can
     // `pumpAndSettle` without racing the failure into view.
     const cameraChannel = MethodChannel('plugins.flutter.io/camera');
 
     void muteScannerEventChannels({required bool hangStart}) {
+      // The scanner screen resolves its decoder in initState; no frame ever
+      // reaches it here, since the camera never starts.
+      di.sl.registerSingleton<QrCodeDecoder>(const QrCodeDecoderDataSource());
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(cameraChannel, (call) async {
             if (hangStart) return Completer<Object?>().future;
@@ -344,6 +349,7 @@ void main() {
     }
 
     void unmuteScannerEventChannels() {
+      di.sl.unregister<QrCodeDecoder>();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(cameraChannel, null);
     }

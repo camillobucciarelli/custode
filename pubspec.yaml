@@ -30,11 +30,11 @@ dependencies:
   local_auth: ^3.0.2
   loggy: ^2.0.3
   otp: ^3.2.1
-  # QR scanning via native ZXing (FFI), not ML Kit: Android must carry no Google
-  # ML Kit / datatransport components (Play Data safety: no data collected).
-  # `camera` is declared because lib/ imports CameraController directly.
+  # QR scanning: the official camera plugin for preview and frames; decoding is
+  # done by platform code in this repo (ZXing `com.google.zxing:core` on
+  # Android, Apple Vision on iOS), not by a third-party Flutter package.
+  # Android must carry no Google ML Kit / datatransport components.
   camera: ^0.12.2
-  flutter_zxing: 3.1.1
   oauth2: ^2.0.5
   path: ^1.9.1
   path_provider: ^2.1.6

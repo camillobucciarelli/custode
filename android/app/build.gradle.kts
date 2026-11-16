@@ -99,6 +99,10 @@ dependencies {
     // below 34 the platform has no credential provider to register with
     // (FR-013).
     implementation("androidx.credentials:credentials:1.6.0")
+    // TOTP QR decoding (QrDecoder.kt). The canonical ZXing Java library from
+    // github.com/zxing/zxing: pure Java, no Android or Google Play services
+    // dependency, no network code.
+    implementation("com.google.zxing:core:3.5.4")
     testImplementation("junit:junit:4.13.2")
     // android.jar stubs org.json on the JVM (every method throws "not mocked");
     // the AndroidAutofillJson tests need a real implementation.
