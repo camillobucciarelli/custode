@@ -3,7 +3,7 @@
 **Application:** Custode Password Manager
 **Data controller:** Camillo Bucciarelli
 **Contact:** bucciarelli.camillo92@gmail.com
-**Last updated:** 2026-11-14
+**Last updated:** 2026-11-16
 
 ## Summary
 
@@ -45,6 +45,10 @@ developer has no access.
 
 ## Optional update check
 
+The update check is not available, and is never shown, in builds installed from
+Google Play; updates there are delivered by Google Play only. It exists only in
+builds installed outside Google Play.
+
 The update check is off by default, and the application makes no request for it
 until you turn on "Check for updates" in Settings. If you enable it:
 
@@ -68,6 +72,16 @@ desktop browser extension with native messaging host) run locally on your
 device. Credentials are passed from the vault to the requesting application or
 browser through operating system channels. Nothing is sent over the network, and
 no record of autofill usage is transmitted anywhere.
+
+## Camera
+
+On mobile devices the application asks for camera access only when you choose
+to scan a TOTP QR code while editing an entry. The camera feeds a barcode
+scanner (the `mobile_scanner` plugin) that reads the `otpauth://` code on your
+device and shows the camera preview on screen. Camera frames and images are not
+saved and are not sent over the network by the application. If you deny the
+permission, you can type the OTP URI by hand instead. The camera is not used
+for anything else.
 
 ## Network connections
 
