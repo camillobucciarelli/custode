@@ -1,3 +1,4 @@
+import com.github.triplet.gradle.androidpublisher.ReleaseStatus
 import java.util.Properties
 
 val keystoreProperties = Properties()
@@ -110,7 +111,13 @@ play {
         if (serviceAccountEnv != null) file(serviceAccountEnv)
         else rootProject.file("play-service-account.json")
     )
-    track.set("production")
+    // Play rejects non-draft releases until the app has been published once.
+    track.set(System.getenv("GOOGLE_PLAY_TRACK")?.takeIf { it.isNotBlank() } ?: "internal")
+    releaseStatus.set(
+        ReleaseStatus.valueOf(
+            System.getenv("GOOGLE_PLAY_RELEASE_STATUS")?.takeIf { it.isNotBlank() } ?: "DRAFT"
+        )
+    )
     artifactDir.set(
         rootProject.layout.buildDirectory.dir("app/outputs/bundle/release").get().asFile
     )
