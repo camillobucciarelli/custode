@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,6 +8,7 @@ import 'package:loggy/loggy.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_cubit.dart';
+import 'core/update/install_source.dart';
 import 'core/update/update_check_cubit.dart';
 import 'injection_container.dart' as di;
 import 'features/password_manager/presentation/bloc/database_selection/database_selection_bloc.dart';
@@ -29,7 +30,11 @@ Future<void> _bootstrapApp() async {
   // and the biometric prompt can both say why they are asking without waiting
   // on a channel round-trip. Inert wherever save capture is unsupported.
   await di.sl<AndroidAutofillSaveCoordinator>().hasPendingCapture();
-  runApp(const PasswordManagerApp());
+  runApp(
+    PasswordManagerApp(
+      updateCheckSupported: !await isInstalledFromGooglePlay(),
+    ),
+  );
 }
 
 void _configureLogging() {
@@ -65,14 +70,22 @@ bool _isKnownKeyboardRepeatAssertion(FlutterErrorDetails details) {
 }
 
 class PasswordManagerApp extends StatelessWidget {
-  const PasswordManagerApp({super.key});
+  const PasswordManagerApp({super.key, this.updateCheckSupported = true});
+
+  /// False on Google Play installs: Play policy forbids self-update links.
+  final bool updateCheckSupported;
 
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => ThemeCubit(di.sl())),
-        BlocProvider(create: (_) => UpdateCheckCubit(di.sl())..checkOnStart()),
+        BlocProvider(
+          create: (_) => UpdateCheckCubit(
+            di.sl(),
+            supported: !kIsWeb && updateCheckSupported,
+          )..checkOnStart(),
+        ),
         BlocProvider(
           create: (_) =>
               di.sl<DatabaseSelectionBloc>()..add(CheckInitialDatabase()),
