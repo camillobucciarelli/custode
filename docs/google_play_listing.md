@@ -136,7 +136,10 @@ Data types:
   Console asks about IP address processing, answer for this request.
 - Camera: used on device to scan TOTP QR codes. Frames are not stored or sent by
   the app. Camera is a permission, not a Data safety data type.
-- Third-party SDKs: none collects data. QR scanning uses ZXing (`flutter_zxing`),
+- Third-party SDKs: none collects data. QR scanning uses the Flutter
+  team's `camera` plugin for the preview and the ZXing Java library
+  (`com.google.zxing:core`, decoding only, no network code) called from the
+  app's own Kotlin code,
   so the Android build contains no Google ML Kit and no
   `com.google.android.datatransport` component (checked on the merged release
   manifest and the release bundle's dex). The remaining Google Play services
