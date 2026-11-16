@@ -9,7 +9,7 @@ import 'update_check_gateway.dart';
 /// `.github/workflows/release.yml` only bumps the build number after the `+`,
 /// so this string changes only on a deliberate release bump. Kept literal so
 /// no runtime dependency (e.g. `package_info_plus`) has to be added.
-const kApplicationVersion = '0.8.0';
+const kApplicationVersion = '1.0.0';
 
 const kDownloadPageUrl = 'https://custode.camillobucciarelli.dev/';
 
