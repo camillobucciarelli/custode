@@ -50,7 +50,8 @@ const disallowedExternalPackages = <String>{
   'flutter_bloc',
   'flutter_svg',
   'google_fonts',
-  'mobile_scanner',
+  'flutter_zxing',
+  'camera',
   'shared_preferences',
 };
 

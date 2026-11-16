@@ -8,7 +8,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_it/get_it.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:camera/camera.dart' show CameraController;
+import 'package:flutter_zxing/flutter_zxing.dart'
+    show Code, Format, ReaderWidget;
 import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 

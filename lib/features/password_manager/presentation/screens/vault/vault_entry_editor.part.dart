@@ -1278,76 +1278,58 @@ class _OtpQrScannerScreen extends StatefulWidget {
 }
 
 class _OtpQrScannerScreenState extends State<_OtpQrScannerScreen> {
-  final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    formats: const [BarcodeFormat.qrCode],
-    // Started manually below so a failure (no camera permission, or no
-    // platform implementation at all — e.g. under `flutter test`, which
-    // has none) is caught explicitly into `_startFailed` instead of relying
-    // on `MobileScannerState.error`, which this plugin does not always
-    // populate on a failed `start()`.
-    autoStart: false,
-  );
   bool _isHandlingCapture = false;
   bool _startFailed = false;
   final _manualUriController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _controller.start().catchError((Object _) {
-      if (mounted) setState(() => _startFailed = true);
-    });
-  }
-
-  @override
   void dispose() {
-    _controller.dispose();
     _manualUriController.dispose();
     super.dispose();
   }
 
-  void _handleDetect(BarcodeCapture capture) {
+  void _handleDetect(Code code) {
     if (_isHandlingCapture) return;
-    for (final barcode in capture.barcodes) {
-      final value = barcode.rawValue?.trim();
-      if (value == null || value.isEmpty) continue;
+    final value = code.text?.trim();
+    if (value == null || value.isEmpty) return;
 
-      _isHandlingCapture = true;
-      if (value.startsWith('otpauth://')) {
-        VaultOperationScope.of(context).complete(OtpScanResult(value));
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('QR does not contain a valid OTP URI.')),
-      );
-      _isHandlingCapture = false;
+    _isHandlingCapture = true;
+    if (value.startsWith('otpauth://')) {
+      VaultOperationScope.of(context).complete(OtpScanResult(value));
       return;
     }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('QR does not contain a valid OTP URI.')),
+    );
+    _isHandlingCapture = false;
+  }
+
+  // The reader reports a failed camera start (no permission, no camera, no
+  // platform implementation under `flutter test`) as `error`.
+  void _handleControllerCreated(Object? controller, Exception? error) {
+    if (error != null && mounted) setState(() => _startFailed = true);
   }
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<MobileScannerState>(
-      valueListenable: _controller,
-      builder: (context, state, _) {
-        if (state.error != null || _startFailed) {
-          return _CameraDeniedScreen(manualUriController: _manualUriController);
-        }
-        return _ScanningChrome(
-          controller: _controller,
-          onDetect: _handleDetect,
-        );
-      },
+    if (_startFailed) {
+      return _CameraDeniedScreen(manualUriController: _manualUriController);
+    }
+    return _ScanningChrome(
+      onDetect: _handleDetect,
+      onControllerCreated: _handleControllerCreated,
     );
   }
 }
 
 class _ScanningChrome extends StatelessWidget {
-  const _ScanningChrome({required this.controller, required this.onDetect});
+  const _ScanningChrome({
+    required this.onDetect,
+    required this.onControllerCreated,
+  });
 
-  final MobileScannerController controller;
-  final void Function(BarcodeCapture) onDetect;
+  final void Function(Code) onDetect;
+  final void Function(CameraController?, Exception?) onControllerCreated;
 
   @override
   Widget build(BuildContext context) {
@@ -1387,9 +1369,20 @@ class _ScanningChrome extends StatelessWidget {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: MobileScanner(
-                      controller: controller,
-                      onDetect: onDetect,
+                    // ZXing (native FFI), not ML Kit: keeps Google SDKs and
+                    // their telemetry out of the Android build.
+                    child: ReaderWidget(
+                      codeFormat: Format.qrCode,
+                      onScan: onDetect,
+                      onControllerCreated: onControllerCreated,
+                      // Whole frame: our own _ScanFrame is only a hint.
+                      cropPercent: 1,
+                      scanDelay: const Duration(milliseconds: 300),
+                      showScannerOverlay: false,
+                      showFlashlight: false,
+                      showToggleCamera: false,
+                      showGallery: false,
+                      allowPinchZoom: false,
                     ),
                   ),
                   Center(

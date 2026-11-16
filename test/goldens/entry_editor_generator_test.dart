@@ -7,7 +7,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -319,63 +318,34 @@ void main() {
   }
 
   // --- QR scanner / camera denied (forced to a mobile platform: the QR ------
-  // scan affordance and mobile_scanner are Android/iOS-only per
+  // scan affordance and the camera reader are Android/iOS-only per
   // _supportsOtpQrScan()) ------------------------------------------------------
   group('QR / camera-denied (Android platform override)', () {
-    // The QR scan affordance and mobile_scanner are Android/iOS-only per
+    // The QR scan affordance and the camera reader are Android/iOS-only per
     // _supportsOtpQrScan(); the override is set/reset inside each test body
     // (not group setUp/tearDown) so it never outlives that specific test —
     // flutter_test's foundation-debug-var invariant check runs before
     // group-level tearDown callbacks would otherwise restore it.
     //
-    // mobile_scanner has no platform implementation under `flutter test`.
-    // `_controller.start()`'s MissingPluginException is caught by the
-    // screen itself (-> camera-denied UI, exactly what we want to golden).
-    // But the plugin *also* opens two EventChannels (barcode + device
-    // orientation) on mount, independent of that catch, and an unhandled
-    // EventChannel error fails the whole test — those two are muted here
-    // at the binary-messenger level (the 'stop' method call fired on
-    // dispose is muted for the same reason).
-    const methodChannel = MethodChannel(
-      'dev.steenbakker.mobile_scanner/scanner/method',
-    );
-    const eventChannel = MethodChannel(
-      'dev.steenbakker.mobile_scanner/scanner/event',
-    );
-    const orientationChannel = MethodChannel(
-      'dev.steenbakker.mobile_scanner/scanner/deviceOrientation',
-    );
+    // flutter_zxing's ReaderWidget lists cameras through the `camera`
+    // plugin, which has no platform implementation under `flutter test`.
+    // The screen turns that failure into the camera-denied UI (exactly what
+    // we want to golden). `hangStart` never answers, so the reader stays in
+    // its "starting" state: used for the scanner-chrome golden so it can
+    // `pumpAndSettle` without racing the failure into view.
+    const cameraChannel = MethodChannel('plugins.flutter.io/camera');
 
     void muteScannerEventChannels({required bool hangStart}) {
-      final messenger =
-          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-      messenger.setMockMethodCallHandler(eventChannel, (_) async => null);
-      messenger.setMockMethodCallHandler(orientationChannel, (_) async => null);
-      messenger.setMockMethodCallHandler(methodChannel, (call) async {
-        if (call.method == 'stop') return null;
-        // `hangStart`: never resolve, so the controller stays in its
-        // "about to start" state forever — used for the QR-scanner-chrome
-        // golden, so it can safely `pumpAndSettle` (finishing the route
-        // transition) without also racing the plugin's inevitable "no
-        // native implementation" failure into view.
-        // Otherwise: fail immediately — the camera-denied trigger this
-        // test group exists to exercise.
-        if (hangStart) return Completer<Object?>().future;
-        throw MissingPluginException();
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(cameraChannel, (call) async {
+            if (hangStart) return Completer<Object?>().future;
+            throw MissingPluginException();
+          });
     }
 
     void unmuteScannerEventChannels() {
-      final messenger =
-          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-      messenger.setMockMethodCallHandler(eventChannel, null);
-      messenger.setMockMethodCallHandler(orientationChannel, null);
-      messenger.setMockMethodCallHandler(methodChannel, null);
-      // From mobile_scanner 7.5.0 every start waits on one static session
-      // lock. The scanner-chrome golden never resolves its start, so without
-      // this reset it holds that lock for the rest of the file: later starts
-      // wait instead of failing, and the camera-denied screen never shows.
-      MobileScannerController.resetPlatformSessionOwner();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(cameraChannel, null);
     }
 
     Future<void> openScanner(WidgetTester tester) async {
