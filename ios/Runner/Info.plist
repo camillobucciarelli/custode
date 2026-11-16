@@ -51,6 +51,8 @@
 	<string>Use Face ID to unlock your password database.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Use the camera to scan OTP QR codes.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Custode does not use your location. This text is required because a bundled library (the file picker's image picker) references location APIs.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Use your photo library to select key files and import attachments.</string>
 	<key>UIApplicationSceneManifest</key>
