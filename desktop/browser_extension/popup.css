@@ -91,7 +91,7 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-/* Header — 38 tall, mark 22 radius 7, title 12.5/600, beta tag right. */
+/* Header — 38 tall, mark 22 radius 7, title 12.5/600. */
 .pop-header {
   height: 38px;
   flex: none;
@@ -116,16 +116,6 @@ body {
 .pop-title {
   font-size: 12.5px;
   font-weight: 600;
-}
-
-.pop-beta {
-  margin-left: auto;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 600;
-  background: var(--pop-tag-strong-bg);
-  color: var(--pop-tag-strong-text);
 }
 
 /* Body — padding 14, gap 12. */

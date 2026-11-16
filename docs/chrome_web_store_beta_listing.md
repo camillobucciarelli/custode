@@ -4,16 +4,14 @@
 
 **Name**
 
-Custode Browser Autofill BETA
+Custode Browser Autofill
 
 **Summary**
 
-Beta autofill for Custode desktop through a local Native Messaging host, with
+Autofill for Custode desktop through a local Native Messaging host, with
 explicit fills only.
 
 **Detailed description**
-
-THIS EXTENSION IS FOR BETA TESTING.
 
 Custode Browser Autofill connects Chrome to the locally installed Custode
 desktop app. Open the popup to find credential metadata matching the current
