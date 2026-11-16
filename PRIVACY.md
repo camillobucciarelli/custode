@@ -77,7 +77,8 @@ no record of autofill usage is transmitted anywhere.
 
 On mobile devices the application asks for camera access only when you choose
 to scan a TOTP QR code while editing an entry. The camera feeds a barcode
-scanner (the `mobile_scanner` plugin) that reads the `otpauth://` code on your
+scanner (ZXing, running natively on the device, with no Google ML Kit or
+other third-party analytics component) that reads the `otpauth://` code on your
 device and shows the camera preview on screen. Camera frames and images are not
 saved and are not sent over the network by the application. If you deny the
 permission, you can type the OTP URI by hand instead. The camera is not used

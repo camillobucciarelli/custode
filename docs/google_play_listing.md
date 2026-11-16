@@ -136,12 +136,12 @@ Data types:
   Console asks about IP address processing, answer for this request.
 - Camera: used on device to scan TOTP QR codes. Frames are not stored or sent by
   the app. Camera is a permission, not a Data safety data type.
-- Open point, not verified: the Android build bundles the ML Kit barcode
-  scanner (default of `mobile_scanner`, no unbundled override in
-  `android/gradle.properties`). Scanning runs on device, but whether ML Kit
-  itself reports usage or performance metrics to Google was not verified from
-  the code or from the plugin README. Check the ML Kit data disclosure page
-  before declaring "no data collected", and extend PRIVACY.md if it applies.
+- Third-party SDKs: none collects data. QR scanning uses ZXing (`flutter_zxing`),
+  so the Android build contains no Google ML Kit and no
+  `com.google.android.datatransport` component (checked on the merged release
+  manifest and the release bundle's dex). The remaining Google Play services
+  entries come from Google Sign-In (Drive sync, user-initiated) and are not
+  telemetry.
 
 ## Graphic assets
 
