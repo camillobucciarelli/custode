@@ -788,7 +788,7 @@ const _kApplicationLegalese =
     'Copyright (C) 2026 Camillo Bucciarelli - AGPL-3.0';
 
 const _kPrivacyPolicyUrl =
-    'https://github.com/camillobucciarelli/key-vault-password-manager/blob/main/PRIVACY.md';
+    'https://github.com/camillobucciarelli/custode/blob/main/PRIVACY.md';
 
 const _kAppLicenceUrl =
     'https://github.com/camillobucciarelli/custode/blob/main/LICENSE';
