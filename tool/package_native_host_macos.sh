@@ -11,8 +11,12 @@ PACKAGE_ID="dev.camillobucciarelli.keyvault.native-host"
 usage() {
   cat <<'EOF'
 Usage: bash tool/package_native_host_macos.sh [--output <path>] [--version <version>]
+       bash tool/package_native_host_macos.sh --smoke-host <path-to-keyvault_native_host>
 
-Builds, signs, notarizes, and staples universal Custode Chrome native-host pkg.
+Builds, signs, notarizes, and staples the Custode Chrome native-host pkg (arm64 and x86_64).
+
+--smoke-host runs only the launch smoke check against an already staged host
+(no signing identities or credentials needed).
 
 Required environment:
   DEVELOPER_ID_APPLICATION
@@ -46,6 +50,40 @@ retry() {
   done
 }
 
+# Launch the host the way Chrome does (argv[1] = extension origin, framed
+# `hello` on stdin) once per shipped architecture and require a framed
+# {"ok": true} reply. `hello` answers ok even when the app bridge is down, so
+# no running app is needed. Guards against a host that starts but dies at
+# launch (e.g. a lipo-merged Dart AOT exe: "... is not an AOT snapshot", 255).
+smoke_host() {
+  local host="$1" host_arch home_dir
+  home_dir="$(mktemp -d "${TMPDIR:-/tmp}/keyvault-smoke.XXXXXX")"
+  for host_arch in arm64 x86_64; do
+    if [[ "${host_arch}" == "x86_64" ]] && ! arch -x86_64 /usr/bin/true 2>/dev/null; then
+      printf 'Skipping x86_64 smoke check: Rosetta 2 is not available.\n'
+      continue
+    fi
+    HOME="${home_dir}" python3 - "${host}" "${host_arch}" <<'PY' || { rm -rf "${home_dir}"; fail "Native host smoke check failed for ${host_arch}."; }
+import json, struct, subprocess, sys
+host, arch = sys.argv[1:]
+msg = json.dumps({"version": 2, "type": "hello"}).encode()
+p = subprocess.run(
+    ["arch", "-" + arch, host, "chrome-extension://abcdefghijklmnopabcdefghijklmnop/"],
+    input=struct.pack("<I", len(msg)) + msg, capture_output=True, timeout=30)
+out = p.stdout
+try:
+    n = struct.unpack("<I", out[:4])[0]
+    assert len(out) == 4 + n
+    ok = json.loads(out[4:])["ok"] is True
+except Exception:
+    ok = False
+print("%s: rc=%s ok=%s stderr=%r" % (arch, p.returncode, ok, p.stderr[:200]))
+sys.exit(0 if ok else 1)
+PY
+  done
+  rm -rf "${home_dir}"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --output)
@@ -57,6 +95,11 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || fail "--version requires a value."
       PACKAGE_VERSION="$2"
       shift 2
+      ;;
+    --smoke-host)
+      [[ $# -ge 2 ]] || fail "--smoke-host requires a path."
+      smoke_host "$2"
+      exit 0
       ;;
     -h|--help)
       usage
@@ -128,7 +171,7 @@ OUTPUT_PATH="$(cd -- "$(dirname -- "${OUTPUT_PATH}")" && pwd -P)/$(basename -- "
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/keyvault-native-host.XXXXXX")"
 trap 'rm -rf "${WORK_DIR}"' EXIT
 ARM64_HOST="${WORK_DIR}/keyvault_native_host-arm64"
-X64_HOST="${WORK_DIR}/keyvault_native_host-x64"
+X64_HOST="${WORK_DIR}/keyvault_native_host-x64"  # compile output; staged as -x86_64
 X64_SDK_ARCHIVE="${WORK_DIR}/dartsdk-macos-x64-release.zip"
 X64_SDK_CHECKSUM="${X64_SDK_ARCHIVE}.sha256sum"
 X64_SDK_DIR="${WORK_DIR}/x64-sdk"
@@ -148,7 +191,7 @@ MANIFEST_DIRS=(
 HOST_PATH="${HOST_DIR}/keyvault_native_host"
 UNSIGNED_PACKAGE="${WORK_DIR}/keyvault-native-host-unsigned.pkg"
 
-[[ "$(uname -m)" == "arm64" ]] || fail "Universal package build requires an Apple Silicon runner."
+[[ "$(uname -m)" == "arm64" ]] || fail "Package build requires an Apple Silicon runner."
 arch -x86_64 /usr/bin/true || fail "Rosetta 2 is required to build the x64 native host."
 
 printf 'Compiling arm64 native host...\n'
@@ -176,12 +219,16 @@ printf 'Compiling x64 native host under Rosetta...\n'
 (cd "${ROOT_DIR}" && arch -x86_64 "${X64_DART}" compile exe tool/native_host.dart -o "${X64_HOST}")
 
 install -d -m 0755 "${HOST_DIR}" "${MANIFEST_DIRS[@]}"
-lipo -create "${ARM64_HOST}" "${X64_HOST}" -output "${HOST_PATH}"
-# One architecture per call: newer lipo reads a second -verify_arch argument
-# as another input file ("-verify_arch requires exactly one input file").
-for host_arch in arm64 x86_64; do
-  lipo "${HOST_PATH}" -verify_arch "${host_arch}"
-done
+# ponytail: no lipo. A Dart AOT exe locates its snapshot via a Mach-O LC_NOTE
+# that a fat file loses (runtime then dies "is not an AOT snapshot", exit 255),
+# so ship two thin binaries and a /bin/sh launcher at the manifest path.
+ARM64_STAGED="${HOST_DIR}/keyvault_native_host-arm64"
+X64_STAGED="${HOST_DIR}/keyvault_native_host-x86_64"
+install -m 0755 "${ARM64_HOST}" "${ARM64_STAGED}"
+install -m 0755 "${X64_HOST}" "${X64_STAGED}"
+lipo "${ARM64_STAGED}" -verify_arch arm64
+lipo "${X64_STAGED}" -verify_arch x86_64
+printf '%s\n' '#!/bin/sh' 'exec "$(dirname "$0")/keyvault_native_host-$(uname -m)" "$@"' > "${HOST_PATH}"
 chmod 0755 "${HOST_PATH}"
 # Hardened runtime is required for notarization, but it kills Dart AOT
 # binaries at launch (the runtime maps the embedded snapshot as executable
@@ -199,10 +246,12 @@ chmod 0755 "${HOST_PATH}"
 HOST_ENTITLEMENTS="${SCRIPT_DIR}/native_host_macos.entitlements"
 [[ -f "${HOST_ENTITLEMENTS}" ]] || fail "Host entitlements file not found: ${HOST_ENTITLEMENTS}"
 plutil -lint "${HOST_ENTITLEMENTS}" || fail "Host entitlements file is invalid: ${HOST_ENTITLEMENTS}"
-codesign --force --options runtime --timestamp \
-  --entitlements "${HOST_ENTITLEMENTS}" \
-  --sign "${APPLICATION_IDENTITY}" "${HOST_PATH}"
-codesign --verify --strict --verbose=2 "${HOST_PATH}"
+for signed_host in "${ARM64_STAGED}" "${X64_STAGED}"; do
+  codesign --force --options runtime --timestamp \
+    --entitlements "${HOST_ENTITLEMENTS}" \
+    --sign "${APPLICATION_IDENTITY}" "${signed_host}"
+  codesign --verify --strict --verbose=2 "${signed_host}"
+done
 for manifest_dir in "${MANIFEST_DIRS[@]}"; do
   install -m 0644 "${MANIFEST}" "${manifest_dir}/$(basename -- "${MANIFEST}")"
 done
@@ -210,6 +259,7 @@ done
 install -m 0644 "${ROOT_DIR}/LICENSE" "${HOST_DIR}/LICENSE"
 install -m 0644 "${ROOT_DIR}/LICENSE-EXCEPTIONS.txt" "${HOST_DIR}/LICENSE-EXCEPTIONS.txt"
 xattr -cr "${PAYLOAD_ROOT}"
+smoke_host "${HOST_PATH}"
 
 COPYFILE_DISABLE=1 pkgbuild \
   --root "${PAYLOAD_ROOT}" \
