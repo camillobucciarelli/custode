@@ -2,8 +2,10 @@ name: Release
 
 # Manual only. Every merge to main used to ship a full release (App Store,
 # Chrome Web Store); now a human picks the channel:
-#   beta    -> GitHub pre-release tagged vX.Y.Z-beta+N, no store publishing
-#   release -> GitHub release tagged vX.Y.Z+N, App Store + Chrome Web Store
+#   beta    -> GitHub pre-release tagged vX.Y.Z-beta+N
+#   release -> GitHub release tagged vX.Y.Z+N
+# Both channels also publish to App Store Connect, the Chrome Web Store and
+# Google Play (internal track), each behind its own approval environment.
 # Both bump the build number and commit it to the dispatched branch.
 on:
   workflow_dispatch:
@@ -115,6 +117,42 @@ jobs:
           name: ${{ needs.version.outputs.tag }}
           prerelease: ${{ inputs.channel == 'beta' }}
           files: dist/prod_packages/*/password_manager-android-release.apk
+
+      # The build above already produces the signed app bundle Play requires.
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-aab
+          path: dist/prod_packages/*/password_manager-android-release.aab
+          retention-days: 1
+
+  # Internal track is the analog of the TestFlight upload; promotion to
+  # closed/production stays manual in Play Console. Play rejects a versionCode
+  # that is not strictly higher than the last uploaded one.
+  play-store-publish:
+    needs: [ version, android ]
+    runs-on: ubuntu-latest
+    environment: play-store
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: android-aab
+          path: dist/android-aab
+
+      - name: Check service account secret
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          : "${PLAY_SERVICE_ACCOUNT_JSON:?Missing PLAY_SERVICE_ACCOUNT_JSON secret}"
+
+      - name: Upload to Google Play (internal track)
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: dev.camillobucciarelli.kdbxKeyVault
+          releaseFiles: dist/android-aab/password_manager-android-release.aab
+          track: internal
+          status: completed
 
   linux:
     needs: version
