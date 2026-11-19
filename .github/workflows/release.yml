@@ -131,7 +131,7 @@ jobs:
   google-play-publish:
     needs: [ version, android ]
     runs-on: ubuntu-latest
-    environment: google-play
+    environment: play-store
     steps:
       - uses: actions/checkout@v7
         with:
@@ -161,11 +161,11 @@ jobs:
 
       - name: Publish to Google Play
         env:
-          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_CONTENT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_CONTENT: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           GOOGLE_PLAY_TRACK: ${{ vars.GOOGLE_PLAY_TRACK }}
           GOOGLE_PLAY_RELEASE_STATUS: ${{ vars.GOOGLE_PLAY_RELEASE_STATUS }}
         run: |
-          : "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_CONTENT:?Missing GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret}"
+          : "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_CONTENT:?Missing PLAY_SERVICE_ACCOUNT_JSON secret in the play-store environment}"
           credentials="${RUNNER_TEMP}/play-service-account.json"
           umask 077
           printf '%s' "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_CONTENT}" > "${credentials}"
