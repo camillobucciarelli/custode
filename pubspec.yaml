@@ -55,7 +55,7 @@ dependencies:
   # Flutter 3.50 deprecates package:flutter/material.dart and cupertino.dart
   # in favour of these two packages, which now own the widgets.
   cupertino_ui: ^1.1.6
-  material_ui: ^1.11.0
+  material_ui: ^1.11.1
 
 dev_dependencies:
   flutter_test:
