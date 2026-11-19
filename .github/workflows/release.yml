@@ -150,7 +150,7 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: dev.camillobucciarelli.kdbxKeyVault
-          releaseFiles: dist/android-aab/password_manager-android-release.aab
+          releaseFiles: dist/android-aab/*/password_manager-android-release.aab
           track: internal
           status: completed
 
