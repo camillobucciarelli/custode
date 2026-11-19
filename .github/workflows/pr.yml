@@ -446,7 +446,7 @@ jobs:
         run: node tool/mutation_runner.mjs --dry-run
 
   dependency-audit:
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.7.0
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.7.1
     with:
       scan-args: |-
         --lockfile=pubspec.lock
