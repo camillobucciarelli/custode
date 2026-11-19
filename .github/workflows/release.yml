@@ -1,10 +1,14 @@
 name: Release
 
-# Manual only. Every merge to main used to ship a full release (App Store,
-# Chrome Web Store); now a human picks the channel:
-#   beta    -> GitHub pre-release tagged vX.Y.Z-beta+N, no store publishing
-#   release -> GitHub release tagged vX.Y.Z+N, App Store + Chrome Web Store
-# Both bump the build number and commit it to the dispatched branch.
+# Manual only. Every merge to main used to ship a full release; now a human
+# picks the channel:
+#   beta    -> GitHub pre-release tagged vX.Y.Z-beta+N
+#   release -> GitHub release tagged vX.Y.Z+N
+# Both bump the build number and commit it to the dispatched branch, and both
+# run every store publish job (App Store, Chrome Web Store, Google Play): the
+# channel only changes the tag suffix and the GitHub pre-release flag. Google
+# Play goes to the track and release status set in the GOOGLE_PLAY_TRACK and
+# GOOGLE_PLAY_RELEASE_STATUS repository variables (default: internal, draft).
 on:
   workflow_dispatch:
     inputs:
@@ -115,6 +119,62 @@ jobs:
           name: ${{ needs.version.outputs.tag }}
           prerelease: ${{ inputs.channel == 'beta' }}
           files: dist/prod_packages/*/password_manager-android-release.apk
+
+      # Same file name Gradle Play Publisher reads from `artifactDir`.
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 1
+
+  google-play-publish:
+    needs: [ version, android ]
+    runs-on: ubuntu-latest
+    environment: google-play
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # See the android job: .fvmrc is the only place the version lives.
+          channel: stable
+          flutter-version-file: .fvmrc
+
+      # Gradle needs android/local.properties (flutter.sdk) and the plugin list
+      # that `flutter pub get` writes, plus the Gradle wrapper, which is
+      # gitignored and normally injected by `flutter build`. No build happens
+      # here: the AAB comes from the android job.
+      - name: Prepare Gradle project
+        run: |
+          flutter pub get
+          flutter_root="$(dirname "$(dirname "$(command -v flutter)")")"
+          cp -R "${flutter_root}/bin/cache/artifacts/gradle_wrapper/." android/
+          chmod +x android/gradlew
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: android-aab
+          path: build/app/outputs/bundle/release
+
+      - name: Publish to Google Play
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_CONTENT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_PLAY_TRACK: ${{ vars.GOOGLE_PLAY_TRACK }}
+          GOOGLE_PLAY_RELEASE_STATUS: ${{ vars.GOOGLE_PLAY_RELEASE_STATUS }}
+        run: |
+          : "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_CONTENT:?Missing GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret}"
+          credentials="${RUNNER_TEMP}/play-service-account.json"
+          umask 077
+          printf '%s' "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_CONTENT}" > "${credentials}"
+          # Empty variables fall back to the Gradle defaults (internal, DRAFT).
+          # The first AAB of a new app must be uploaded in Play Console by hand
+          # before the API accepts uploads (Gradle Play Publisher README).
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="${credentials}" \
+            ./android/gradlew -p android publishReleaseBundle
+          rm -f "${credentials}"
 
   linux:
     needs: version

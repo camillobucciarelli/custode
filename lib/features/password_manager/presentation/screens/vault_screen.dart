@@ -8,7 +8,15 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_it/get_it.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:camera/camera.dart'
+    show
+        CameraController,
+        CameraImage,
+        CameraLensDirection,
+        CameraPreview,
+        ImageFormatGroup,
+        ResolutionPreset,
+        availableCameras;
 import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -91,10 +99,12 @@ import '../widgets/sync/sync_status_hero.dart';
 import 'autofill_enablement_screen.dart';
 import '../../data/services/browser_setup_service.dart';
 import '../../domain/repositories/autofill_ports.dart';
+import '../../domain/repositories/qr_code_decoder.dart';
 import 'browser_setup_screen.dart';
 import 'change_master_password_screen.dart';
 import 'database_selection_screen.dart';
 import 'database_unlock_screen.dart';
+import '../utils/otp_qr_frame_scanner.dart';
 import '../utils/totp_utils.dart';
 import '../utils/platform_utils.dart';
 import '../widgets/managed_key_picker_gate.dart';

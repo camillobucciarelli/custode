@@ -35,6 +35,14 @@ Environment for App Store Connect signing:
 
   Aliases are also accepted: ASC_API_KEY_PATH, ASC_API_KEY_ID, ASC_API_ISSUER_ID.
 
+Environment for the android-playstore platform (Gradle Play Publisher):
+  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON     Path to the service account JSON key
+                                       (default: android/play-service-account.json)
+  GOOGLE_PLAY_TRACK                    Target track (default: internal)
+  GOOGLE_PLAY_RELEASE_STATUS           DRAFT, IN_PROGRESS, COMPLETED or HALTED
+                                       (default: DRAFT; Play rejects non-draft
+                                       releases until the app is first published)
+
 Examples:
   tool/build_prod_packages.sh
   tool/build_prod_packages.sh --platforms android,macos

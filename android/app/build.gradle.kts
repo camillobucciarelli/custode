@@ -1,3 +1,4 @@
+import com.github.triplet.gradle.androidpublisher.ReleaseStatus
 import java.util.Properties
 
 val keystoreProperties = Properties()
@@ -98,6 +99,10 @@ dependencies {
     // below 34 the platform has no credential provider to register with
     // (FR-013).
     implementation("androidx.credentials:credentials:1.6.0")
+    // TOTP QR decoding (QrDecoder.kt). The canonical ZXing Java library from
+    // github.com/zxing/zxing: pure Java, no Android or Google Play services
+    // dependency, no network code.
+    implementation("com.google.zxing:core:3.5.4")
     testImplementation("junit:junit:4.13.2")
     // android.jar stubs org.json on the JVM (every method throws "not mocked");
     // the AndroidAutofillJson tests need a real implementation.
@@ -110,7 +115,13 @@ play {
         if (serviceAccountEnv != null) file(serviceAccountEnv)
         else rootProject.file("play-service-account.json")
     )
-    track.set("production")
+    // Play rejects non-draft releases until the app has been published once.
+    track.set(System.getenv("GOOGLE_PLAY_TRACK")?.takeIf { it.isNotBlank() } ?: "internal")
+    releaseStatus.set(
+        ReleaseStatus.valueOf(
+            System.getenv("GOOGLE_PLAY_RELEASE_STATUS")?.takeIf { it.isNotBlank() } ?: "DRAFT"
+        )
+    )
     artifactDir.set(
         rootProject.layout.buildDirectory.dir("app/outputs/bundle/release").get().asFile
     )

@@ -1278,76 +1278,104 @@ class _OtpQrScannerScreen extends StatefulWidget {
 }
 
 class _OtpQrScannerScreenState extends State<_OtpQrScannerScreen> {
-  final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    formats: const [BarcodeFormat.qrCode],
-    // Started manually below so a failure (no camera permission, or no
-    // platform implementation at all — e.g. under `flutter test`, which
-    // has none) is caught explicitly into `_startFailed` instead of relying
-    // on `MobileScannerState.error`, which this plugin does not always
-    // populate on a failed `start()`.
-    autoStart: false,
-  );
-  bool _isHandlingCapture = false;
   bool _startFailed = false;
   final _manualUriController = TextEditingController();
+  late final OtpQrFrameScanner _scanner;
+  CameraController? _camera;
 
   @override
   void initState() {
     super.initState();
-    _controller.start().catchError((Object _) {
-      if (mounted) setState(() => _startFailed = true);
-    });
+    // Resolved here, never in dispose(): teardown must not need the locator.
+    _scanner = OtpQrFrameScanner(
+      decode: di.sl<QrCodeDecoder>().decode,
+      onOtpUri: _handleOtpUri,
+      onInvalidQr: _handleInvalidQr,
+    );
+    _startCamera();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _scanner.stop();
+    _camera?.dispose();
     _manualUriController.dispose();
     super.dispose();
   }
 
-  void _handleDetect(BarcodeCapture capture) {
-    if (_isHandlingCapture) return;
-    for (final barcode in capture.barcodes) {
-      final value = barcode.rawValue?.trim();
-      if (value == null || value.isEmpty) continue;
-
-      _isHandlingCapture = true;
-      if (value.startsWith('otpauth://')) {
-        VaultOperationScope.of(context).complete(OtpScanResult(value));
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('QR does not contain a valid OTP URI.')),
+  // Any failed start (no permission, no camera, no platform implementation
+  // under `flutter test`) shows the camera-denied fallback.
+  Future<void> _startCamera() async {
+    try {
+      final cameras = await availableCameras();
+      final camera = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
       );
-      _isHandlingCapture = false;
-      return;
+      if (!mounted) return;
+      final controller = CameraController(
+        camera,
+        ResolutionPreset.high,
+        enableAudio: false,
+        // The platform decoders read plane 0: luminance (Y) on Android, the
+        // BGRA buffer on iOS.
+        imageFormatGroup: defaultTargetPlatform == TargetPlatform.iOS
+            ? ImageFormatGroup.bgra8888
+            : ImageFormatGroup.yuv420,
+      );
+      _camera = controller;
+      await controller.initialize();
+      await controller.startImageStream(_handleFrame);
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) setState(() => _startFailed = true);
     }
+  }
+
+  void _handleFrame(CameraImage image) {
+    final plane = image.planes.first;
+    _scanner.offer(
+      () => QrFrame(
+        // Copied: the plugin may reuse the buffer after this callback.
+        bytes: Uint8List.fromList(plane.bytes),
+        width: image.width,
+        height: image.height,
+        bytesPerRow: plane.bytesPerRow,
+      ),
+    );
+  }
+
+  void _handleOtpUri(String uri) {
+    if (!mounted) return;
+    // Fire-and-forget: dispose() tears the controller down right after.
+    _camera?.stopImageStream().catchError((Object _) {});
+    VaultOperationScope.of(context).complete(OtpScanResult(uri));
+  }
+
+  void _handleInvalidQr() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('QR does not contain a valid OTP URI.')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<MobileScannerState>(
-      valueListenable: _controller,
-      builder: (context, state, _) {
-        if (state.error != null || _startFailed) {
-          return _CameraDeniedScreen(manualUriController: _manualUriController);
-        }
-        return _ScanningChrome(
-          controller: _controller,
-          onDetect: _handleDetect,
-        );
-      },
+    if (_startFailed) {
+      return _CameraDeniedScreen(manualUriController: _manualUriController);
+    }
+    final camera = _camera;
+    return _ScanningChrome(
+      camera: camera != null && camera.value.isStreamingImages ? camera : null,
     );
   }
 }
 
 class _ScanningChrome extends StatelessWidget {
-  const _ScanningChrome({required this.controller, required this.onDetect});
+  const _ScanningChrome({required this.camera});
 
-  final MobileScannerController controller;
-  final void Function(BarcodeCapture) onDetect;
+  /// Null until the camera is streaming.
+  final CameraController? camera;
 
   @override
   Widget build(BuildContext context) {
@@ -1387,10 +1415,10 @@ class _ScanningChrome extends StatelessWidget {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: MobileScanner(
-                      controller: controller,
-                      onDetect: onDetect,
-                    ),
+                    child: camera == null
+                        // Black while the camera starts, like a viewfinder.
+                        ? const ColoredBox(color: Color(0xFF000000))
+                        : _CameraCover(camera: camera!),
                   ),
                   Center(
                     child: Column(
@@ -1438,6 +1466,30 @@ class _ScanningChrome extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The camera preview scaled to cover its box (cropped, never letterboxed).
+class _CameraCover extends StatelessWidget {
+  const _CameraCover({required this.camera});
+
+  final CameraController camera;
+
+  @override
+  Widget build(BuildContext context) {
+    // previewSize is in sensor (landscape) terms.
+    final size = camera.value.previewSize!;
+    final portrait = MediaQuery.orientationOf(context) == Orientation.portrait;
+    return ClipRect(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: portrait ? size.height : size.width,
+          height: portrait ? size.width : size.height,
+          child: CameraPreview(camera),
         ),
       ),
     );

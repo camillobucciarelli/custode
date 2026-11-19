@@ -14,6 +14,7 @@
 		1A2B3C4D5E6F700100000004 /* CredentialProviderPasswordGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000015 /* CredentialProviderPasswordGenerator.swift */; };
 		1A2B3C4D5E6F700100000005 /* CredentialListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000016 /* CredentialListView.swift */; };
 		1A2B3C4D5E6F700100000006 /* AppleAutofillV2Channel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000017 /* AppleAutofillV2Channel.swift */; };
+		1A2B3C4D5E6F7001000000A6 /* QrDecoderChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7001000000A7 /* QrDecoderChannel.swift */; };
 		1A2B3C4D5E6F700100000007 /* SharedAutofillStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000012 /* SharedAutofillStore.swift */; };
 		1A2B3C4D5E6F700100000008 /* PasskeyAssertionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000018 /* PasskeyAssertionBuilder.swift */; };
 		1A2B3C4D5E6F70010000000A /* PasskeyAssertionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700100000018 /* PasskeyAssertionBuilder.swift */; };
@@ -81,6 +82,7 @@
 		1A2B3C4D5E6F700100000015 /* CredentialProviderPasswordGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderPasswordGenerator.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700100000016 /* CredentialListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialListView.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700100000017 /* AppleAutofillV2Channel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleAutofillV2Channel.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F7001000000A7 /* QrDecoderChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QrDecoderChannel.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700100000090 /* Extension.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Extension.xcconfig; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -195,6 +197,7 @@
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				1A2B3C4D5E6F700100000017 /* AppleAutofillV2Channel.swift */,
+				1A2B3C4D5E6F7001000000A7 /* QrDecoderChannel.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
@@ -400,6 +403,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1A2B3C4D5E6F700100000006 /* AppleAutofillV2Channel.swift in Sources */,
+				1A2B3C4D5E6F7001000000A6 /* QrDecoderChannel.swift in Sources */,
 				1A2B3C4D5E6F700100000007 /* SharedAutofillStore.swift in Sources */,
 				1A2B3C4D5E6F70010000000A /* PasskeyAssertionBuilder.swift in Sources */,
 				1A2B3C4D5E6F70010000000C /* PasskeyRegistrationBuilder.swift in Sources */,
