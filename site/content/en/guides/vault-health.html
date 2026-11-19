@@ -1,0 +1,41 @@
+<p class="lead">The Health screen goes through your vault and lists the entries worth fixing: weak, reused or old passwords, duplicates, and entries that autofill cannot match.</p>
+<p class="pills"><span class="pill">All platforms</span><span class="pill">5 minutes</span></p>
+
+<div class="callout">
+<p><strong>Everything is checked on your device</strong></p>
+<p>The checks run on the vault you have already unlocked, without contacting anyone. Custode compares your passwords only with each other, inside your own vault.</p>
+</div>
+
+<h2>Read the screen</h2>
+<p>Open <span class="chip">Health</span>: on a phone it is a tab in the bottom bar, on a computer it is in the sidebar. At the top there is a score from 0 to 100 with a short verdict: <span class="chip">Looking great</span> from 90, <span class="chip">Mostly healthy</span> from 70, <span class="chip">Needs attention</span> from 40, <span class="chip">At risk</span> below. Under it, each category shows how many entries it contains.</p>
+
+<figure class="shot">
+<img class="phone" src="~/assets/img/iphone-health.png" width="660" height="1434" loading="lazy" alt="The Custode Health screen on iPhone: score 90, Looking great, 4 records need attention, and the five categories Weak passwords, Reused passwords, Old passwords, Duplicates and Missing URL or username, each with its count">
+<figcaption>The Health screen on iPhone.</figcaption>
+</figure>
+
+<dl class="facts">
+<div><dt>Weak passwords</dt><dd>Passwords that are too short or too predictable (the app measures them as under 40 bits of entropy).</dd></div>
+<div><dt>Reused passwords</dt><dd>The same password used in two or more entries.</dd></div>
+<div><dt>Old passwords</dt><dd>Passwords not changed in over two years. Entries with no recorded change date are not counted.</dd></div>
+<div><dt>Duplicates</dt><dd>Entries for the same site and username. The number is the count of groups, not of entries.</dd></div>
+<div><dt>Missing URL or username</dt><dd>Entries with neither a website nor a username, which autofill cannot match to a page.</dd></div>
+</dl>
+
+<h2>Fix an entry</h2>
+<ol class="steps">
+<li><p>Tap a category</p><p>You get the list of the entries in it.</p></li>
+<li><p>Open an entry and choose <span class="chip">Edit</span></p><p>For a weak, reused or old password, set a new one: the button <span class="chip">Generate secure password</span> next to the password field creates it for you. For an entry in <span class="chip">Missing URL or username</span>, add the website or the username.</p></li>
+<li><p>Choose <span class="chip">Save</span></p><p>Change the password on the site as well: Custode updates only what is stored in the vault. Back on <span class="chip">Health</span>, the counts and the score are updated.</p></li>
+</ol>
+
+<h2>Merge duplicates</h2>
+<ol class="steps">
+<li><p>Tap <span class="chip">Duplicates</span></p><p><span class="chip">Manage duplicates</span> opens, with the entries in groups. In each group one entry is tagged <span class="chip">Keep</span> and the others <span class="chip">Merge</span>.</p></li>
+<li><p>Choose <span class="chip">Merge and move duplicate</span></p><p><span class="chip">What the merge does</span> lists what will be copied into the entry you keep: notes, attachments, custom fields, websites, one-time code.</p></li>
+<li><p>Choose <span class="chip">Merge and move duplicate</span> again to confirm</p><p>Or <span class="chip">Cancel</span> to leave everything as it is. Custode saves a dated copy of the vault, copies what is missing into the entry you keep and moves the other to the recycle bin.</p></li>
+</ol>
+
+<div class="callout callout-warn">
+<p><strong>Passwords are never merged.</strong> The entry you keep keeps its own password. Check that it is the right one before you confirm; the other entry stays in the recycle bin.</p>
+</div>

@@ -1,0 +1,55 @@
+<p class="lead">Un’estensione del browser ti permette di compilare gli accessi dall’app Custode sul computer nella pagina che hai aperta. L’estensione non conserva password: le chiede all’app, e solo quando scegli una voce.</p>
+<p class="pills"><span class="pill">macOS, Windows, Linux</span><span class="pill">10 minuti</span></p>
+
+<div class="callout">
+<p><strong>Prima di iniziare</strong></p>
+<p>Ti serve Custode installata sul computer, con un archivio sbloccato e l’app lasciata aperta: l’estensione parla solo con l’app in esecuzione. Ti serve anche Chrome, oppure Edge su Mac. Firefox non è supportato.</p>
+</div>
+
+<h2>Configurarla</h2>
+<p>La schermata di configurazione nell’app è in italiano; le etichette qui sotto sono riportate come appaiono.</p>
+<ol class="steps">
+<li><p>Apri la schermata di configurazione</p><p>In Custode apri <span class="chip">Settings</span> e scegli <span class="chip">Autofill &amp; browsers</span>. Si apre la schermata <span class="chip">Estensione browser desktop</span>, con tre passi numerati.</p></li>
+<li><p>Installa l’estensione</p><p>Sotto <span class="chip">Installa l’estensione</span> scegli <span class="chip">Apri Chrome Web Store</span> e aggiungi <a href="https://chromewebstore.google.com/detail/ogjmlkogmogijgpflnjifiobdmnmommh">Custode Browser Autofill</a> al browser.</p></li>
+<li><p>Collega il browser a Custode</p><p>Sotto <span class="chip">Collega Chrome a Custode</span> l’azione dipende dal tuo computer; vedi l’elenco qui sotto. Al termine, riavvia il browser.</p></li>
+<li><p>Verifica la connessione</p><p>Con l’archivio sbloccato, sotto <span class="chip">Verifica la connessione</span> scegli <span class="chip">Verifica</span>. Quando l’app è pronta leggi <span class="chip">Custode è pronto per collegarsi all’estensione Chrome.</span></p></li>
+<li><p>Apri l’estensione</p><p>Fai clic sull’icona di Custode nella barra del browser. Il popup <span class="chip">Custode Autofill</span> mostra due riquadri: <span class="chip">Native host</span> deve riportare <span class="chip">Connected</span> e <span class="chip">App / vault bridge</span> deve riportare <span class="chip">Unlocked</span>.</p></li>
+</ol>
+
+<h3>Il passo 3 su ogni sistema</h3>
+<dl class="facts">
+<div><dt>macOS</dt><dd>Scegli <span class="chip">Scarica Chrome Support</span>. Viene scaricato un pacchetto firmato: aprilo, completa l’installazione e riavvia il browser. Il pacchetto collega sia Chrome sia Edge.</dd></div>
+<div><dt>Windows e Linux</dt><dd>Scegli <span class="chip">Configura Chrome</span>. Custode configura da sola il collegamento per Chrome e conferma con <span class="chip">Chrome configurato. Riavvia Chrome e verifica la connessione.</span></dd></div>
+<div><dt>Windows, versione Microsoft Store</dt><dd>Questa versione non può creare il collegamento, e il pulsante riporta <span class="chip">Apri le release GitHub</span>. Scarica lo zip di Custode dalla pagina della release, avvia quella versione e ripeti il passo 3 da lì.</dd></div>
+</dl>
+
+<h2>Compilare un accesso</h2>
+<ol class="steps">
+<li><p>Apri il popup nella pagina di accesso</p><p>Fai clic sull’icona di Custode. Sotto <span class="chip">Matches</span> trovi le voci salvate per quel sito esatto.</p></li>
+<li><p>Scegli <span class="chip">Fill</span></p><p>Il nome utente e la password vengono scritti nella pagina. La password viene chiesta all’app in quel momento e non viene conservata dall’estensione.</p></li>
+<li><p>Cerca se non c’è corrispondenza</p><p>Usa il campo <span class="chip">Search title, user, service</span>. Le voci elencate sotto <span class="chip">Possible</span> hanno il pulsante <span class="chip">Ask app</span> al posto di <span class="chip">Fill</span>: salva un collegamento tra la voce e il sito, che confermi nell’app Custode.</p></li>
+</ol>
+
+<h2>Suggerimenti dentro la pagina</h2>
+<p>L’estensione può anche mostrare un riquadro di suggerimenti accanto al campo di accesso, senza aprire il popup. È spento per impostazione predefinita.</p>
+<ol class="steps">
+<li><p>Attivalo dal popup</p><p>Accanto a <span class="chip">In-page autofill overlay</span> scegli <span class="chip">Turn on</span>. Il browser ti chiede di consentire l’accesso a tutti i siti http e https: il riquadro deve essere inserito nella pagina, e il browser non può concedere questo permesso un sito alla volta.</p></li>
+<li><p>Usalo in una pagina di accesso</p><p>Il riquadro elenca solo le voci salvate nel tuo archivio per quel sito esatto. L’estensione non legge il contenuto delle pagine.</p></li>
+<li><p>Spegnilo quando vuoi</p><p><span class="chip">Turn off</span>, nello stesso punto, restituisce anche il permesso. Se rifiuti la richiesta del browser, non viene attivato nulla.</p></li>
+</ol>
+
+<h2>Controllare lo stato della connessione</h2>
+<dl class="facts">
+<div><dt>Nel popup</dt><dd><span class="chip">Native host</span> ti dice se il browser raggiunge Custode su questo computer; <span class="chip">App / vault bridge</span> ti dice se l’archivio è sbloccato.</dd></div>
+<div><dt>Nell’app</dt><dd>In <span class="chip">Settings</span>, la riga <span class="chip">Autofill &amp; browsers</span> mostra <span class="chip">Browser extension connected</span>, <span class="chip">Browser extension not set up</span> oppure <span class="chip">Browser helper not reachable</span>.</dd></div>
+</dl>
+
+<h2>Se non funziona</h2>
+<ul>
+<li><span class="chip">Native host</span> riporta <span class="chip">Not found</span>: manca il collegamento per questo browser. Ripeti il passo 3, riavvia il browser e scegli <span class="chip">Check again</span>.</li>
+<li><span class="chip">App / vault bridge</span> riporta <span class="chip">Locked</span>: sblocca l’archivio nell’app, poi scegli <span class="chip">Refresh status</span>.</li>
+<li>L’app mostra <span class="chip">Sblocca il vault in Custode e riprova.</span>: sblocca l’archivio e scegli di nuovo <span class="chip">Verifica</span>.</li>
+<li>L’app mostra <span class="chip">Bridge non raggiungibile.</span> oppure <span class="chip">Collegamento non disponibile.</span>: riavvia Custode, oppure blocca e sblocca l’archivio, poi verifica di nuovo.</li>
+<li>Una voce mostra <span class="chip">Open Custode</span> al posto di <span class="chip">Fill</span>: non può essere compilata in questa pagina. Copia l’accesso dall’app.</li>
+<li>Ancora bloccato: nella schermata di configurazione apri <span class="chip">Diagnostica collegamento</span>. Il resto di Custode continua a funzionare: manca solo la compilazione nel browser.</li>
+</ul>

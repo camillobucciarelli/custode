@@ -1,0 +1,41 @@
+<p class="lead">La schermata Health passa in rassegna il tuo archivio ed elenca le voci che vale la pena sistemare: password deboli, riutilizzate o vecchie, duplicati e voci che la compilazione automatica non riesce ad abbinare.</p>
+<p class="pills"><span class="pill">Tutte le piattaforme</span><span class="pill">5 minuti</span></p>
+
+<div class="callout">
+<p><strong>Tutti i controlli avvengono sul tuo dispositivo</strong></p>
+<p>I controlli lavorano sull’archivio che hai già sbloccato, senza contattare nessuno. Custode confronta le tue password soltanto tra di loro, dentro il tuo archivio.</p>
+</div>
+
+<h2>Leggere la schermata</h2>
+<p>Apri <span class="chip">Health</span>: sul telefono è una scheda nella barra in basso, sul computer è nella barra laterale. In alto c’è un punteggio da 0 a 100 con un giudizio breve: <span class="chip">Looking great</span> da 90, <span class="chip">Mostly healthy</span> da 70, <span class="chip">Needs attention</span> da 40, <span class="chip">At risk</span> sotto. Più in basso, ogni categoria mostra quante voci contiene.</p>
+
+<figure class="shot">
+<img class="phone" src="~/assets/img/iphone-health.png" width="660" height="1434" loading="lazy" alt="Schermata Health di Custode su iPhone: punteggio 90, Looking great, 4 records need attention, e le cinque categorie Weak passwords, Reused passwords, Old passwords, Duplicates e Missing URL or username, ciascuna con il suo conteggio">
+<figcaption>La schermata Health su iPhone.</figcaption>
+</figure>
+
+<dl class="facts">
+<div><dt>Weak passwords</dt><dd>Password troppo corte o troppo prevedibili (l’app le misura sotto i 40 bit di entropia).</dd></div>
+<div><dt>Reused passwords</dt><dd>La stessa password usata in due o più voci.</dd></div>
+<div><dt>Old passwords</dt><dd>Password non cambiate da più di due anni. Le voci senza una data di modifica registrata non vengono contate.</dd></div>
+<div><dt>Duplicates</dt><dd>Voci per lo stesso sito e lo stesso nome utente. Il numero conta i gruppi, non le voci.</dd></div>
+<div><dt>Missing URL or username</dt><dd>Voci senza sito web e senza nome utente, che la compilazione automatica non riesce ad abbinare a una pagina.</dd></div>
+</dl>
+
+<h2>Sistemare una voce</h2>
+<ol class="steps">
+<li><p>Tocca una categoria</p><p>Ottieni l’elenco delle voci che contiene.</p></li>
+<li><p>Apri una voce e scegli <span class="chip">Edit</span></p><p>Per una password debole, riutilizzata o vecchia, impostane una nuova: il pulsante <span class="chip">Generate secure password</span> accanto al campo della password la crea per te. Per una voce in <span class="chip">Missing URL or username</span>, aggiungi il sito web o il nome utente.</p></li>
+<li><p>Scegli <span class="chip">Save</span></p><p>Cambia la password anche sul sito: Custode aggiorna soltanto ciò che è salvato nell’archivio. Tornando su <span class="chip">Health</span>, i conteggi e il punteggio sono aggiornati.</p></li>
+</ol>
+
+<h2>Unire i duplicati</h2>
+<ol class="steps">
+<li><p>Tocca <span class="chip">Duplicates</span></p><p>Si apre <span class="chip">Manage duplicates</span>, con le voci in gruppi. In ogni gruppo una voce ha l’etichetta <span class="chip">Keep</span> e le altre <span class="chip">Merge</span>.</p></li>
+<li><p>Scegli <span class="chip">Merge and move duplicate</span></p><p><span class="chip">What the merge does</span> elenca che cosa verrà copiato nella voce che tieni: note, allegati, campi personalizzati, siti web, codice monouso.</p></li>
+<li><p>Scegli di nuovo <span class="chip">Merge and move duplicate</span> per confermare</p><p>Oppure <span class="chip">Cancel</span> per lasciare tutto com’è. Custode salva una copia datata dell’archivio, copia ciò che manca nella voce che tieni e sposta l’altra nel cestino.</p></li>
+</ol>
+
+<div class="callout callout-warn">
+<p><strong>Le password non vengono mai unite.</strong> La voce che tieni conserva la propria password. Controlla che sia quella giusta prima di confermare; l’altra voce resta nel cestino.</p>
+</div>

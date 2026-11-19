@@ -1,0 +1,40 @@
+<p class="lead">Every time you open a vault, Custode asks you to unlock it. You can type the master password, use a key file, or let your fingerprint or face do it for you.</p>
+<p class="pills"><span class="pill">All platforms</span><span class="pill">3 minutes</span></p>
+
+<div class="callout">
+<p><strong>Before you start</strong></p>
+<p>The credentials a vault accepts are the ones chosen when it was created or later changed in Settings: a master password, a key file, or both. For biometrics your device must have fingerprint or face unlock set up.</p>
+</div>
+
+<h2>Unlock with the master password</h2>
+<ol class="steps">
+<li><p>Type the password</p><p>On the unlock screen, which shows the vault name, type it in <span class="chip">Master password</span>. The eye icon (<span class="chip">Show password</span>) lets you check what you typed.</p></li>
+<li><p>Unlock</p><p>Choose <span class="chip">Unlock vault</span>. While it works Custode shows <span class="chip">Decrypting</span> and the vault name: it can take a moment.</p></li>
+</ol>
+
+<figure class="shot">
+<img class="phone" src="~/assets/img/iphone-unlock.png" width="660" height="1434" loading="lazy" alt="The Custode unlock screen on iPhone for Personal.kdbx: a Master password field with an eye icon, the note Required if no key file is selected, the Unlock vault button and the Use a key file link">
+<figcaption>The unlock screen on iPhone.</figcaption>
+</figure>
+
+<p>If the password or the key file is wrong, the field shows <span class="chip">Incorrect master password or key file.</span> and you can try again.</p>
+
+<h2>Unlock with a key file</h2>
+<ol class="steps">
+<li><p>Choose <span class="chip">Use a key file</span></p><p>It is the link under the unlock button. If your device has a screen lock, Custode first asks you to authenticate: it protects the key files kept in the app.</p></li>
+<li><p>Import or select the key file</p><p>The <span class="chip">Internal key files</span> list shows the key files stored in the app. If yours is not there, choose <span class="chip">Import</span> and pick the file from your device, then choose <span class="chip">Select</span> next to it.</p></li>
+<li><p>Unlock</p><p>The selected file appears under the password field, with <span class="chip">Remove key file</span> to take it away. The button now reads <span class="chip">Unlock with key file</span>. If the vault uses only the key file, leave the password empty: it is <span class="chip">Optional while a key file is selected.</span> If it uses both, type the password too.</p></li>
+</ol>
+<p>Custode remembers which key file a vault uses. If the file is no longer there it says <span class="chip">Key file not found. Locate or select the required key file.</span> and you can choose it again.</p>
+
+<h2>Unlock with biometrics</h2>
+<ol class="steps">
+<li><p>Turn it on</p><p>When you create a vault, use the <span class="chip">Enable biometric protection</span> switch. For a vault you already use, unlock it, open <span class="chip">Settings</span> and turn on <span class="chip">Biometric protection</span>. It needs a master password, which Custode keeps in the device's secure storage for this purpose.</p></li>
+<li><p>Authenticate</p><p>The next time you open the vault Custode shows <span class="chip">Authenticate with biometrics</span> and asks for your fingerprint or face. If it works, the vault opens by itself.</p></li>
+<li><p>If it does not work</p><p>Choose <span class="chip">Retry</span> to try again, or <span class="chip">Use master password instead</span> to type the password this time. Biometrics will be asked again the next time you open the vault.</p></li>
+</ol>
+<p>To switch it off, turn off <span class="chip">Biometric protection</span> in <span class="chip">Settings</span>: the stored password is deleted from the device. If biometrics are not available on the device, Custode says <span class="chip">Biometric authentication is not available on this device.</span> and shows the normal form.</p>
+
+<div class="callout callout-warn">
+<p><strong>No recovery.</strong> Custode has no account and no "forgot password" option. Without the master password, or the key file, the vault cannot be opened, and a generated key file is not recoverable if you lose it. Keep both safe, and export the key file apart from the database: in <span class="chip">Settings</span>, <span class="chip">Backups &amp; import</span>, <span class="chip">Export the key file</span>.</p>
+</div>

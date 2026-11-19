@@ -1,0 +1,43 @@
+<p class="lead">A vault is one <code>.kdbx</code> file that holds all your passwords, protected by a master password, a key file or both. You can create a new one or open a KeePass file you already have.</p>
+<p class="pills"><span class="pill">All platforms</span><span class="pill">5 minutes</span></p>
+
+<div class="callout">
+<p><strong>Before you start</strong></p>
+<p>Have Custode <a href="@guide:install">installed</a>. To open an existing vault you need its <code>.kdbx</code> file on the device, and its master password or key file.</p>
+</div>
+
+<h2>Create a new vault</h2>
+<p>On the first start the welcome screen shows <span class="chip">Create new database</span>. If you already have a vault, the same action is in the <span class="chip">Databases</span> list, among the options to add one.</p>
+<ol class="steps">
+<li><p>Name the file</p><p>Under <span class="chip">Name your database</span> (<span class="chip">Step 1 of 2</span>) type the name in <span class="chip">Database file name</span>. The characters <code>\ / : * ? " &lt; &gt; |</code> are not allowed. Then choose <span class="chip">Continue</span>.</p></li>
+<li><p>Choose how to protect it</p><p>Under <span class="chip">Choose your credentials</span> (<span class="chip">Step 2 of 2</span>) you can use a master password, a key file, or both. You need at least one: until you set it, the screen says so and <span class="chip">Create</span> stays off.</p></li>
+<li><p>Set a master password</p><p>Type it in <span class="chip">Master Password (optional)</span>. A strength indicator shows <span class="chip">Weak</span>, <span class="chip">Fair</span>, <span class="chip">Good</span> or <span class="chip">Strong</span>, and a second field, <span class="chip">Confirm Password</span>, asks you to type it again.</p></li>
+<li><p>Add a key file, if you want one</p><p>Under <span class="chip">Key File</span> choose one option: <span class="chip">No key file</span>, <span class="chip">Select an existing file</span> to use a file you already have, or <span class="chip">Generate automatically</span> to let Custode make one.</p></li>
+<li><p>Decide on biometrics</p><p>The <span class="chip">Enable biometric protection</span> switch is off by default. Turn it on if you want to unlock with fingerprint or face. It needs a master password: without one, Custode asks you to set a password or turn the switch off. More in <a href="@guide:unlock-biometrics-key-file">Unlock with biometrics or a key file</a>.</p></li>
+<li><p>Create the vault</p><p>Choose <span class="chip">Create</span>. Custode then shows the unlock screen of the new vault: enter your credentials to open it.</p></li>
+</ol>
+
+<figure class="shot">
+<img class="phone" src="~/assets/img/iphone-vault.png" width="660" height="1434" loading="lazy" alt="An open vault in Custode on iPhone: the name Personal.kdbx, a search field, two folders and several entries, and the bottom bar with Vault, Health, Sync and Settings">
+<figcaption>An open vault on iPhone. The bottom bar has Vault, Health, Sync and Settings.</figcaption>
+</figure>
+
+<div class="callout callout-warn">
+<p><strong>Keep a copy of the key file.</strong> If you generate it, Custode warns you: losing the key file makes the database inaccessible. The vault is saved in the app's own storage, so export a backup now and then: if you delete Custode without one, the file goes with it. You find the exports in <span class="chip">Settings</span>, under <span class="chip">Backups &amp; import</span>: <span class="chip">Export the database</span> and <span class="chip">Export the key file</span>.</p>
+</div>
+
+<h2>Open a vault you already have</h2>
+<ol class="steps">
+<li><p>Choose <span class="chip">Open existing database</span></p><p>It is on the welcome screen, or in the <span class="chip">Databases</span> list. The file picker shows only <code>.kdbx</code> files: pick yours.</p></li>
+<li><p>Unlock it</p><p>Custode keeps its own copy of the file in the app's storage and opens the unlock screen. Enter the master password, or choose <span class="chip">Use a key file</span> if the vault has one.</p></li>
+</ol>
+<p>Some messages you may see:</p>
+<dl class="facts">
+<div><dt>Replace existing database?</dt><dd>A database with that name is already in the app. <span class="chip">Replace</span> overwrites it with the file you picked, otherwise cancel.</dd></div>
+<div><dt>Duplicate database detected</dt><dd>You picked a file that matches one already in the app. Choose <span class="chip">Keep both</span> to save it as another database, <span class="chip">Replace existing</span> to back up and replace the old one, or <span class="chip">Use existing</span> to open the one you have.</dd></div>
+<div><dt>Invalid database file</dt><dd>The file is not a valid Custode database. Check that you picked the right <code>.kdbx</code>.</dd></div>
+<div><dt>Database file is corrupted</dt><dd>The file could not be read and may be damaged. Try a backup copy.</dd></div>
+</dl>
+
+<h2>A vault in Google Drive</h2>
+<p>If the vault is on Google Drive, choose <span class="chip">Open from Google Drive</span> instead, sign in and pick the file. Custode then offers to require biometric authentication for it. To keep it in step across devices, see <a href="@guide:google-drive-sync">Sync with Google Drive</a>.</p>

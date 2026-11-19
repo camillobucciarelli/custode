@@ -1,0 +1,38 @@
+<p class="lead">A conflict means the vault on this device and the file on Google Drive were both changed since the last sync. Custode never picks a side by itself: it stops and asks you.</p>
+<p class="pills"><span class="pill">All platforms</span><span class="pill">5 minutes</span></p>
+
+<h2>Open the conflict</h2>
+<ol class="steps">
+<li><p>Open <span class="chip">Sync</span></p><p>When there is a conflict the screen shows a card titled <span class="chip">Both versions changed</span>, with the line <span class="chip">Tap to choose which version to keep</span>.</p></li>
+<li><p>Tap the card</p><p>You see the two versions, <span class="chip">This device</span> and <span class="chip">Drive</span>. When Drive reports it, the Drive one also shows the date it was last modified, which helps you tell which is the more recent.</p></li>
+</ol>
+
+<h2>The four choices</h2>
+<dl class="facts">
+<div><dt>Keep local</dt><dd>Uploads the version on this device over the file on Drive. The version that was on Drive is not deleted: the app tells you it stays as a Drive revision.</dd></div>
+<div><dt>Use remote</dt><dd>Downloads the file from Drive and puts it in place of the one on this device. Before replacing it, Custode saves a copy of your local file. If the copy cannot be made, nothing is replaced.</dd></div>
+<div><dt>Review field by field</dt><dd>Opens a comparison of the two versions, so you can keep some things from one and some from the other. See the steps below.</dd></div>
+<div><dt>Cancel</dt><dd>Changes nothing, on the device or on Drive. The conflict is shown again at the next sync.</dd></div>
+</dl>
+
+<h2>Review field by field</h2>
+<ol class="steps">
+<li><p>Choose <span class="chip">Review field by field</span></p><p>The <span class="chip">Review merge</span> screen opens. Nothing is written until you confirm at the end. Records and fields that exist on one side only are kept automatically: you are asked only about the things that differ.</p></li>
+<li><p>Go through the decisions</p><p>They are grouped under <span class="chip">Field conflicts</span>, <span class="chip">Deletions</span> and <span class="chip">Folders</span>. Each one already has a suggested answer. Tap a decision to compare the two sides; <span class="chip">Reveal values</span> shows the hidden ones.</p></li>
+<li><p>Pick a side for each one</p><p>Choose <span class="chip">This device</span> or <span class="chip">Drive</span>. For notes there is also <span class="chip">Both</span>, which keeps both notes one after the other. For a record deleted on one side only, choose <span class="chip">Keep</span> or <span class="chip">Delete</span>. Username, password and website move together: the side you pick is used for all three.</p></li>
+<li><p>Or answer everything at once</p><p><span class="chip">Prefer local</span> and <span class="chip">Prefer remote</span> pick the same side for every decision. When there are too many conflicts to review one by one, these two are the only options offered.</p></li>
+<li><p>Choose <span class="chip">Continue</span>, then <span class="chip">Merge and sync</span></p><p>The <span class="chip">Ready to merge</span> screen sums up what will happen. <span class="chip">Edit decisions</span> takes you back. With <span class="chip">Merge and sync</span> Custode saves a dated backup of your vault, writes the merged vault, uploads it to Drive and checks the upload. Do not close the app while it works.</p></li>
+<li><p>Choose <span class="chip">Done</span></p><p><span class="chip">Merge complete</span> confirms that the merged vault is on this device and on Drive.</p></li>
+</ol>
+
+<div class="callout">
+<p><strong>Where the copy is saved</strong></p>
+<p>The copy made by <span class="chip">Use remote</span> and by a merge is saved next to the vault file, with the same name followed by a number and <code>.bak</code>. On a computer you find it in the same folder as the vault. On a phone the vault lives in the app’s own storage, and the copy with it.</p>
+</div>
+
+<h2>If the upload is not confirmed</h2>
+<p>After a merge you may see <span class="chip">Upload not confirmed</span> or <span class="chip">Merge saved locally</span>. The merged vault is already saved on this device, together with the backup of the previous version, but it is not marked as synced. Choose <span class="chip">Check now</span> to try again, or <span class="chip">Close</span>: the next sync checks what Drive holds and finishes safely.</p>
+
+<div class="callout callout-warn">
+<p><strong>If the vault or the Drive file changes while you review.</strong> Custode stops the merge and asks you to start the review again, so that no change is lost.</p>
+</div>

@@ -1,0 +1,32 @@
+<p class="lead">Bring your passwords into Custode from a CSV file exported by Bitwarden, LastPass or Chrome, or open a KeePass <code>.kdbx</code> vault you already have.</p>
+<p class="pills"><span class="pill">All platforms</span><span class="pill">10 minutes</span></p>
+
+<div class="callout">
+<p><strong>Before you start</strong></p>
+<p>CSV import works inside a vault that is already open, so <a href="@guide:first-vault">create or open one</a> first. Then export your passwords from the other app as a CSV file, using its own export option, and keep the file on the device where Custode runs.</p>
+</div>
+
+<h2>Import a CSV file</h2>
+<ol class="steps">
+<li><p>Open the import</p><p>Unlock the vault, open <span class="chip">Settings</span>, then <span class="chip">Backups &amp; import</span> and choose <span class="chip">Import from CSV</span>. Pick the <code>.csv</code> file in the file picker.</p></li>
+<li><p>Check the preview</p><p>The <span class="chip">Import CSV</span> screen shows the file, the <span class="chip">Detected format</span> (Bitwarden, LastPass, Chrome, 1Password, Apple Passwords or Generic CSV) and three counts: <span class="chip">Rows found</span>, <span class="chip">Valid records</span> and <span class="chip">Skipped rows</span>.</p></li>
+<li><p>Decide about duplicates</p><p><span class="chip">Avoid duplicates</span> is on by default: it skips rows that match a record already in this vault, comparing title, username and URL. Turn it off only if you want every row added.</p></li>
+<li><p>Import</p><p>Choose <span class="chip">Import</span> followed by the number of valid records, or <span class="chip">Cancel</span> to stop with nothing changed.</p></li>
+<li><p>Read the result</p><p><span class="chip">Import finished</span> tells you how many records were added and how many were skipped as duplicates. Rows that could not be read are listed with the reason. Choose <span class="chip">Done</span> to close it.</p></li>
+</ol>
+
+<h3>What is imported</h3>
+<dl class="facts">
+<div><dt>Title, username, password, URL, notes</dt><dd>Read from the columns of the file, whichever of the known formats it comes from.</dd></div>
+<div><dt>One-time codes</dt><dd>A column holding an <code>otpauth://</code> link is kept as a field named <code>otp</code> on the entry.</dd></div>
+<div><dt>Other columns</dt><dd>Any other column with a value is kept as a custom field named like the column. Folders are not recreated: a folder column is kept the same way, as a field.</dd></div>
+<div><dt>Not imported</dt><dd>The <code>type</code>, <code>favorite</code>, <code>fav</code> and <code>reprompt</code> columns, rows with nothing in title, username, password, URL and notes, and any passkey column: a passkey is created in the app, on the site that asks for it. The result screen lists them.</dd></div>
+</dl>
+
+<div class="callout callout-warn">
+<p><strong>Delete the CSV afterwards.</strong> It holds your passwords in clear text, as Custode reminds you on the preview screen. Empty the trash or recycle bin as well, and remove it from the other app's downloads.</p>
+</div>
+
+<h2>Open a KeePass vault</h2>
+<p>A <code>.kdbx</code> file from KeePass or another KeePass-compatible app does not need importing: it is already in the format Custode uses. Choose <span class="chip">Open existing database</span> and pick the file, then unlock it with its own master password or key file. The steps are in <a href="@guide:first-vault">Create your first vault</a>.</p>
+<p>Opening a <code>.kdbx</code> adds it to Custode as a separate vault. The app has no option to merge one vault into another: to move entries between them you need a CSV.</p>
