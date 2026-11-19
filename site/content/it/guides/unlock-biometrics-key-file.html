@@ -1,0 +1,40 @@
+<p class="lead">Ogni volta che apri un archivio, Custode ti chiede di sbloccarlo. Puoi scrivere la password principale, usare un file chiave, oppure lasciare che sia la tua impronta o il tuo volto a farlo.</p>
+<p class="pills"><span class="pill">Tutte le piattaforme</span><span class="pill">3 minuti</span></p>
+
+<div class="callout">
+<p><strong>Prima di iniziare</strong></p>
+<p>Le credenziali accettate da un archivio sono quelle scelte quando è stato creato o cambiate poi in Settings: una password principale, un file chiave, oppure entrambi. Per la biometria il dispositivo deve avere lo sblocco con impronta o volto configurato.</p>
+</div>
+
+<h2>Sbloccare con la password principale</h2>
+<ol class="steps">
+<li><p>Scrivi la password</p><p>Nella schermata di sblocco, che mostra il nome dell’archivio, scrivila in <span class="chip">Master password</span>. L’icona a forma di occhio (<span class="chip">Show password</span>) ti permette di controllare cosa hai scritto.</p></li>
+<li><p>Sblocca</p><p>Scegli <span class="chip">Unlock vault</span>. Mentre lavora Custode mostra <span class="chip">Decrypting</span> e il nome dell’archivio: può volerci un momento.</p></li>
+</ol>
+
+<figure class="shot">
+<img class="phone" src="~/assets/img/iphone-unlock.png" width="660" height="1434" loading="lazy" alt="La schermata di sblocco di Custode su iPhone per Personal.kdbx: un campo Master password con l’icona a occhio, la nota Required if no key file is selected, il pulsante Unlock vault e il link Use a key file">
+<figcaption>La schermata di sblocco su iPhone.</figcaption>
+</figure>
+
+<p>Se la password o il file chiave sono sbagliati, il campo mostra <span class="chip">Incorrect master password or key file.</span> e puoi riprovare.</p>
+
+<h2>Sbloccare con un file chiave</h2>
+<ol class="steps">
+<li><p>Scegli <span class="chip">Use a key file</span></p><p>È il link sotto il pulsante di sblocco. Se il dispositivo ha un blocco schermo, Custode ti chiede prima di autenticarti: protegge i file chiave conservati nell’app.</p></li>
+<li><p>Importa o scegli il file chiave</p><p>L’elenco <span class="chip">Internal key files</span> mostra i file chiave conservati nell’app. Se il tuo non c’è, scegli <span class="chip">Import</span> e seleziona il file dal dispositivo, poi scegli <span class="chip">Select</span> accanto ad esso.</p></li>
+<li><p>Sblocca</p><p>Il file scelto compare sotto il campo della password, con <span class="chip">Remove key file</span> per toglierlo. Il pulsante ora dice <span class="chip">Unlock with key file</span>. Se l’archivio usa solo il file chiave, lascia vuota la password: è <span class="chip">Optional while a key file is selected.</span> Se usa entrambi, scrivi anche la password.</p></li>
+</ol>
+<p>Custode ricorda quale file chiave usa un archivio. Se il file non c’è più, dice <span class="chip">Key file not found. Locate or select the required key file.</span> e puoi sceglierlo di nuovo.</p>
+
+<h2>Sbloccare con la biometria</h2>
+<ol class="steps">
+<li><p>Attivala</p><p>Quando crei un archivio, usa l’interruttore <span class="chip">Enable biometric protection</span>. Per un archivio che già usi, sbloccalo, apri <span class="chip">Settings</span> e attiva <span class="chip">Biometric protection</span>. Richiede una password principale, che Custode conserva a questo scopo nell’archiviazione sicura del dispositivo.</p></li>
+<li><p>Autenticati</p><p>La volta successiva che apri l’archivio Custode mostra <span class="chip">Authenticate with biometrics</span> e chiede impronta o volto. Se funziona, l’archivio si apre da solo.</p></li>
+<li><p>Se non funziona</p><p>Scegli <span class="chip">Retry</span> per riprovare, oppure <span class="chip">Use master password instead</span> per scrivere la password questa volta. La biometria sarà richiesta di nuovo alla prossima apertura dell’archivio.</p></li>
+</ol>
+<p>Per disattivarla, spegni <span class="chip">Biometric protection</span> in <span class="chip">Settings</span>: la password conservata viene cancellata dal dispositivo. Se la biometria non è disponibile sul dispositivo, Custode dice <span class="chip">Biometric authentication is not available on this device.</span> e mostra il modulo normale.</p>
+
+<div class="callout callout-warn">
+<p><strong>Nessun recupero.</strong> Custode non ha un account né un’opzione “password dimenticata”. Senza la password principale, o il file chiave, l’archivio non si apre, e un file chiave generato non si recupera se lo perdi. Tieni al sicuro entrambi ed esporta il file chiave separatamente dal database: in <span class="chip">Settings</span>, <span class="chip">Backups &amp; import</span>, <span class="chip">Export the key file</span>.</p>
+</div>

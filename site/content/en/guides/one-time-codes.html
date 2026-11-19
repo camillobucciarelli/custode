@@ -1,0 +1,28 @@
+<p class="lead">Keep the two-factor code of a site in the same entry as its password. Custode shows the current code and how many seconds it has left.</p>
+<p class="pills"><span class="pill">All platforms</span><span class="pill">3 minutes</span></p>
+
+<div class="callout">
+<p><strong>Before you start</strong></p>
+<p>Open the two-factor setup page of the site, the one that shows a QR code. Custode works with time-based codes and needs the whole setup address, the one that starts with <code>otpauth://</code>. The QR code contains it; many sites also let you copy it as text.</p>
+</div>
+
+<h2>Add the code to an entry</h2>
+<ol class="steps">
+<li><p>Open the entry and choose <span class="chip">Edit</span></p><p>For a new entry, choose <span class="chip">Add record</span> in the vault instead.</p></li>
+<li><p>Under <span class="chip">Optional</span>, choose <span class="chip">One-time code</span></p><p>The field <span class="chip">OTP URI (otpauth://…)</span> appears.</p></li>
+<li><p>Scan the QR code or paste the address</p><p>On Android, iPhone and iPad, tap <span class="chip">Scan QR</span> inside the field and point the camera at the QR code shown by the site. On a computer there is no scanner: paste the address that starts with <code>otpauth://</code> into the field.</p></li>
+<li><p>Choose <span class="chip">Save</span></p><p>It is the round button with the check mark at the top.</p></li>
+</ol>
+
+<h2>Read and copy the code</h2>
+<ol class="steps">
+<li><p>Open the entry</p><p>The <span class="chip">One-time code</span> row shows the current code. The circle next to it counts the seconds left before the code changes.</p></li>
+<li><p>Choose <span class="chip">Copy</span></p><p>Custode confirms with <span class="chip">Copied one-time code.</span> and empties the clipboard about 30 seconds later, if it still holds the code.</p></li>
+</ol>
+
+<h2>If the scan does not work</h2>
+<dl class="facts">
+<div><dt>Camera is off for Custode</dt><dd>Custode has no permission to use the camera. Choose <span class="chip">Open system settings</span> and allow it, or paste the address into the field on that screen and choose <span class="chip">Save the URI</span>.</dd></div>
+<div><dt>QR does not contain a valid OTP URI.</dt><dd>The QR code you scanned is not a two-factor setup code. Scan the one on the site’s two-factor setup page.</dd></div>
+<div><dt>OTP URI must start with otpauth://</dt><dd>You pasted only the secret key, or another piece of text. Paste the whole address.</dd></div>
+</dl>

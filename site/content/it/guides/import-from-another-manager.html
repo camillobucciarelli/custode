@@ -1,0 +1,32 @@
+<p class="lead">Porta le tue password in Custode da un file CSV esportato da Bitwarden, LastPass o Chrome, oppure apri un archivio KeePass <code>.kdbx</code> che hai già.</p>
+<p class="pills"><span class="pill">Tutte le piattaforme</span><span class="pill">10 minuti</span></p>
+
+<div class="callout">
+<p><strong>Prima di iniziare</strong></p>
+<p>L’importazione da CSV funziona dentro un archivio già aperto, quindi <a href="@guide:first-vault">creane o aprine uno</a> prima. Poi esporta le password dall’altra app come file CSV, con la sua opzione di esportazione, e tieni il file sul dispositivo dove funziona Custode.</p>
+</div>
+
+<h2>Importare un file CSV</h2>
+<ol class="steps">
+<li><p>Apri l’importazione</p><p>Sblocca l’archivio, apri <span class="chip">Settings</span>, poi <span class="chip">Backups &amp; import</span> e scegli <span class="chip">Import from CSV</span>. Seleziona il file <code>.csv</code> nel selettore di file.</p></li>
+<li><p>Controlla l’anteprima</p><p>La schermata <span class="chip">Import CSV</span> mostra il file, il <span class="chip">Detected format</span> (Bitwarden, LastPass, Chrome, 1Password, Apple Passwords o Generic CSV) e tre conteggi: <span class="chip">Rows found</span>, <span class="chip">Valid records</span> e <span class="chip">Skipped rows</span>.</p></li>
+<li><p>Decidi sui duplicati</p><p><span class="chip">Avoid duplicates</span> è attivo di default: salta le righe che corrispondono a una voce già presente nell’archivio, confrontando titolo, nome utente e URL. Spegnilo solo se vuoi aggiungere ogni riga.</p></li>
+<li><p>Importa</p><p>Scegli <span class="chip">Import</span> seguito dal numero di voci valide, oppure <span class="chip">Cancel</span> per fermarti senza cambiare nulla.</p></li>
+<li><p>Leggi il risultato</p><p><span class="chip">Import finished</span> ti dice quante voci sono state aggiunte e quante saltate perché duplicate. Le righe che non si sono potute leggere sono elencate con il motivo. Scegli <span class="chip">Done</span> per chiudere.</p></li>
+</ol>
+
+<h3>Cosa viene importato</h3>
+<dl class="facts">
+<div><dt>Titolo, nome utente, password, URL, note</dt><dd>Letti dalle colonne del file, qualunque sia il formato noto da cui arriva.</dd></div>
+<div><dt>Codici monouso</dt><dd>Una colonna con un link <code>otpauth://</code> viene conservata come campo di nome <code>otp</code> nella voce.</dd></div>
+<div><dt>Altre colonne</dt><dd>Ogni altra colonna con un valore viene conservata come campo personalizzato con il nome della colonna. Le cartelle non vengono ricreate: una colonna cartella è conservata allo stesso modo, come campo.</dd></div>
+<div><dt>Non importati</dt><dd>Le colonne <code>type</code>, <code>favorite</code>, <code>fav</code> e <code>reprompt</code>, le righe senza nulla in titolo, nome utente, password, URL e note, e ogni colonna di passkey: una passkey si crea nell’app, sul sito che la richiede. La schermata del risultato li elenca.</dd></div>
+</dl>
+
+<div class="callout callout-warn">
+<p><strong>Elimina il CSV al termine.</strong> Contiene le tue password in chiaro, come Custode ti ricorda nella schermata di anteprima. Svuota anche il cestino e rimuovilo dai download dell’altra app.</p>
+</div>
+
+<h2>Aprire un archivio KeePass</h2>
+<p>Un file <code>.kdbx</code> di KeePass o di un’altra app compatibile non va importato: è già nel formato usato da Custode. Scegli <span class="chip">Open existing database</span> e seleziona il file, poi sbloccalo con la sua password principale o il suo file chiave. I passaggi sono in <a href="@guide:first-vault">Creare il primo archivio</a>.</p>
+<p>Aprire un <code>.kdbx</code> lo aggiunge a Custode come archivio separato. L’app non ha un’opzione per unire un archivio a un altro: per spostare voci tra due archivi serve un CSV.</p>

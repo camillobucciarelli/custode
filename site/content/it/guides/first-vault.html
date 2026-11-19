@@ -1,0 +1,43 @@
+<p class="lead">Un archivio è un unico file <code>.kdbx</code> che contiene tutte le tue password, protetto da una password principale, da un file chiave o da entrambi. Puoi crearne uno nuovo o aprire un file KeePass che hai già.</p>
+<p class="pills"><span class="pill">Tutte le piattaforme</span><span class="pill">5 minuti</span></p>
+
+<div class="callout">
+<p><strong>Prima di iniziare</strong></p>
+<p>Custode deve essere <a href="@guide:install">installata</a>. Per aprire un archivio esistente ti servono il suo file <code>.kdbx</code> sul dispositivo e la sua password principale o il suo file chiave.</p>
+</div>
+
+<h2>Creare un archivio nuovo</h2>
+<p>Al primo avvio la schermata di benvenuto mostra <span class="chip">Create new database</span>. Se hai già un archivio, la stessa azione è nell’elenco <span class="chip">Databases</span>, tra le opzioni per aggiungerne uno.</p>
+<ol class="steps">
+<li><p>Dai un nome al file</p><p>Sotto <span class="chip">Name your database</span> (<span class="chip">Step 1 of 2</span>) scrivi il nome in <span class="chip">Database file name</span>. I caratteri <code>\ / : * ? " &lt; &gt; |</code> non sono ammessi. Poi scegli <span class="chip">Continue</span>.</p></li>
+<li><p>Scegli come proteggerlo</p><p>Sotto <span class="chip">Choose your credentials</span> (<span class="chip">Step 2 of 2</span>) puoi usare una password principale, un file chiave o entrambi. Ne serve almeno uno: finché non lo imposti, la schermata te lo dice e <span class="chip">Create</span> resta disattivato.</p></li>
+<li><p>Imposta una password principale</p><p>Scrivila in <span class="chip">Master Password (optional)</span>. Un indicatore di robustezza mostra <span class="chip">Weak</span>, <span class="chip">Fair</span>, <span class="chip">Good</span> o <span class="chip">Strong</span>, e un secondo campo, <span class="chip">Confirm Password</span>, ti chiede di scriverla di nuovo.</p></li>
+<li><p>Aggiungi un file chiave, se vuoi</p><p>Sotto <span class="chip">Key File</span> scegli un’opzione: <span class="chip">No key file</span>, <span class="chip">Select an existing file</span> per usare un file che hai già, oppure <span class="chip">Generate automatically</span> per farne creare uno a Custode.</p></li>
+<li><p>Decidi sulla biometria</p><p>L’interruttore <span class="chip">Enable biometric protection</span> è spento di default. Accendilo se vuoi sbloccare con impronta o volto. Richiede una password principale: senza, Custode ti chiede di impostarne una o di spegnere l’interruttore. Altro in <a href="@guide:unlock-biometrics-key-file">Sbloccare con biometria o file chiave</a>.</p></li>
+<li><p>Crea l’archivio</p><p>Scegli <span class="chip">Create</span>. Custode mostra poi la schermata di sblocco del nuovo archivio: inserisci le tue credenziali per aprirlo.</p></li>
+</ol>
+
+<figure class="shot">
+<img class="phone" src="~/assets/img/iphone-vault.png" width="660" height="1434" loading="lazy" alt="Un archivio aperto in Custode su iPhone: il nome Personal.kdbx, un campo di ricerca, due cartelle e diverse voci, e la barra in basso con Vault, Health, Sync e Settings">
+<figcaption>Un archivio aperto su iPhone. La barra in basso ha Vault, Health, Sync e Settings.</figcaption>
+</figure>
+
+<div class="callout callout-warn">
+<p><strong>Conserva una copia del file chiave.</strong> Se lo generi, Custode ti avvisa: perdere il file chiave rende il database inaccessibile. L’archivio è salvato nello spazio riservato all’app, quindi esporta ogni tanto una copia di sicurezza: se elimini Custode senza, il file se ne va con lei. Trovi le esportazioni in <span class="chip">Settings</span>, sotto <span class="chip">Backups &amp; import</span>: <span class="chip">Export the database</span> e <span class="chip">Export the key file</span>.</p>
+</div>
+
+<h2>Aprire un archivio che hai già</h2>
+<ol class="steps">
+<li><p>Scegli <span class="chip">Open existing database</span></p><p>Si trova nella schermata di benvenuto o nell’elenco <span class="chip">Databases</span>. Il selettore di file mostra solo i file <code>.kdbx</code>: scegli il tuo.</p></li>
+<li><p>Sbloccalo</p><p>Custode tiene una sua copia del file nello spazio dell’app e apre la schermata di sblocco. Inserisci la password principale, oppure scegli <span class="chip">Use a key file</span> se l’archivio ne ha uno.</p></li>
+</ol>
+<p>Alcuni messaggi che potresti vedere:</p>
+<dl class="facts">
+<div><dt>Replace existing database?</dt><dd>Nell’app c’è già un database con quel nome. <span class="chip">Replace</span> lo sovrascrive con il file scelto, altrimenti annulla.</dd></div>
+<div><dt>Duplicate database detected</dt><dd>Hai scelto un file che corrisponde a uno già presente nell’app. Scegli <span class="chip">Keep both</span> per salvarlo come altro database, <span class="chip">Replace existing</span> per fare una copia di sicurezza e sostituire quello vecchio, oppure <span class="chip">Use existing</span> per aprire quello che hai.</dd></div>
+<div><dt>Invalid database file</dt><dd>Il file non è un database Custode valido. Controlla di aver scelto il <code>.kdbx</code> giusto.</dd></div>
+<div><dt>Database file is corrupted</dt><dd>Il file non si può leggere e potrebbe essere danneggiato. Prova con una copia di sicurezza.</dd></div>
+</dl>
+
+<h2>Un archivio su Google Drive</h2>
+<p>Se l’archivio è su Google Drive, scegli invece <span class="chip">Open from Google Drive</span>, accedi e scegli il file. Custode ti propone poi di richiedere l’autenticazione biometrica per quell’archivio. Per tenerlo allineato tra i dispositivi, vedi <a href="@guide:google-drive-sync">Sincronizzare con Google Drive</a>.</p>

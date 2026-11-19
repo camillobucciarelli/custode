@@ -613,7 +613,8 @@ jobs:
   # The download site, https://custode.camillobucciarelli.dev: an R2 bucket
   # behind a custom domain. This job copies the sideloadable builds from the
   # GitHub release into the bucket (a versioned key plus a "latest" key each)
-  # and publishes docs/download/index.html as the bucket's index.html.
+  # and publishes the website built from site/ (site/build.py), every file at
+  # its relative key: index.html, download.html, guides/, it/, assets/.
   #
   # iOS and macOS are not here: those builds are App Store packages, which
   # install only through TestFlight or the App Store. That also keeps this
@@ -626,7 +627,7 @@ jobs:
   # The root `/` is served by a Cloudflare Transform Rule (Rewrite URL: path
   # exactly `/` -> static `/index.html`) set by hand in the dashboard: R2's
   # custom domain serves no directory index, so without it only /index.html
-  # works.
+  # works. For the same reason every link inside the site names its .html file.
   download:
     needs: [ version, android, linux, windows ]
     if: inputs.channel == 'release'
@@ -656,11 +657,13 @@ jobs:
           done
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
-      - name: Check the download page
+      # Builds the site into build/site and checks it. python3 is part of the
+      # ubuntu-latest image; the build uses the standard library only.
+      - name: Build and check the website
         if: steps.r2.outputs.ready == 'true'
         run: |
           command -v xmllint > /dev/null || { sudo apt-get update -q && sudo apt-get install -y libxml2-utils; }
-          tool/release/download_check.sh
+          tool/release/download_check.sh build/site
 
       - name: Download the builds from the GitHub release
         if: steps.r2.outputs.ready == 'true'
@@ -668,12 +671,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.version.outputs.tag }}
         run: |
-          gh release download "$TAG" --dir build/site \
+          gh release download "$TAG" --dir build/release \
             --pattern password_manager-android-release.apk \
             --pattern password_manager-windows-release.zip \
             --pattern password_manager-linux-release.zip
 
-      - name: Upload the builds and the page to R2
+      - name: Upload the builds and the website to R2
         if: steps.r2.outputs.ready == 'true'
         env:
           # X.Y.Z.N: the "+" of X.Y.Z+N needs escaping in a URL.
@@ -687,9 +690,9 @@ jobs:
 
           # put <file> <content type> <versioned key> <latest key>
           put() {
-            tool/release/r2_upload.sh "build/site/$1" "$3" "$2" "$forever"
+            tool/release/r2_upload.sh "build/release/$1" "$3" "$2" "$forever"
             if [[ "$latest" == true ]]; then
-              tool/release/r2_upload.sh "build/site/$1" "$4" "$2" "$short"
+              tool/release/r2_upload.sh "build/release/$1" "$4" "$2" "$short"
             fi
           }
           put password_manager-android-release.apk application/vnd.android.package-archive \
@@ -700,15 +703,37 @@ jobs:
             "linux/$VERSION/Custode-$VERSION-linux.zip" linux/latest/Custode-linux.zip
 
           if [[ "$latest" != true ]]; then
-            echo "Dispatched from $GITHUB_REF_NAME, not $DEFAULT_BRANCH: \"latest\" and the page are left as they are."
+            echo "Dispatched from $GITHUB_REF_NAME, not $DEFAULT_BRANCH: \"latest\" and the website are left as they are."
             exit 0
           fi
-          # The page goes last, so its links never point at a file that is not there yet.
-          sed "s/__VERSION__/$VERSION/g" docs/download/index.html > build/site/index.html
-          tool/release/r2_upload.sh build/site/index.html index.html 'text/html; charset=utf-8' "$short"
+          # The website goes after the builds, so its links never point at a file that is not
+          # there yet; within it, assets first, then the pages, the root index.html last.
+          # ponytail: asset names carry no content hash, so everything gets the short cache; hash the
+          # names in site/build.py and cache them forever if repeat visits ever matter.
+          find build/site -name '*.html' -exec sed -i "s/__VERSION__/$VERSION/g" {} +
+          upload_site() {
+            local file key type
+            while IFS= read -r file; do
+              key=${file#build/site/}
+              case "$key" in
+                *.html) type='text/html; charset=utf-8' ;;
+                *.css) type='text/css; charset=utf-8' ;;
+                *.js) type='text/javascript; charset=utf-8' ;;
+                *.txt) type='text/plain; charset=utf-8' ;;
+                *.png) type=image/png ;;
+                *.svg) type=image/svg+xml ;;
+                *.ttf) type=font/ttf ;;
+                *) echo "::error::No content type for $key: add its extension here."; exit 1 ;;
+              esac
+              tool/release/r2_upload.sh "$file" "$key" "$type" "$short"
+            done
+          }
+          find build/site -type f ! -name '*.html' | sort | upload_site
+          find build/site -type f -name '*.html' ! -path build/site/index.html | sort | upload_site
+          echo build/site/index.html | upload_site
           # latest.json is what the app's opt-in update check reads: marketing version and build of
           # this release. It goes after the page, so it never names a build that is not uploaded yet.
           # VERSION is X.Y.Z.N: split at the last dot.
-          printf '{"version":"%s","build":%s}\n' "${VERSION%.*}" "${VERSION##*.}" > build/site/latest.json
-          tool/release/r2_upload.sh build/site/latest.json latest.json application/json "$short"
+          printf '{"version":"%s","build":%s}\n' "${VERSION%.*}" "${VERSION##*.}" > build/release/latest.json
+          tool/release/r2_upload.sh build/release/latest.json latest.json application/json "$short"
           echo "- Download site: https://custode.camillobucciarelli.dev/ ($VERSION)" >> "$GITHUB_STEP_SUMMARY"

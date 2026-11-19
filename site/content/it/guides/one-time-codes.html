@@ -1,0 +1,28 @@
+<p class="lead">Tieni il codice a due fattori di un sito nella stessa voce della sua password. Custode mostra il codice attuale e quanti secondi gli restano.</p>
+<p class="pills"><span class="pill">Tutte le piattaforme</span><span class="pill">3 minuti</span></p>
+
+<div class="callout">
+<p><strong>Prima di iniziare</strong></p>
+<p>Apri la pagina di configurazione dei due fattori del sito, quella che mostra un codice QR. Custode funziona con i codici basati sul tempo e ha bisogno dell’indirizzo di configurazione completo, quello che inizia con <code>otpauth://</code>. Il codice QR lo contiene; molti siti permettono anche di copiarlo come testo.</p>
+</div>
+
+<h2>Aggiungere il codice a una voce</h2>
+<ol class="steps">
+<li><p>Apri la voce e scegli <span class="chip">Edit</span></p><p>Per una voce nuova, scegli invece <span class="chip">Add record</span> nell’archivio.</p></li>
+<li><p>Sotto <span class="chip">Optional</span>, scegli <span class="chip">One-time code</span></p><p>Compare il campo <span class="chip">OTP URI (otpauth://…)</span>.</p></li>
+<li><p>Inquadra il codice QR o incolla l’indirizzo</p><p>Su Android, iPhone e iPad, tocca <span class="chip">Scan QR</span> dentro il campo e inquadra con la fotocamera il codice QR mostrato dal sito. Sul computer non c’è lo scanner: incolla nel campo l’indirizzo che inizia con <code>otpauth://</code>.</p></li>
+<li><p>Scegli <span class="chip">Save</span></p><p>È il pulsante rotondo con il segno di spunta, in alto.</p></li>
+</ol>
+
+<h2>Leggere e copiare il codice</h2>
+<ol class="steps">
+<li><p>Apri la voce</p><p>La riga <span class="chip">One-time code</span> mostra il codice attuale. Il cerchio accanto conta i secondi che mancano al cambio del codice.</p></li>
+<li><p>Scegli <span class="chip">Copy</span></p><p>Custode conferma con <span class="chip">Copied one-time code.</span> e svuota gli appunti circa 30 secondi dopo, se contengono ancora il codice.</p></li>
+</ol>
+
+<h2>Se la scansione non funziona</h2>
+<dl class="facts">
+<div><dt>Camera is off for Custode</dt><dd>Custode non ha il permesso di usare la fotocamera. Scegli <span class="chip">Open system settings</span> e consentilo, oppure incolla l’indirizzo nel campo di quella schermata e scegli <span class="chip">Save the URI</span>.</dd></div>
+<div><dt>QR does not contain a valid OTP URI.</dt><dd>Il codice QR che hai inquadrato non è un codice di configurazione dei due fattori. Inquadra quello nella pagina di configurazione dei due fattori del sito.</dd></div>
+<div><dt>OTP URI must start with otpauth://</dt><dd>Hai incollato soltanto la chiave segreta, o un altro testo. Incolla l’indirizzo completo.</dd></div>
+</dl>

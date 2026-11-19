@@ -1,0 +1,33 @@
+<p class="lead">Connect your Google account to have the same vault on all your devices. Custode uploads only the encrypted <code>.kdbx</code> file, to your own Drive space.</p>
+<p class="pills"><span class="pill">All platforms</span><span class="pill">5 minutes</span></p>
+
+<div class="callout">
+<p><strong>Before you start</strong></p>
+<p>You need a vault already open in Custode and a Google account. Sync is optional: you can unlink it whenever you want and the file stays on the device.</p>
+</div>
+
+<h2>Link the vault</h2>
+<ol class="steps">
+<li><p>Open the vault and go to sync</p><p>Unlock the vault, then open <span class="chip">Sync</span>: on a phone it is a tab in the bottom bar, on a computer it is the icon with the two arrows in the sidebar.</p></li>
+<li><p>Choose <span class="chip">Google Drive</span></p><p>You find it under <span class="chip">Choose a provider</span>. The Google sign-in page opens: sign in and allow Custode to use your Drive.</p></li>
+<li><p>Link a file</p><p>Under <span class="chip">Link a file</span> choose <span class="chip">Create a new file on Google Drive</span> to upload the vault to the top folder of your Drive, or <span class="chip">Pick an existing .kdbx</span> to link one that is already there, for example the one uploaded from another device.</p></li>
+<li><p>Run the first sync</p><p>Tap <span class="chip">Sync now</span>, the round button with the two arrows. <span class="chip">Auto-sync</span> is already on: Custode syncs by itself a few seconds after each change. If you prefer to do it by hand, turn it off on the same screen.</p></li>
+</ol>
+
+<figure class="shot">
+<img class="phone" src="~/assets/img/iphone-sync.png" width="660" height="1434" loading="lazy" alt="The Custode Sync screen on iPhone: status Up to date, Google Drive linked to the file Personal.kdbx, Auto-sync switch on">
+<figcaption>The sync screen on iPhone, with the vault already linked.</figcaption>
+</figure>
+
+<h2>If a conflict appears</h2>
+<p>It happens when the same vault was changed on two devices before syncing. Custode does not choose for you: it shows <span class="chip">Both versions changed</span> and asks what to keep.</p>
+<dl class="facts">
+<div><dt>Keep local</dt><dd>Keeps the version on this device and uploads it to Drive.</dd></div>
+<div><dt>Use remote</dt><dd>Replaces the local file with the one on Drive, after saving a copy of it.</dd></div>
+<div><dt>Review field by field</dt><dd>Opens the comparison of the two versions, to decide field by field.</dd></div>
+<div><dt>Cancel</dt><dd>Changes nothing: you can check calmly and try again.</dd></div>
+</dl>
+
+<div class="callout callout-warn">
+<p><strong>What Google sees.</strong> The encrypted file and its name. The master password does not leave the device and the content of the vault travels only encrypted.</p>
+</div>

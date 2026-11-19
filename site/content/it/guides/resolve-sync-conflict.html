@@ -1,0 +1,38 @@
+<p class="lead">Un conflitto significa che l’archivio su questo dispositivo e il file su Google Drive sono stati modificati entrambi dopo l’ultima sincronizzazione. Custode non sceglie mai da sola: si ferma e chiede a te.</p>
+<p class="pills"><span class="pill">Tutte le piattaforme</span><span class="pill">5 minuti</span></p>
+
+<h2>Aprire il conflitto</h2>
+<ol class="steps">
+<li><p>Apri <span class="chip">Sync</span></p><p>Quando c’è un conflitto la schermata mostra un riquadro intitolato <span class="chip">Both versions changed</span>, con la riga <span class="chip">Tap to choose which version to keep</span>.</p></li>
+<li><p>Tocca il riquadro</p><p>Vedi le due versioni, <span class="chip">This device</span> e <span class="chip">Drive</span>. Quando Drive la comunica, quella di Drive mostra anche la data dell’ultima modifica, utile per capire qual è la più recente.</p></li>
+</ol>
+
+<h2>Le quattro scelte</h2>
+<dl class="facts">
+<div><dt>Keep local</dt><dd>Carica la versione di questo dispositivo sopra il file su Drive. La versione che era su Drive non viene eliminata: l’app ti dice che resta come revisione di Drive.</dd></div>
+<div><dt>Use remote</dt><dd>Scarica il file da Drive e lo mette al posto di quello su questo dispositivo. Prima di sostituirlo, Custode salva una copia del tuo file locale. Se la copia non può essere creata, non viene sostituito niente.</dd></div>
+<div><dt>Review field by field</dt><dd>Apre il confronto tra le due versioni, così puoi tenere alcune cose dall’una e altre dall’altra. Trovi i passaggi qui sotto.</dd></div>
+<div><dt>Cancel</dt><dd>Non cambia niente, né sul dispositivo né su Drive. Il conflitto viene mostrato di nuovo alla sincronizzazione successiva.</dd></div>
+</dl>
+
+<h2>Rivedere campo per campo</h2>
+<ol class="steps">
+<li><p>Scegli <span class="chip">Review field by field</span></p><p>Si apre la schermata <span class="chip">Review merge</span>. Non viene scritto niente finché non confermi alla fine. Le voci e i campi che esistono da una parte sola vengono tenuti automaticamente: ti viene chiesto soltanto di ciò che è diverso.</p></li>
+<li><p>Scorri le decisioni</p><p>Sono raggruppate sotto <span class="chip">Field conflicts</span>, <span class="chip">Deletions</span> e <span class="chip">Folders</span>. Ognuna ha già una risposta suggerita. Tocca una decisione per confrontare le due parti; <span class="chip">Reveal values</span> mostra i valori nascosti.</p></li>
+<li><p>Scegli una parte per ciascuna</p><p>Scegli <span class="chip">This device</span> oppure <span class="chip">Drive</span>. Per le note c’è anche <span class="chip">Both</span>, che tiene entrambe le note una dopo l’altra. Per una voce eliminata da una parte sola, scegli <span class="chip">Keep</span> oppure <span class="chip">Delete</span>. Nome utente, password e sito web si spostano insieme: la parte che scegli vale per tutti e tre.</p></li>
+<li><p>Oppure rispondi a tutto in una volta</p><p><span class="chip">Prefer local</span> e <span class="chip">Prefer remote</span> scelgono la stessa parte per ogni decisione. Quando i conflitti sono troppi per rivederli uno a uno, queste due sono le sole opzioni offerte.</p></li>
+<li><p>Scegli <span class="chip">Continue</span>, poi <span class="chip">Merge and sync</span></p><p>La schermata <span class="chip">Ready to merge</span> riassume che cosa succederà. <span class="chip">Edit decisions</span> ti riporta indietro. Con <span class="chip">Merge and sync</span> Custode salva una copia datata del tuo archivio, scrive l’archivio unito, lo carica su Drive e controlla il caricamento. Non chiudere l’app mentre lavora.</p></li>
+<li><p>Scegli <span class="chip">Done</span></p><p><span class="chip">Merge complete</span> conferma che l’archivio unito è su questo dispositivo e su Drive.</p></li>
+</ol>
+
+<div class="callout">
+<p><strong>Dove viene salvata la copia</strong></p>
+<p>La copia creata da <span class="chip">Use remote</span> e da un’unione viene salvata accanto al file dell’archivio, con lo stesso nome seguito da un numero e da <code>.bak</code>. Sul computer la trovi nella stessa cartella dell’archivio. Sul telefono l’archivio sta nello spazio riservato all’app, e la copia con lui.</p>
+</div>
+
+<h2>Se il caricamento non viene confermato</h2>
+<p>Dopo un’unione puoi vedere <span class="chip">Upload not confirmed</span> oppure <span class="chip">Merge saved locally</span>. L’archivio unito è già salvato su questo dispositivo, insieme alla copia della versione precedente, ma non è segnato come sincronizzato. Scegli <span class="chip">Check now</span> per riprovare, oppure <span class="chip">Close</span>: la sincronizzazione successiva controlla che cosa c’è su Drive e conclude in sicurezza.</p>
+
+<div class="callout callout-warn">
+<p><strong>Se l’archivio o il file su Drive cambiano mentre rivedi.</strong> Custode ferma l’unione e ti chiede di ricominciare la revisione, così nessuna modifica va persa.</p>
+</div>
