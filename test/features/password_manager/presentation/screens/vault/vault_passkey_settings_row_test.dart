@@ -12,9 +12,17 @@ import '../../bloc/vault/vault_bloc_harness.dart';
 import 'vault_shell_test_utils.dart';
 
 class _FakeAutofillClient implements AppleAutofillV2Client {
-  _FakeAutofillClient(this.availability);
+  _FakeAutofillClient(
+    this.availability, {
+    this.autofillEnabled = false,
+    this.launchSucceeds = true,
+  });
 
   final AndroidPasskeyProviderAvailability availability;
+  final bool autofillEnabled;
+  final bool launchSucceeds;
+  int openAutofillCalls = 0;
+  int openPasskeyCalls = 0;
 
   @override
   bool get isSupported => true;
@@ -25,6 +33,21 @@ class _FakeAutofillClient implements AppleAutofillV2Client {
 
   @override
   Future<bool?> getExtensionEnabled() async => null;
+
+  @override
+  Future<bool> getAutofillServiceEnabled() async => autofillEnabled;
+
+  @override
+  Future<bool> openAutofillSettings() async {
+    openAutofillCalls++;
+    return launchSucceeds;
+  }
+
+  @override
+  Future<bool> openPasskeyProviderSettings() async {
+    openPasskeyCalls++;
+    return launchSucceeds;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -51,18 +74,108 @@ void main() {
   Future<void> asAndroid(Future<void> Function() body) =>
       asPlatform(TargetPlatform.android, body);
 
-  Future<void> openSettings(
+  Future<_FakeAutofillClient> openSettings(
     WidgetTester tester, {
     required AndroidPasskeyProviderAvailability availability,
+    bool autofillEnabled = false,
+    bool launchSucceeds = true,
   }) async {
     final widget = await pumpableVaultShell();
-    di.sl.registerLazySingleton<AppleAutofillV2Client>(
-      () => _FakeAutofillClient(availability),
+    final client = _FakeAutofillClient(
+      availability,
+      autofillEnabled: autofillEnabled,
+      launchSucceeds: launchSucceeds,
     );
+    di.sl.registerLazySingleton<AppleAutofillV2Client>(() => client);
     await tester.pumpWidget(widget);
     await tester.pumpAndSettle();
     await tester.tap(find.bySemanticsLabel('Settings'));
     await tester.pumpAndSettle();
+    return client;
+  }
+
+  const api34 = AndroidPasskeyProviderAvailability(
+    available: true,
+    apiLevel: 34,
+  );
+
+  testWidgets('Autofill row on Android opens system settings', (tester) async {
+    await asAndroid(() async {
+      final client = await openSettings(tester, availability: api34);
+      await tester.ensureVisible(find.text('Autofill & browsers'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Autofill & browsers'));
+      await tester.pumpAndSettle();
+
+      expect(client.openAutofillCalls, 1);
+      expect(find.textContaining('being rebuilt'), findsNothing);
+    });
+  });
+
+  testWidgets('Autofill row on Android shows manual hint if launch fails', (
+    tester,
+  ) async {
+    await asAndroid(() async {
+      await openSettings(tester, availability: api34, launchSucceeds: false);
+      await tester.ensureVisible(find.text('Autofill & browsers'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Autofill & browsers'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Android Settings'), findsOneWidget);
+    });
+  });
+
+  testWidgets('Passkeys row on Android opens the credential provider', (
+    tester,
+  ) async {
+    await asAndroid(() async {
+      final client = await openSettings(tester, availability: api34);
+      await tester.ensureVisible(find.text('Passkeys'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Passkeys'));
+      await tester.pumpAndSettle();
+
+      expect(client.openPasskeyCalls, 1);
+      expect(client.openAutofillCalls, 0);
+    });
+  });
+
+  testWidgets('Passkeys row below API 34 opens nothing and says why', (
+    tester,
+  ) async {
+    await asAndroid(() async {
+      final client = await openSettings(
+        tester,
+        availability: const AndroidPasskeyProviderAvailability(
+          available: false,
+          apiLevel: 31,
+        ),
+      );
+      await tester.ensureVisible(find.text('Passkeys'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Passkeys'));
+      await tester.pumpAndSettle();
+
+      expect(client.openPasskeyCalls, 0);
+      expect(find.textContaining('Android 14'), findsWidgets);
+    });
+  });
+
+  for (final (enabled, label) in [
+    (true, 'Autofill enabled'),
+    (false, 'Autofill not enabled yet'),
+  ]) {
+    testWidgets('Autofill row subtitle on Android: $label', (tester) async {
+      await asAndroid(() async {
+        await openSettings(
+          tester,
+          availability: api34,
+          autofillEnabled: enabled,
+        );
+        expect(find.text(label), findsOneWidget);
+      });
+    });
   }
 
   testWidgets('on API 34+ the row says passkey sign-in is available', (

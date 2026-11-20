@@ -33,7 +33,8 @@ class _VaultSettingsDestination extends StatefulWidget {
       _VaultSettingsDestinationState();
 }
 
-class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
+class _VaultSettingsDestinationState extends State<_VaultSettingsDestination>
+    with WidgetsBindingObserver {
   bool _biometricEnabled = false;
   int? _inactivityTimeoutSeconds;
   String? _keyFilePath;
@@ -49,6 +50,9 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
   /// spec 023 T405 — what the passkey row says on Android. Null while unknown
   /// (the row is then hidden); other platforms use [_staticPasskeySubtitle].
   String? _passkeyProviderSubtitle;
+
+  /// Android 14+: the system credential provider screen exists to open.
+  bool _passkeyProviderAvailable = false;
 
   /// T015: passkeys queued by the system provider and not yet in the vault.
   int _waitingPasskeys = 0;
@@ -77,9 +81,28 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     unawaited(_loadAutofillStatus());
     unawaited(_loadPasskeyProviderStatus());
     unawaited(_loadWaitingPasskeys());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Back from Android's system settings: the user may have just turned
+  /// Custode on, so ask again.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      unawaited(_loadAutofillStatus());
+      unawaited(_loadPasskeyProviderStatus());
+    }
   }
 
   Future<void> _loadWaitingPasskeys() async {
@@ -99,10 +122,12 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
   Future<void> _loadPasskeyProviderStatus() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     String? label;
+    var available = false;
     try {
       final availability = await di
           .sl<AppleAutofillV2Client>()
           .getPasskeyProviderAvailability();
+      available = availability.available;
       label = availability.available
           ? 'Sign in and create passkeys through Android\u2019s system '
                 'credential provider: turn Custode on in Android\u2019s '
@@ -113,7 +138,10 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
       label = null;
     }
     if (!mounted) return;
-    setState(() => _passkeyProviderSubtitle = label);
+    setState(() {
+      _passkeyProviderSubtitle = label;
+      _passkeyProviderAvailable = available;
+    });
   }
 
   /// One line of truth on the row instead of a generic tagline: the Apple
@@ -130,6 +158,11 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
           false => 'Autofill not enabled yet',
           null => null,
         };
+      } else if (defaultTargetPlatform == TargetPlatform.android) {
+        final enabled = await di
+            .sl<AppleAutofillV2Client>()
+            .getAutofillServiceEnabled();
+        label = enabled ? 'Autofill enabled' : 'Autofill not enabled yet';
       } else if (BrowserSetupScreen.shouldShow) {
         final bridge = await BrowserSetupService().checkBridgeConnection();
         label = switch (bridge) {
@@ -139,8 +172,6 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
           BridgeCheckResult.v2AppBridgeUnavailable =>
             'Browser helper not reachable',
         };
-      } else if (defaultTargetPlatform == TargetPlatform.android) {
-        label = 'Not available yet';
       }
     } catch (_) {
       label = null; // Fall back to the generic tagline.
@@ -418,8 +449,49 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
       await _openBrowserAutofillSettings(context);
       unawaited(_loadAutofillStatus());
     } else if (defaultTargetPlatform == TargetPlatform.android) {
-      await _openAndroidAutofillSettings(context);
+      await _openAndroidSettings(
+        context,
+        di.sl<AppleAutofillV2Client>().openAutofillSettings,
+      );
     }
+  }
+
+  /// The Passkeys row on Android: below API 34 there is no screen to open, so
+  /// say so instead of launching something unrelated.
+  Future<void> _openPasskeySettings(BuildContext context) {
+    if (!_passkeyProviderAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Passkey providers need Android 14 or later.'),
+        ),
+      );
+      return Future.value();
+    }
+    return _openAndroidSettings(
+      context,
+      di.sl<AppleAutofillV2Client>().openPasskeyProviderSettings,
+    );
+  }
+
+  Future<void> _openAndroidSettings(
+    BuildContext context,
+    Future<bool> Function() launch,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    var launched = false;
+    try {
+      launched = await launch();
+    } catch (error) {
+      debugPrint('Opening Android settings failed: $error');
+    }
+    if (launched) return;
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Could not open Android Settings. Enable Custode there manually.',
+        ),
+      ),
+    );
   }
 
   Future<void> _openBackups(BuildContext context) async {
@@ -690,7 +762,7 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
                   subtitle: passkeySubtitle,
                   onTap:
                       !kIsWeb && defaultTargetPlatform == TargetPlatform.android
-                      ? () => _openAndroidAutofillSettings(context)
+                      ? () => _openPasskeySettings(context)
                       : null,
                 ),
               ],

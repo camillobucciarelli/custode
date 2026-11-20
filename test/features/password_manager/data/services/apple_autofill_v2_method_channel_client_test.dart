@@ -324,6 +324,55 @@ void main() {
       expect(args['outcome'], 'declined');
     });
 
+    group('android system settings', () {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      var reply = true;
+
+      setUp(() {
+        reply = true;
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          return reply;
+        });
+      });
+
+      tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+      test('forward to the matching native methods', () async {
+        final client = AppleAutofillV2MethodChannelClient(channel: channel);
+
+        expect(await client.getAutofillServiceEnabled(), isTrue);
+        expect(await client.openAutofillSettings(), isTrue);
+        expect(await client.openPasskeyProviderSettings(), isTrue);
+        expect(calls.map((c) => c.method), [
+          'getAutofillServiceEnabled',
+          'openAutofillSettings',
+          'openPasskeyProviderSettings',
+        ]);
+      });
+
+      test('relay a false answer', () async {
+        reply = false;
+        final client = AppleAutofillV2MethodChannelClient(channel: channel);
+
+        expect(await client.getAutofillServiceEnabled(), isFalse);
+        expect(await client.openAutofillSettings(), isFalse);
+        expect(await client.openPasskeyProviderSettings(), isFalse);
+      });
+
+      test('are false, without a call, off Android', () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        final client = AppleAutofillV2MethodChannelClient(channel: channel);
+
+        expect(await client.getAutofillServiceEnabled(), isFalse);
+        expect(await client.openAutofillSettings(), isFalse);
+        expect(await client.openPasskeyProviderSettings(), isFalse);
+        expect(calls, isEmpty);
+      });
+    });
+
     test('an unsupported platform refuses instead of answering null', () async {
       final client = AppleAutofillV2MethodChannelClient(
         channel: channel,

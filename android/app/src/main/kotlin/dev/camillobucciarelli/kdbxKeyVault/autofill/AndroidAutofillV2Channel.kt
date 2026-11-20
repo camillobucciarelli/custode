@@ -1,7 +1,15 @@
 package dev.camillobucciarelli.kdbxKeyVault.autofill
 
+import android.app.PendingIntent
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.util.Log
+import android.view.autofill.AutofillManager
+import androidx.credentials.CredentialManager
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
@@ -38,12 +46,57 @@ internal class AndroidAutofillV2Channel(context: Context) {
                 "getPasskeyProviderAvailability" -> result.success(
                     AndroidPasskeyProviderAvailability.availabilityMap(),
                 )
+                "getAutofillServiceEnabled" -> result.success(
+                    appContext.getSystemService(AutofillManager::class.java)
+                        ?.hasEnabledAutofillServices() == true,
+                )
+                "openAutofillSettings" -> result.success(
+                    launchWithFallback(
+                        Intent(
+                            Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE,
+                            Uri.parse("package:" + appContext.packageName),
+                        ),
+                    ),
+                )
+                "openPasskeyProviderSettings" -> result.success(openPasskeyProviderSettings())
                 else -> result.notImplemented()
             }
         } catch (error: Throwable) {
             Log.w(TAG, "Android Autofill channel failed: ${error.javaClass.simpleName}")
             result.error("android_autofill_v2_failed", error.message, null)
         }
+    }
+
+    /**
+     * Starts [intent], or the general Settings screen when no activity or
+     * permission allows it. True when anything was launched; never throws.
+     */
+    private fun launchWithFallback(intent: Intent): Boolean {
+        for (candidate in listOf(intent, Intent(Settings.ACTION_SETTINGS))) {
+            try {
+                appContext.startActivity(candidate.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return true
+            } catch (error: ActivityNotFoundException) {
+                Log.w(TAG, "Settings launch failed: ${error.javaClass.simpleName}")
+            } catch (error: SecurityException) {
+                Log.w(TAG, "Settings launch failed: ${error.javaClass.simpleName}")
+            }
+        }
+        return false
+    }
+
+    // CredentialManager.createSettingsPendingIntent is @RequiresApi(34).
+    private fun openPasskeyProviderSettings(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return false
+        try {
+            CredentialManager.create(appContext).createSettingsPendingIntent().send()
+            return true
+        } catch (error: PendingIntent.CanceledException) {
+            Log.w(TAG, "Passkey settings launch failed: ${error.javaClass.simpleName}")
+        } catch (error: RuntimeException) {
+            Log.w(TAG, "Passkey settings launch failed: ${error.javaClass.simpleName}")
+        }
+        return launchWithFallback(Intent(Settings.ACTION_SETTINGS))
     }
 
     private fun handlePublishCredentials(arguments: Any?, result: MethodChannel.Result) {
