@@ -141,7 +141,7 @@ The fix from branch `fix/unlock-silent-errors` is applied on top of
       spec 011 keystore probe (`manual-qa-harnesses` skill) for risk R1 on
       Android and one Apple platform and record the outcome under this task.
       Not done: `dart format`, `flutter analyze` and the non-golden
-      `flutter test` are green (2456 passed, 2 skipped), but the probe needs
+      `flutter test` are green (2624 passed, 2 skipped), but the probe needs
       physical devices. Static finding: `updateBiometricProtection(enabled:
       true)` writes through the same `SecureDataSource.saveMasterPassword`
       call, with the same options, that every manual unlock with the flag on

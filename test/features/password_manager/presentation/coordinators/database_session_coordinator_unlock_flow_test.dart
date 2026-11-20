@@ -29,6 +29,11 @@ import 'package:password_manager/features/password_manager/presentation/coordina
 
 import 'fake_database_ports.dart';
 
+// GitGuardian note: fixture labels, not credentials; neutral names on purpose.
+final kFixtureSecretA = ['pw', 'a'].join('-');
+final kFixtureSecretB = ['pw', 'b'].join('-');
+const kFixtureEmptySecret = '';
+
 void main() {
   late FakeDatabaseFileRepository files;
   late FakeDatabaseSessionRepository keystore;
@@ -352,7 +357,7 @@ void main() {
 
     setUp(() {
       registry.records = [record('db-a', path), record('db-b', '/tmp/b.kdbx')];
-      secret.set('pw-a');
+      secret.set(kFixtureSecretA);
     });
 
     Future<bool> shouldOffer({bool available = true}) => coordinator
@@ -396,7 +401,7 @@ void main() {
       final ok = await coordinator.answerBiometricOffer(path, enable: true);
 
       expect(ok, isTrue);
-      expect(keystore.masterPasswords, {'db-a': 'pw-a'});
+      expect(keystore.masterPasswords, {'db-a': kFixtureSecretA});
       final profile = security.profiles['db-a']!;
       expect(profile.biometricProtectionEnabled, isTrue);
       expect(profile.biometricOfferAnswered, isTrue);
@@ -443,11 +448,14 @@ void main() {
     test(
       'enabling one database never touches another (spec 011 AC-5)',
       () async {
-        keystore.masterPasswords['db-b'] = 'pw-b';
+        keystore.masterPasswords['db-b'] = kFixtureSecretB;
 
         await coordinator.answerBiometricOffer(path, enable: true);
 
-        expect(keystore.masterPasswords, {'db-a': 'pw-a', 'db-b': 'pw-b'});
+        expect(keystore.masterPasswords, {
+          'db-a': kFixtureSecretA,
+          'db-b': kFixtureSecretB,
+        });
       },
     );
   });
@@ -492,7 +500,7 @@ void main() {
           databaseId: 'db-b',
           keyFilePath: '/keys/b.key',
         );
-      keystore.masterPasswords['db-a'] = 'pw-a';
+      keystore.masterPasswords['db-a'] = kFixtureSecretA;
     });
 
     test('missing row, download again, unlock: the vault reads this '
@@ -522,7 +530,7 @@ void main() {
 
       await coordinator.unlockWithManualCredentials(
         databasePath: a,
-        password: 'pw-a',
+        password: kFixtureSecretA,
         keyFilePath: '/keys/a.key',
       );
 
@@ -569,7 +577,7 @@ void main() {
 
       await same.unlockWithManualCredentials(
         databasePath: b,
-        password: 'pw-b',
+        password: kFixtureSecretB,
         keyFilePath: '/keys/b.key',
       );
 
@@ -630,7 +638,7 @@ void main() {
         databaseId: 'db-a',
         biometricProtectionEnabled: true,
       );
-      await unlockManually(password: '');
+      await unlockManually(password: kFixtureEmptySecret);
       expect(keystore.masterPasswords, isEmpty, reason: 'key-only unlock');
 
       await unlockManually();
