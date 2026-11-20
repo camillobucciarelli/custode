@@ -20,12 +20,16 @@ import 'package:password_manager/features/password_manager/domain/repositories/d
 import 'package:password_manager/features/password_manager/domain/repositories/database_security_repository.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_session_repository.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_sync_repository.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/create_database_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/unlock_database_usecase.dart';
 
 class FakeDatabaseFileRepository implements DatabaseFileRepository {
   final Set<String> existingPaths = {};
   Object? Function(String path)? openExistingPathError;
   DatabaseImportResult Function(String path)? openExistingPathResult;
+
+  /// When set, `openExistingPath` waits for it: keeps a busy state on screen.
+  Future<void>? openExistingPathGate;
   StagedDatabaseImport? stageResult;
   Object? stageError;
   DatabaseFileCommit? commitResult;
@@ -34,6 +38,8 @@ class FakeDatabaseFileRepository implements DatabaseFileRepository {
   String createDatabaseResult = '/tmp/created.kdbx';
   String hashFileResult = 'hash';
   final List<StagedDatabaseImport> discarded = [];
+  final List<DatabaseFileCommit> rolledBack = [];
+  final List<String?> commitTargets = [];
 
   @override
   Future<bool> fileExists(String path) async => existingPaths.contains(path);
@@ -67,6 +73,7 @@ class FakeDatabaseFileRepository implements DatabaseFileRepository {
 
   @override
   Future<DatabaseImportResult> openExistingPath(String path) async {
+    await openExistingPathGate;
     final error = openExistingPathError?.call(path);
     if (error != null) {
       throw error;
@@ -135,6 +142,7 @@ class FakeDatabaseFileRepository implements DatabaseFileRepository {
     StagedDatabaseImport staged, {
     String? targetPath,
   }) async {
+    commitTargets.add(targetPath);
     if (commitError != null) {
       throw commitError!;
     }
@@ -146,7 +154,9 @@ class FakeDatabaseFileRepository implements DatabaseFileRepository {
   Future<void> finalizeDatabaseCommit(DatabaseFileCommit commit) async {}
 
   @override
-  Future<void> rollbackDatabaseCommit(DatabaseFileCommit commit) async {}
+  Future<void> rollbackDatabaseCommit(DatabaseFileCommit commit) async {
+    rolledBack.add(commit);
+  }
 
   @override
   Future<String> managedDatabasePath(String fileName) async => '/tmp/$fileName';
@@ -176,8 +186,14 @@ class FakeDatabaseFileRepository implements DatabaseFileRepository {
   }) async => selectedPath ?? '/tmp/$fileName';
 
   @override
-  Future<String?> ensureManagedKeyFilePath(String? keyFilePath) async =>
-      keyFilePath;
+  Future<String?> ensureManagedKeyFilePath(String? keyFilePath) async {
+    final error = ensureManagedKeyFileError;
+    if (error != null) throw error;
+    return keyFilePath;
+  }
+
+  /// When set, `ensureManagedKeyFilePath` throws it (managed import failure).
+  Object? ensureManagedKeyFileError;
 
   @override
   Future<void> deleteFile(String path) async {
@@ -191,14 +207,25 @@ class FakeDatabaseSessionRepository implements DatabaseSessionRepository {
   /// spec-011 FR-4: one stored credential per database id.
   final Map<String, String> masterPasswords = {};
 
+  /// When set, `saveMasterPassword` throws it (keystore failure).
+  Object? saveError;
+
   @override
   Future<void> saveMasterPassword(String databaseId, String password) async {
+    final error = saveError;
+    if (error != null) throw error;
     masterPasswords[databaseId] = password;
   }
 
+  /// When set, `getMasterPassword` throws it (keystore read failure).
+  Object? readError;
+
   @override
-  Future<String?> getMasterPassword(String databaseId) async =>
-      masterPasswords[databaseId];
+  Future<String?> getMasterPassword(String databaseId) async {
+    final error = readError;
+    if (error != null) throw error;
+    return masterPasswords[databaseId];
+  }
 
   @override
   Future<void> clearMasterPassword(String databaseId) async {
@@ -278,8 +305,13 @@ class FakeDatabaseSecurityRepository implements DatabaseSecurityRepository {
     profiles.remove(databaseId);
   }
 
+  /// When set, `saveProfile` throws it (metadata storage failure).
+  Object? saveError;
+
   @override
   Future<void> saveProfile(DatabaseSecurityProfile profile) async {
+    final error = saveError;
+    if (error != null) throw error;
     profiles[profile.databaseId] = profile;
   }
 }
@@ -308,13 +340,21 @@ class FakeDatabaseSyncRepository implements DatabaseSyncRepository {
   @override
   Future<Uint8List> downloadRemoteFile(String fileId) async => downloadBytes;
 
-  @override
-  Future<DatabaseSyncMapping?> getMapping(String databasePath) async =>
-      mappings[databasePath];
+  Object? mappingError;
 
   @override
-  Future<List<DatabaseSyncMapping>> getAllMappings() async =>
-      mappings.values.toList(growable: false);
+  Future<DatabaseSyncMapping?> getMapping(String databasePath) async {
+    final error = mappingError;
+    if (error != null) throw error;
+    return mappings[databasePath];
+  }
+
+  @override
+  Future<List<DatabaseSyncMapping>> getAllMappings() async {
+    final error = mappingError;
+    if (error != null) throw error;
+    return mappings.values.toList(growable: false);
+  }
 
   @override
   Future<bool> isConnected() async => connected;
@@ -385,8 +425,14 @@ class FakeDatabaseSyncRepository implements DatabaseSyncRepository {
     SyncConflictResolution? resolution,
   }) async => const SyncNowSuccess();
 
+  Object? accountError;
+
   @override
-  Future<StorageAccountSummary> getConnectedAccount() async => account;
+  Future<StorageAccountSummary> getConnectedAccount() async {
+    final error = accountError;
+    if (error != null) throw error;
+    return account;
+  }
 }
 
 /// `UnlockDatabaseUseCase` reads real KDBX bytes off disk; tests override
@@ -420,5 +466,27 @@ class FakeUnlockDatabaseUseCase extends UnlockDatabaseUseCase {
     if (error != null) {
       throw error!;
     }
+  }
+}
+
+/// `CreateDatabaseUseCase` builds and saves a real KDBX, whose key derivation
+/// runs off the fake test clock. Widget tests that only assert what the
+/// coordinator and the screen do after a successful create override `call`;
+/// the use case itself is covered by `create_database_usecase_test.dart`.
+class FakeCreateDatabaseUseCase extends CreateDatabaseUseCase {
+  FakeCreateDatabaseUseCase({required super.databaseFileRepository});
+
+  CreateDatabaseRequest? lastRequest;
+
+  @override
+  Future<CreateDatabaseResult?> call(CreateDatabaseRequest request) async {
+    lastRequest = request;
+    return CreateDatabaseResult(
+      databasePath: '/tmp/created.kdbx',
+      fileHash: 'hash',
+      keyFilePath: request.generateKeyFile
+          ? '/tmp/keys/generated.key'
+          : request.keyFilePath,
+    );
   }
 }

@@ -116,20 +116,6 @@ class VaultSessionCoordinator {
     return profile?.keyFilePath;
   }
 
-  Future<Set<String>> getProtectedKeyFilePaths() async {
-    final protectedPaths = <String>{};
-    for (final record in await databaseRegistryRepository.list()) {
-      final profile = await databaseSecurityRepository.getProfile(
-        record.databaseId,
-      );
-      final path = _normalizeKeyFilePath(profile?.keyFilePath);
-      if (path != null) {
-        protectedPaths.add(p.normalize(path));
-      }
-    }
-    return protectedPaths;
-  }
-
   /// spec-011 Slice 2: switching database drops only session-scoped state.
   /// The per-database biometric credential is deliberately persistent
   /// (FR-4) and is removed solely by FR-5 (flag off, database removed).

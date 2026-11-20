@@ -13,6 +13,7 @@ import '../../domain/models/database_import_transaction.dart';
 import '../../domain/models/database_selection_item.dart';
 import '../../domain/models/database_sync_mapping.dart';
 import '../../domain/models/remote_file_selection_data.dart';
+import '../../domain/models/storage_account_summary.dart';
 import '../../domain/models/recent_database_removal_mode.dart';
 import '../../domain/repositories/database_file_repository.dart';
 import '../../domain/repositories/database_registry_repository.dart';
@@ -41,12 +42,22 @@ class DatabaseDuplicatePrompt {
     required this.imported,
     required this.existingRecord,
     required this.clearCredentials,
+    this.matchType = DatabaseDuplicateMatchType.none,
+    this.canReplaceExisting = true,
     this.stagedImport,
   });
 
   final DatabaseImportResult imported;
   final DatabaseRecord existingRecord;
   final bool clearCredentials;
+
+  /// What matched the existing record; a [DatabaseDuplicateMatchType.name]
+  /// match is a different file that merely shares a name (spec 025 FR-O6).
+  final DatabaseDuplicateMatchType matchType;
+
+  /// False when "Replace existing" would put a different database's bytes on
+  /// a path that is mapped to a remote file (spec 025 D11).
+  final bool canReplaceExisting;
   final StagedDatabaseImport? stagedImport;
 }
 
@@ -60,17 +71,47 @@ class DatabaseSelectionSessionResult {
     required this.items,
     this.path,
     this.message,
-    this.promptBiometricSetup = false,
     this.duplicatePrompt,
+    this.openVault = false,
+    this.remoteAccount,
   });
 
   final DatabaseSessionStatus status;
   final List<DatabaseSelectionItem> items;
+
+  /// Spec 025 FR-L2: the connected account that heads the remote group of
+  /// [items]. Best-effort; null renders the bare provider label.
+  final StorageAccountSummary? remoteAccount;
   final String? path;
   final String? message;
-  final bool promptBiometricSetup;
   final DatabaseDuplicatePrompt? duplicatePrompt;
+
+  /// Spec 025 FR-C6: the session already holds the secret and the profile the
+  /// key path, so the screen may open the vault without asking again.
+  final bool openVault;
 }
+
+/// Shown when the keystore refused the biometric credential. The flow that
+/// asked for it (unlock offer, database creation) still succeeded.
+const biometricsNotEnabledNotice =
+    'Biometrics could not be enabled. You can try again in Settings.';
+
+/// Spec 025 D10: the database decrypted and is open, but something written
+/// after that (the remembered key file, the refreshed profile) was not saved.
+const unlockSettingsNotSavedNotice =
+    'Database unlocked, but its settings could not be saved on this device. '
+    'You may be asked for the key file again.';
+
+/// The picked key file is used for this unlock even though the choice could
+/// not be written to the database's profile.
+const keyFileNotRememberedNotice =
+    'This key file will be used now, but the choice could not be saved. '
+    'You may need to pick it again next time.';
+
+/// Spec 025 FR-C5: the local database exists but the Drive upload did not.
+const remoteCreateFailedNotice =
+    'Database created on this device. It could not be uploaded to Google '
+    'Drive. You can link it from Sync.';
 
 class UnlockBootstrapResult {
   const UnlockBootstrapResult({
@@ -78,17 +119,36 @@ class UnlockBootstrapResult {
     required this.biometricRequired,
     required this.biometricAvailable,
     this.displayName,
+    this.databaseId,
+    this.isRemoteLinked = false,
+    this.remoteAccount,
+    this.fileMissing = false,
   });
 
   final String? keyFilePath;
   final bool biometricRequired;
   final bool biometricAvailable;
 
+  /// Any registered database with a sync mapping, whatever its
+  /// `sourceType` (a vault linked later from Sync is remote too).
+  final bool isRemoteLinked;
+
+  /// Best-effort, only when the provider is already connected: bootstrap
+  /// never opens an interactive sign-in. Null otherwise.
+  final StorageAccountSummary? remoteAccount;
+
+  /// The registered file is no longer on disk; the unlock screen offers
+  /// locate / re-download / remove instead of a credential form.
+  final bool fileMissing;
+
   /// spec 014 FR-3: on mobile the file on disk is an opaque identifier, so
   /// the registry holds the only human-readable name. `null` when the path
   /// is not registered — the caller falls back to the basename, which is the
   /// real name on desktop.
   final String? displayName;
+
+  /// Registry id; null when the path is not registered.
+  final String? databaseId;
 }
 
 /// C-7 coordinator: sequences multi-step selection/unlock/create workflows.
@@ -138,6 +198,12 @@ class DatabaseSessionCoordinator {
   final SessionSecretHolder sessionSecretHolder;
   final AppleAutofillV2CoordinatorContract appleAutofillV2Coordinator;
 
+  /// The account read by the latest [_loadSelectionItems], copied into each
+  /// result next to its items.
+  // ponytail: one provider, one connected account, so one cached value; make
+  // it per provider id when a second provider lands (spec 010/012).
+  StorageAccountSummary? _listRemoteAccount;
+
   Future<DatabaseSelectionSessionResult> checkInitialDatabase() async {
     final items = await _loadSelectionItems();
     final activeRecord = await getActiveDatabaseUseCase();
@@ -151,6 +217,7 @@ class DatabaseSessionCoordinator {
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.unselected,
         items: items,
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -162,6 +229,7 @@ class DatabaseSessionCoordinator {
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.unselected,
         items: items,
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -176,6 +244,7 @@ class DatabaseSessionCoordinator {
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.unselected,
         items: items,
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -193,6 +262,7 @@ class DatabaseSessionCoordinator {
         status: DatabaseSessionStatus.error,
         message: 'Database file not found or corrupted.',
         items: updatedItems,
+        remoteAccount: _listRemoteAccount,
       );
     }
   }
@@ -215,35 +285,13 @@ class DatabaseSessionCoordinator {
     required String fileName,
     String? selectedPath,
     List<int>? selectedBytes,
-    bool overwriteExisting = false,
   }) async {
     final staged = await databaseFileRepository.stageLocalSelection(
       fileName: fileName,
       selectedPath: selectedPath,
       selectedBytes: selectedBytes,
     );
-    final dedup = await resolveDatabaseDuplicateUseCase(
-      sourceType: staged.imported.sourceType,
-      sourceRef: staged.imported.sourceRef,
-      fileHash: staged.imported.fileHash,
-    );
-    if (dedup.hasDuplicate) {
-      return DatabaseSelectionSessionResult(
-        status: DatabaseSessionStatus.duplicateDecisionRequired,
-        message: 'A database with the same source or content already exists. Choose how to continue.',
-        items: await _loadSelectionItems(),
-        duplicatePrompt: DatabaseDuplicatePrompt(
-          imported: staged.imported,
-          existingRecord: dedup.existingRecord!,
-          clearCredentials: true,
-          stagedImport: staged,
-        ),
-      );
-    }
-    return _commitStagedImport(
-      staged: staged,
-      overwriteExisting: overwriteExisting,
-    );
+    return _commitOrAskAboutDuplicate(staged);
   }
 
   Future<DatabaseSelectionSessionResult> openRecentDatabase(String path) async {
@@ -252,6 +300,7 @@ class DatabaseSessionCoordinator {
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.unselected,
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -272,6 +321,7 @@ class DatabaseSessionCoordinator {
         status: DatabaseSessionStatus.error,
         message: 'Database record not found.',
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -285,8 +335,11 @@ class DatabaseSessionCoordinator {
         storedHash != imported.fileHash) {
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.error,
-        message: 'Selected file does not match the missing database. Use "Open existing database" instead.',
+        message:
+            'Selected file does not match the missing database. Use "Open a '
+            'database" instead.',
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -335,6 +388,71 @@ class DatabaseSessionCoordinator {
       status: DatabaseSessionStatus.success,
       path: updatedRecord.canonicalPath,
       items: await _loadSelectionItems(),
+      remoteAccount: _listRemoteAccount,
+    );
+  }
+
+  /// FR-U5: fetches the mapped remote file again for a database whose local
+  /// file is gone. Database id, security profile and sync mapping are kept;
+  /// only the bytes and `fileHash` change. Bytes land through the repository's
+  /// stage/commit pair, so the shared mutex, backup and rollback apply.
+  /// Download or commit failures mutate nothing and propagate.
+  Future<DatabaseSelectionSessionResult> redownloadMissingDatabase(
+    String databaseId,
+  ) async {
+    final record = await databaseRegistryRepository.getById(databaseId);
+    final mapping = record == null
+        ? null
+        : await databaseSyncRepository.getMapping(record.canonicalPath);
+    if (record == null || mapping == null) {
+      return DatabaseSelectionSessionResult(
+        status: DatabaseSessionStatus.error,
+        message: 'This database is not linked to a remote file.',
+        items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
+      );
+    }
+
+    final bytes = await databaseSyncRepository.downloadRemoteFile(
+      mapping.remoteFileId,
+    );
+    final staged = await databaseFileRepository.stageDriveDownload(
+      fileName: mapping.remoteFileName,
+      bytes: bytes,
+      remoteFileId: mapping.remoteFileId,
+    );
+    DatabaseFileCommit? commit;
+    try {
+      commit = await databaseFileRepository.commitStagedDatabase(
+        staged,
+        targetPath: record.canonicalPath,
+      );
+      await databaseRegistryRepository.upsert(
+        record.copyWith(
+          fileHash: staged.imported.fileHash,
+          updatedAt: DateTime.now(),
+        ),
+      );
+    } catch (_) {
+      try {
+        if (commit == null) {
+          await databaseFileRepository.discardStagedDatabase(staged);
+        } else {
+          await databaseFileRepository.rollbackDatabaseCommit(commit);
+        }
+      } catch (_) {}
+      rethrow;
+    }
+    try {
+      await databaseFileRepository.finalizeDatabaseCommit(commit);
+    } catch (_) {
+      // Committed; an undeleted backup is only a leftover.
+    }
+    return DatabaseSelectionSessionResult(
+      status: DatabaseSessionStatus.success,
+      path: record.canonicalPath,
+      items: await _loadSelectionItems(),
+      remoteAccount: _listRemoteAccount,
     );
   }
 
@@ -410,6 +528,7 @@ class DatabaseSessionCoordinator {
       status: DatabaseSessionStatus.success,
       path: recordToSave.canonicalPath,
       items: await _loadSelectionItems(),
+      remoteAccount: _listRemoteAccount,
     );
   }
 
@@ -432,6 +551,21 @@ class DatabaseSessionCoordinator {
     return _loadRemoteFileSelectionData();
   }
 
+  /// "Switch account" (spec 025 FR-O4): signs out, signs in again and reloads
+  /// the list. If the new sign-in fails or is cancelled the repository stays
+  /// disconnected and the error reaches the caller. Existing mappings are
+  /// untouched; a database linked under the previous account surfaces the
+  /// reconnect-required state at its next sync.
+  Future<RemoteFileSelectionData> switchRemoteAccount() async {
+    await databaseSyncRepository.disconnect();
+    // The list's cached account is the one just signed out of.
+    _listRemoteAccount = null;
+    await databaseSyncRepository.connect();
+    final data = await _loadRemoteFileSelectionData();
+    _listRemoteAccount = data.account;
+    return data;
+  }
+
   Future<RemoteFileSelectionData> _loadRemoteFileSelectionData() async {
     final files = await databaseSyncRepository.listRemoteFiles();
     final account = await databaseSyncRepository.getConnectedAccount();
@@ -445,30 +579,10 @@ class DatabaseSessionCoordinator {
     return _loadSelectionItems();
   }
 
-  Future<bool> hasManagedDatabaseNamed(String fileName) async {
-    // spec 014 FR-3: on-disk names are opaque, so "a database with this
-    // name" is a registry question, not a filesystem one.
-    return await _findRecordByDisplayName(fileName) != null;
-  }
-
-  Future<DatabaseRecord?> _findRecordByDisplayName(String displayName) async {
-    final trimmed = displayName.trim();
-    if (trimmed.isEmpty) {
-      return null;
-    }
-    final records = await databaseRegistryRepository.list();
-    for (final record in records) {
-      if (record.displayName == trimmed) {
-        return record;
-      }
-    }
-    return null;
-  }
-
   Future<DatabaseSelectionSessionResult> selectDriveDatabase({
+    required String remoteProviderId,
     required String remoteFileId,
     required String remoteFileName,
-    required bool overwriteExisting,
   }) async {
     final bytes = await databaseSyncRepository.downloadRemoteFile(remoteFileId);
     final staged = await databaseFileRepository.stageDriveDownload(
@@ -476,41 +590,64 @@ class DatabaseSessionCoordinator {
       bytes: bytes,
       remoteFileId: remoteFileId,
     );
+    return _commitOrAskAboutDuplicate(
+      staged,
+      remoteProviderId: remoteProviderId,
+    );
+  }
+
+  /// The one conflict detection for every import source (spec 025 FR-O6):
+  /// source, then content hash, then display name, all against the registry.
+  /// A match hands the staged bytes to the user's decision, otherwise the
+  /// import commits straight away.
+  Future<DatabaseSelectionSessionResult> _commitOrAskAboutDuplicate(
+    StagedDatabaseImport staged, {
+    String? remoteProviderId,
+  }) async {
     final dedup = await resolveDatabaseDuplicateUseCase(
       sourceType: staged.imported.sourceType,
       sourceRef: staged.imported.sourceRef,
       fileHash: staged.imported.fileHash,
+      displayName: staged.preferredFileName,
+      remoteProviderId: remoteProviderId,
     );
     if (dedup.hasDuplicate) {
+      // Spec 025 D11: a name-only match is a different database. Replacing a
+      // remote-linked one would leave its mapping pointing at the old remote
+      // file and sync the new content into it.
+      final canReplaceExisting =
+          dedup.matchType != DatabaseDuplicateMatchType.name ||
+          await _mappingOrNull(dedup.existingRecord!.canonicalPath) == null;
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.duplicateDecisionRequired,
-        message: 'A database with the same source or content already exists. Choose how to continue.',
+        message: 'This database is already here. Choose how to continue.',
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
         duplicatePrompt: DatabaseDuplicatePrompt(
           imported: staged.imported,
           existingRecord: dedup.existingRecord!,
           clearCredentials: true,
+          matchType: dedup.matchType,
+          canReplaceExisting: canReplaceExisting,
           stagedImport: staged,
         ),
       );
     }
-    return _commitStagedImport(
-      staged: staged,
-      overwriteExisting: overwriteExisting,
-    );
+    return _commitStagedImport(staged: staged);
   }
 
   Future<DatabaseSelectionSessionResult> _commitStagedImport({
     required StagedDatabaseImport staged,
-    required bool overwriteExisting,
     DatabaseDuplicateResolution? decision,
     DatabaseRecord? duplicateRecord,
+    DatabaseDuplicateMatchType matchType = DatabaseDuplicateMatchType.none,
   }) async {
     if (decision == DatabaseDuplicateResolution.cancel) {
       await databaseFileRepository.discardStagedDatabase(staged);
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.unselected,
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -524,7 +661,10 @@ class DatabaseSessionCoordinator {
         await databaseRegistryRepository.setActive(duplicateRecord.databaseId);
         await _clearSessionCredentials();
         final items = await _loadSelectionItems();
-        if (staged.imported.sourceType == DatabaseSourceType.drive) {
+        // A name-only match is a different file: "open the existing one"
+        // must not re-point its sync mapping at this remote file.
+        if (staged.imported.sourceType == DatabaseSourceType.drive &&
+            matchType != DatabaseDuplicateMatchType.name) {
           await linkDatabaseToRemote(
             databasePath: duplicateRecord.canonicalPath,
             remoteFileId: staged.imported.sourceRef,
@@ -534,9 +674,7 @@ class DatabaseSessionCoordinator {
           status: DatabaseSessionStatus.success,
           path: duplicateRecord.canonicalPath,
           items: items,
-          promptBiometricSetup:
-              staged.imported.sourceType == DatabaseSourceType.drive,
-          message: 'Existing database reused to avoid duplicates.',
+          remoteAccount: _listRemoteAccount,
         );
       } finally {
         try {
@@ -545,30 +683,11 @@ class DatabaseSessionCoordinator {
       }
     }
 
-    String? targetPath;
-    if (decision == DatabaseDuplicateResolution.replaceExisting &&
-        duplicateRecord != null) {
-      targetPath = duplicateRecord.canonicalPath;
-    } else if (decision != DatabaseDuplicateResolution.keepBoth &&
-        overwriteExisting) {
-      // spec 014 FR-3: the overwrite target is the registry record carrying
-      // this display name; the on-disk name is opaque and never derived
-      // from it. An unresolvable target must fail loudly — degrading to a
-      // new-database commit would hand the user a silent duplicate after
-      // they explicitly chose "overwrite".
-      final match = await _findRecordByDisplayName(staged.preferredFileName);
-      if (match == null) {
-        await databaseFileRepository.discardStagedDatabase(staged);
-        return DatabaseSelectionSessionResult(
-          status: DatabaseSessionStatus.error,
-          message:
-              'Could not find the existing database to replace. '
-              'Nothing was changed.',
-          items: await _loadSelectionItems(),
-        );
-      }
-      targetPath = match.canonicalPath;
-    }
+    final targetPath =
+        decision == DatabaseDuplicateResolution.replaceExisting &&
+            duplicateRecord != null
+        ? duplicateRecord.canonicalPath
+        : null;
 
     final originalRecord = targetPath == null
         ? null
@@ -587,6 +706,13 @@ class DatabaseSessionCoordinator {
     final originalSessionSecret = sessionSecretHolder.hasSecret
         ? sessionSecretHolder.read()
         : null;
+    // Spec 025 D6: keeping both files of the same name gives the new record a
+    // numeric suffix. On-disk names are opaque, so nothing collides there.
+    final displayName =
+        decision == DatabaseDuplicateResolution.keepBoth &&
+            matchType == DatabaseDuplicateMatchType.name
+        ? await _nextFreeDisplayName(staged.preferredFileName)
+        : staged.preferredFileName;
     final commit = await databaseFileRepository.commitStagedDatabase(
       staged,
       targetPath: targetPath,
@@ -597,7 +723,7 @@ class DatabaseSessionCoordinator {
                 DatabaseRecord(
                   databaseId: _generateDatabaseId(),
                   canonicalPath: commit.databasePath,
-                  displayName: staged.preferredFileName,
+                  displayName: displayName,
                   sourceType: staged.imported.sourceType,
                   sourceRef: staged.imported.sourceRef,
                   fileHash: staged.imported.fileHash,
@@ -607,7 +733,7 @@ class DatabaseSessionCoordinator {
                 ))
             .copyWith(
               canonicalPath: commit.databasePath,
-              displayName: staged.preferredFileName,
+              displayName: displayName,
               sourceType: staged.imported.sourceType,
               sourceRef: staged.imported.sourceRef,
               fileHash: staged.imported.fileHash,
@@ -646,13 +772,7 @@ class DatabaseSessionCoordinator {
         status: DatabaseSessionStatus.success,
         path: recordToSave.canonicalPath,
         items: items,
-        promptBiometricSetup:
-            staged.imported.sourceType == DatabaseSourceType.drive,
-        message: decision == DatabaseDuplicateResolution.keepBoth
-            ? 'Duplicate detected. Kept both databases as requested.'
-            : decision == DatabaseDuplicateResolution.replaceExisting
-            ? 'Duplicate detected. Existing database replaced.'
-            : null,
+        remoteAccount: _listRemoteAccount,
       );
     } catch (_) {
       try {
@@ -693,6 +813,21 @@ class DatabaseSessionCoordinator {
     }
   }
 
+  /// `Personal.kdbx` -> `Personal (2).kdbx`, then `(3)`, until no record has it.
+  Future<String> _nextFreeDisplayName(String name) async {
+    final taken = (await databaseRegistryRepository.list())
+        .map((record) => record.displayName)
+        .toSet();
+    final extension = p.extension(name);
+    final stem = name.substring(0, name.length - extension.length);
+    for (var n = 2; ; n++) {
+      final candidate = '$stem ($n)$extension';
+      if (!taken.contains(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
   /// spec 015 FR-9/FR-10: all-or-nothing creation. Any failure after the
   /// use case deletes the artefacts this attempt created (never the user's
   /// selected key file) and restores registry, active database, security
@@ -705,6 +840,7 @@ class DatabaseSessionCoordinator {
     required bool biometricProtectionEnabled,
     required bool generateKeyFile,
     String? generatedKeyFilePath,
+    bool createOnRemote = false,
   }) async {
     // spec 015 FR-11: biometric activation requires storable credentials,
     // decided BEFORE the vault is created. Refusal is explicit, and an
@@ -716,6 +852,7 @@ class DatabaseSessionCoordinator {
             'Biometric unlock needs a master password to store. Set a '
             'password, or turn biometric protection off.',
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -740,6 +877,7 @@ class DatabaseSessionCoordinator {
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.unselected,
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -791,30 +929,67 @@ class DatabaseSessionCoordinator {
         path: result.path!,
         keyFilePath: created.keyFilePath,
         biometricProtectionEnabled: biometricProtectionEnabled,
+        // spec 025 FR-C7: the switch was an explicit answer either way.
+        biometricOfferAnswered: true,
       );
-      // spec 015 FR-11/T016: a key-file-only vault has no password secret;
-      // the session secret is never seeded with an empty string (spec 011
-      // session-scope rules).
-      if (password.isNotEmpty) {
+      // The vault opens from this secret (FR-C6), exactly as after a manual
+      // unlock: a key-file-only vault holds the empty password, a vault with
+      // no factor at all (refused upstream) holds nothing.
+      if (password.isNotEmpty || created.keyFilePath != null) {
         sessionSecretHolder.set(password);
       } else {
         sessionSecretHolder.clear();
       }
+      final notices = <String>[];
       // spec-011 FR-3: persist the biometric credential only when the user
       // enabled biometric protection for this database at creation. The
-      // FR-11 guard above proved the password is non-empty.
+      // FR-11 guard above proved the password is non-empty. A keystore
+      // failure no longer fails the creation: the flag is withdrawn so the
+      // profile never claims protection with no credential behind it.
       if (biometricProtectionEnabled && record != null) {
-        await databaseSessionRepository.saveMasterPassword(
-          record.databaseId,
-          password,
-        );
+        if (!await _storeBiometricCredential(record.databaseId, password)) {
+          notices.add(biometricsNotEnabledNotice);
+          await _saveSecurityProfile(
+            path: result.path!,
+            keyFilePath: created.keyFilePath,
+            biometricProtectionEnabled: false,
+          );
+          await _clearCredentialBestEffort(record.databaseId);
+        }
+      }
+
+      // spec 025 FR-C5: the upload runs after the local commit and never
+      // rolls it back; a failure leaves a valid local vault.
+      if (createOnRemote && record != null) {
+        try {
+          final mapping = await linkDatabaseToRemote(
+            databasePath: result.path!,
+            remoteFileName: _withKdbxExtension(imported.fileName),
+          );
+          await databaseRegistryRepository.upsert(
+            record.copyWith(
+              sourceType: DatabaseSourceType.drive,
+              sourceRef: mapping.remoteFileId,
+              updatedAt: DateTime.now(),
+            ),
+          );
+        } catch (e, st) {
+          logWarning(
+            'Drive upload failed after create (${e.runtimeType}).',
+            null,
+            st,
+          );
+          notices.add(remoteCreateFailedNotice);
+        }
       }
 
       return DatabaseSelectionSessionResult(
         status: result.status,
         path: result.path,
-        items: result.items,
-        message: result.path == null ? result.message : 'Database created.',
+        items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
+        message: notices.isEmpty ? null : notices.join(' '),
+        openVault: sessionSecretHolder.hasSecret,
       );
     } catch (error) {
       // FR-9 compensation, in reverse order of mutation.
@@ -877,6 +1052,7 @@ class DatabaseSessionCoordinator {
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.unselected,
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -913,6 +1089,7 @@ class DatabaseSessionCoordinator {
       status: DatabaseSessionStatus.info,
       message: userMessage,
       items: await _loadSelectionItems(),
+      remoteAccount: _listRemoteAccount,
     );
   }
 
@@ -947,15 +1124,60 @@ class DatabaseSessionCoordinator {
     }
 
     final biometricRequired = profile?.biometricProtectionEnabled ?? false;
+    final mapping = record == null
+        ? null
+        : await _mappingOrNull(record.canonicalPath);
     return UnlockBootstrapResult(
       keyFilePath: keyFilePath,
       biometricRequired: biometricRequired,
       biometricAvailable: biometricAvailable,
       displayName: record?.displayName,
+      databaseId: record?.databaseId,
+      isRemoteLinked: mapping != null,
+      remoteAccount: mapping == null ? null : await connectedAccountOrNull(),
+      fileMissing:
+          record != null &&
+          !await databaseFileRepository.fileExists(record.canonicalPath),
     );
   }
 
-  Future<void> updateKeyFilePath({
+  /// Sync metadata is best-effort for display: a failure degrades to local.
+  Future<DatabaseSyncMapping?> _mappingOrNull(String databasePath) async {
+    try {
+      return await databaseSyncRepository.getMapping(databasePath);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Never calls `connect()`: showing a source label must not open a sign-in.
+  Future<StorageAccountSummary?> connectedAccountOrNull() async {
+    try {
+      if (!await databaseSyncRepository.isConnected()) {
+        return null;
+      }
+      return await databaseSyncRepository.getConnectedAccount();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The Create wizard's `Connect`: signs in (the only place the wizard may),
+  /// then reads the account back. Null when the user backs out or sign-in
+  /// fails, so the caller keeps the source unselected.
+  Future<StorageAccountSummary?> connectRemoteAccount() async {
+    try {
+      await databaseSyncRepository.connect();
+    } catch (_) {
+      return null;
+    }
+    return connectedAccountOrNull();
+  }
+
+  /// Validates the picked key file and remembers it in the database's profile.
+  /// Throws when the key itself cannot be used; returns false when it can but
+  /// the choice could not be saved.
+  Future<bool> updateKeyFilePath({
     required String databasePath,
     required String? keyFilePath,
   }) async {
@@ -968,24 +1190,35 @@ class DatabaseSessionCoordinator {
     final persistedKeyFilePath = await databaseFileRepository
         .ensureManagedKeyFilePath(normalizedKeyFilePath);
 
-    final record = await _findRecordByPath(databasePath);
-    if (record == null) {
-      return;
+    // The key is valid and in managed storage, so this unlock can use it
+    // whatever happens to the profile write.
+    try {
+      await _saveSecurityProfile(
+        path: databasePath,
+        keyFilePath: persistedKeyFilePath,
+        biometricProtectionEnabled: null,
+      );
+      return true;
+    } catch (e, st) {
+      logWarning(
+        'Key file choice could not be saved (${e.runtimeType}).',
+        null,
+        st,
+      );
+      return false;
     }
-    await _saveSecurityProfile(
-      path: record.canonicalPath,
-      keyFilePath: persistedKeyFilePath,
-      biometricProtectionEnabled: null,
-    );
   }
 
-  Future<void> updateBiometricProtection({
+  /// Turns biometric protection on or off for one database. Returns false only
+  /// when enabling could not store its credential; the flag is then restored
+  /// so a profile never claims protection that has no keystore entry.
+  Future<bool> updateBiometricProtection({
     required String databasePath,
     required bool enabled,
   }) async {
     final record = await _findRecordByPath(databasePath);
     if (record == null) {
-      return;
+      return false;
     }
     final existing = await databaseSecurityRepository.getProfile(
       record.databaseId,
@@ -1005,19 +1238,133 @@ class DatabaseSessionCoordinator {
       // spec-011 FR-5: turning biometric protection off deletes the stored
       // credential in the same operation that persists the profile.
       await databaseSessionRepository.clearMasterPassword(record.databaseId);
+      return true;
     }
-    // Enabling writes nothing here: this runs on the (locked) unlock
-    // screen, where no session secret exists. The credential is persisted
-    // at the next manual unlock via the FR-3 gate.
+    // spec 025 FR-U7: the user has just proved the password, so the credential
+    // is stored now (FR-3: flag is already true, FR-4: this database's key).
+    // With no session secret the flag alone stands and the credential is
+    // written at the next manual unlock.
+    if (!sessionSecretHolder.hasSecret || sessionSecretHolder.read().isEmpty) {
+      return true;
+    }
+    final stored = await _storeBiometricCredential(
+      record.databaseId,
+      sessionSecretHolder.read(),
+    );
+    if (!stored) {
+      await databaseSecurityRepository.saveProfile(
+        profile.copyWith(
+          biometricProtectionEnabled:
+              existing?.biometricProtectionEnabled ?? false,
+          updatedAt: DateTime.now(),
+        ),
+      );
+      if (existing?.biometricProtectionEnabled != true) {
+        await _clearCredentialBestEffort(record.databaseId);
+      }
+    }
+    return stored;
   }
 
-  Future<void> unlockWithManualCredentials({
+  /// A keystore failure must never read as a failed unlock, so it is reported
+  /// as a value. Only the exception type is logged: the secret stays out of
+  /// logs (spec-011).
+  Future<bool> _storeBiometricCredential(
+    String databaseId,
+    String secret,
+  ) async {
+    try {
+      await databaseSessionRepository.saveMasterPassword(databaseId, secret);
+      return true;
+    } catch (e, st) {
+      logWarning(
+        'Biometric credential could not be stored (${e.runtimeType}).',
+        null,
+        st,
+      );
+      return false;
+    }
+  }
+
+  Future<void> _clearCredentialBestEffort(String databaseId) async {
+    try {
+      await databaseSessionRepository.clearMasterPassword(databaseId);
+    } catch (_) {}
+  }
+
+  /// FR-U6: whether to show the one-time biometric offer after a manual
+  /// unlock. [biometricAvailable] is the caller's capability decision (platform
+  /// support and device sensors). A key-only vault has no password to store.
+  Future<bool> shouldOfferBiometricUnlock(
+    String databasePath, {
+    required bool biometricAvailable,
+  }) async {
+    if (!biometricAvailable ||
+        !sessionSecretHolder.hasSecret ||
+        sessionSecretHolder.read().isEmpty) {
+      return false;
+    }
+    final record = await _findRecordByPath(databasePath);
+    if (record == null) {
+      return false;
+    }
+    final profile = await databaseSecurityRepository.getProfile(
+      record.databaseId,
+    );
+    return !(profile?.biometricProtectionEnabled ?? false) &&
+        !(profile?.biometricOfferAnswered ?? false);
+  }
+
+  /// Records the answer (dismissal counts as "not now") and, when [enable],
+  /// turns protection on. Returns false only when enabling failed to store the
+  /// credential; the answer is recorded either way.
+  Future<bool> answerBiometricOffer(
+    String databasePath, {
+    required bool enable,
+  }) async {
+    final record = await _findRecordByPath(databasePath);
+    if (record == null) {
+      return !enable;
+    }
+    final existing = await databaseSecurityRepository.getProfile(
+      record.databaseId,
+    );
+    await databaseSecurityRepository.saveProfile(
+      (existing ?? DatabaseSecurityProfile(databaseId: record.databaseId))
+          .copyWith(biometricOfferAnswered: true, updatedAt: DateTime.now()),
+    );
+    return enable
+        ? updateBiometricProtection(databasePath: databasePath, enabled: true)
+        : true;
+  }
+
+  /// Every unlock starts here. `VaultBloc` reads its key file from the ACTIVE
+  /// database's profile, and not every route to the unlock screen selects the
+  /// database first (a missing row, the vault's own lock), so the database
+  /// being unlocked is made active before it is decrypted. A registry failure
+  /// therefore happens before the decrypt, never after it (spec 025 D10).
+  Future<DatabaseRecord?> _activateForUnlock(String databasePath) async {
+    final record = await _findRecordByPath(databasePath);
+    if (record != null &&
+        await databaseRegistryRepository.getActive() != record.databaseId) {
+      // Same as choosing it from the list: the previous session ends.
+      await _clearSessionCredentials();
+      await databaseRegistryRepository.setActive(record.databaseId);
+    }
+    return record;
+  }
+
+  /// Returns null, or a notice for the user when the database unlocked but
+  /// something written afterwards did not persist (spec 025 D10). Throws only
+  /// when the database could not be unlocked.
+  Future<String?> unlockWithManualCredentials({
     required String databasePath,
     required String password,
     required String? keyFilePath,
   }) async {
     final persistedKeyFilePath = await databaseFileRepository
         .ensureManagedKeyFilePath(keyFilePath);
+    final record = await _activateForUnlock(databasePath);
     try {
       await unlockDatabaseUseCase(
         databasePath: databasePath,
@@ -1030,20 +1377,32 @@ class DatabaseSessionCoordinator {
       rethrow;
     }
     sessionSecretHolder.set(password);
-    // spec-011 FR-3: persist the biometric credential only when biometric
-    // protection is enabled for this database, under its own key (FR-4).
-    final record = await _findRecordByPath(databasePath);
-    if (record != null && await _biometricEnabledFor(record.databaseId)) {
-      await databaseSessionRepository.saveMasterPassword(
-        record.databaseId,
-        password,
+    // The database is open. Nothing below may turn that into a failed unlock.
+    final notices = <String>[];
+    try {
+      // spec-011 FR-3: persist the biometric credential only when biometric
+      // protection is enabled for this database, under its own key (FR-4),
+      // and never an empty secret (a key-file-only unlock has none).
+      if (record != null &&
+          password.isNotEmpty &&
+          await _biometricEnabledFor(record.databaseId) &&
+          !await _storeBiometricCredential(record.databaseId, password)) {
+        notices.add(biometricsNotEnabledNotice);
+      }
+      await _saveSecurityProfile(
+        path: databasePath,
+        keyFilePath: persistedKeyFilePath,
+        biometricProtectionEnabled: null,
       );
+    } catch (e, st) {
+      logWarning(
+        'Settings could not be saved after unlock (${e.runtimeType}).',
+        null,
+        st,
+      );
+      notices.add(unlockSettingsNotSavedNotice);
     }
-    await _saveSecurityProfile(
-      path: databasePath,
-      keyFilePath: persistedKeyFilePath,
-      biometricProtectionEnabled: null,
-    );
+    return notices.isEmpty ? null : notices.join(' ');
   }
 
   Future<bool> _biometricEnabledFor(String databaseId) async {
@@ -1057,7 +1416,7 @@ class DatabaseSessionCoordinator {
   }) async {
     // spec-011 FR-4: a biometric unlock reads only the entry of the
     // database being unlocked, never another database's credential.
-    final record = await _findRecordByPath(databasePath);
+    final record = await _activateForUnlock(databasePath);
     final storedPassword = record == null
         ? null
         : await databaseSessionRepository.getMasterPassword(record.databaseId);
@@ -1130,6 +1489,7 @@ class DatabaseSessionCoordinator {
         status: DatabaseSessionStatus.duplicateDecisionRequired,
         message: 'A database with the same source or content already exists. Choose how to continue.',
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
         duplicatePrompt: DatabaseDuplicatePrompt(
           imported: imported,
           existingRecord: dedup.existingRecord!,
@@ -1142,6 +1502,7 @@ class DatabaseSessionCoordinator {
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.unselected,
         items: await _loadSelectionItems(),
+        remoteAccount: _listRemoteAccount,
       );
     }
 
@@ -1205,26 +1566,8 @@ class DatabaseSessionCoordinator {
       status: DatabaseSessionStatus.success,
       path: recordToSave.canonicalPath,
       items: await _loadSelectionItems(),
-      message: _buildDuplicateMessage(
-        dedup: dedup,
-        duplicateResolution: duplicateResolution,
-      ),
+      remoteAccount: _listRemoteAccount,
     );
-  }
-
-  String? _buildDuplicateMessage({
-    required DatabaseDedupResult dedup,
-    required DatabaseDuplicateResolution? duplicateResolution,
-  }) {
-    if (!dedup.hasDuplicate) {
-      return null;
-    }
-    return switch (duplicateResolution) {
-      DatabaseDuplicateResolution.keepBoth =>
-        'Duplicate detected. Kept both databases as requested.',
-      DatabaseDuplicateResolution.replaceExisting => 'Duplicate detected. Existing database metadata was updated with the selected file.',
-      _ => 'Existing database reused to avoid duplicates.',
-    };
   }
 
   Future<DatabaseSelectionSessionResult> resolveDuplicateDecision({
@@ -1235,48 +1578,24 @@ class DatabaseSessionCoordinator {
     if (stagedImport != null) {
       return _commitStagedImport(
         staged: stagedImport,
-        overwriteExisting:
-            decision == DatabaseDuplicateResolution.replaceExisting,
-        decision: decision,
+        // A replace the prompt did not allow mutates nothing (spec 025 D11).
+        decision:
+            decision == DatabaseDuplicateResolution.replaceExisting &&
+                !duplicatePrompt.canReplaceExisting
+            ? DatabaseDuplicateResolution.cancel
+            : decision,
         duplicateRecord: duplicatePrompt.existingRecord,
+        matchType: duplicatePrompt.matchType,
       );
     }
 
-    final result = await _applyImportedDatabase(
+    // Only a create whose bytes hash-match a registered database lands here
+    // (every import is staged), so there is no remote file to link.
+    return _applyImportedDatabase(
       duplicatePrompt.imported,
       clearCredentials: duplicatePrompt.clearCredentials,
       duplicateResolution: decision,
     );
-
-    if (result.status == DatabaseSessionStatus.success &&
-        duplicatePrompt.imported.sourceType == DatabaseSourceType.drive &&
-        duplicatePrompt.imported.sourceRef != null &&
-        result.path != null) {
-      try {
-        await linkDatabaseToRemote(
-          databasePath: result.path!,
-          remoteFileId: duplicatePrompt.imported.sourceRef!,
-        );
-      } catch (e, st) {
-        logWarning('Drive linking failed after duplicate resolution.', e, st);
-        return DatabaseSelectionSessionResult(
-          status: DatabaseSessionStatus.success,
-          path: result.path,
-          items: result.items,
-          promptBiometricSetup: true,
-          message: 'Database opened, but auto-link to Drive failed. You can link it from the Vault sync menu.',
-        );
-      }
-      return DatabaseSelectionSessionResult(
-        status: DatabaseSessionStatus.success,
-        path: result.path,
-        items: result.items,
-        promptBiometricSetup: true,
-        message: result.message,
-      );
-    }
-
-    return result;
   }
 
   /// C-1: builds selection metadata by joining registry/security/sync
@@ -1294,20 +1613,9 @@ class DatabaseSessionCoordinator {
         final exists = await databaseFileRepository.fileExists(
           record.canonicalPath,
         );
-        DateTime? lastSyncAt;
-        String? lastSyncError;
-        if (record.sourceType == DatabaseSourceType.drive) {
-          try {
-            final mapping = await databaseSyncRepository.getMapping(
-              record.canonicalPath,
-            );
-            lastSyncAt = mapping?.lastSyncAt;
-            lastSyncError = mapping?.lastError;
-          } catch (_) {
-            // Sync metadata is best-effort for the selection row; a
-            // failure here must not block the selection list itself.
-          }
-        }
+        // FR-L2: any record with a mapping is remote, whatever its
+        // `sourceType`; a failed lookup degrades to local.
+        final mapping = await _mappingOrNull(record.canonicalPath);
         final keyFilePath = profile?.keyFilePath;
         items.add(
           DatabaseSelectionItem(
@@ -1323,8 +1631,9 @@ class DatabaseSessionCoordinator {
             keyFileConfigured:
                 keyFilePath != null && keyFilePath.trim().isNotEmpty,
             lastOpenedAt: record.lastOpenedAt,
-            lastSyncAt: lastSyncAt,
-            lastSyncError: lastSyncError,
+            remoteProviderId: mapping?.providerId,
+            lastSyncAt: mapping?.lastSyncAt,
+            lastSyncError: mapping?.lastError,
           ),
         );
       }
@@ -1333,6 +1642,11 @@ class DatabaseSessionCoordinator {
         final right = b.lastOpenedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         return right.compareTo(left);
       });
+      // Only looked up when a remote group exists; never an interactive
+      // sign-in (`connectedAccountOrNull`).
+      _listRemoteAccount = items.any((item) => item.remoteProviderId != null)
+          ? await connectedAccountOrNull()
+          : null;
       return items;
     } catch (e, st) {
       logWarning('Unable to load database selection metadata.', e, st);
@@ -1340,10 +1654,14 @@ class DatabaseSessionCoordinator {
     }
   }
 
+  static String _withKdbxExtension(String name) =>
+      name.toLowerCase().endsWith('.kdbx') ? name : '$name.kdbx';
+
   Future<void> _saveSecurityProfile({
     required String path,
     required String? keyFilePath,
     required bool? biometricProtectionEnabled,
+    bool? biometricOfferAnswered,
   }) async {
     final record = await _findRecordByPath(path);
     if (record == null) {
@@ -1365,6 +1683,7 @@ class DatabaseSessionCoordinator {
               biometricProtectionEnabled:
                   biometricProtectionEnabled ??
                   existing?.biometricProtectionEnabled,
+              biometricOfferAnswered: biometricOfferAnswered,
               updatedAt: DateTime.now(),
               clearKeyFilePath: keyFilePath == null,
             );

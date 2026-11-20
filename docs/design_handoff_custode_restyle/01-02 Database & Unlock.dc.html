@@ -51,6 +51,7 @@ a:hover{color:var(--color-accent-800)}
 
 <section class="dv-turn" id="t2">
 <div class="dv-thd"><span class="dv-tid">2</span><span class="dv-tname">Journey 01 · Database — e 02 · Unlock</span></div>
+<p style="margin:0 0 10px;font-size:12.5px;color:var(--color-neutral-700);max-width:96ch;display:flex;gap:8px;align-items:baseline"><span class="tag tag-accent">Superato</span><span>Dal 2026-11-19 le schermate database e unlock di questo record (welcome, database recenti, crea database, picker Drive, duplicato, unlock con password e key file, prompt biometrico dopo import Drive, selezione e unlock tablet) sono <strong>superate</strong> da <a href="15 Database flows.dc.html">15 Database flows</a> e da <em>specs/025-database-flows-redesign/spec.md</em>. Il record resta come storia. Restano validi qui: file non valido, key file manager, decrypting e gate biometrico, che la spec 025 non ridisegna.</span></p>
 <p style="margin:0;font-size:13.5px;color:var(--color-neutral-700);max-width:96ch">Struttura da <a href="03 Vault — modelli di navigazione.dc.html">1a</a> (tab bar + tablet a colonne), con la ricerca dominante di 1b portata dentro le liste. Tutte le varianti di stato dei due journey; il tablet chiude ogni gruppo. Dark solo dove l'app lo mostra davvero a schermo pieno (unlock e lock).</p>
 <p style="margin:10px 0 0;font-size:12.5px;color:var(--color-neutral-700);max-width:96ch;display:flex;gap:8px;align-items:baseline"><span class="tag tag-outline">Proposta</span><span>Le didascalie distinguono ciò che esiste già nel codice da ciò che aggiungo: dove leggi <strong>Proposta</strong> il controllo oggi non c'è (<em>create_database_dialog.dart</em>, <em>recent_databases_section.dart</em>, <em>resolve_database_duplicate_usecase.dart</em> alla mano).</span></p>
 
@@ -455,7 +456,7 @@ a:hover{color:var(--color-accent-800)}
 <div style="display:flex;flex-direction:column;gap:9px"><span class="pill pillp">Turn on Face ID</span><span class="pill pills">Not now</span></div>
 </div>
 </div>
-<p class="cap">Lo stesso prompt di <em>promptBiometricSetup</em>, ma con il motivo ("viene da Drive") scritto prima della domanda.</p>
+<p class="cap">Lo stesso prompt di <em>promptBiometricSetup</em>, ma con il motivo ("viene da Drive") scritto prima della domanda. <strong>Superato</strong> (spec 025, FR-U6): il prompt dopo l'import da Drive e <em>promptBiometricSetup</em> sono stati rimossi; resta una sola offerta dopo il primo sblocco manuale riuscito, per ogni sorgente. Vedi <a href="15 Database flows.dc.html">15 Database flows</a>, gruppo 03.</p>
 </div>
 
 </div>

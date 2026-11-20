@@ -11,8 +11,10 @@ import 'package:password_manager/features/password_manager/presentation/coordina
 import 'package:password_manager/features/password_manager/presentation/coordinators/vault_session_coordinator.dart';
 
 import '../../bloc/vault/vault_bloc_harness.dart';
+
 import 'package:password_manager/injection_container.dart' as di;
 import 'package:password_manager/features/password_manager/data/datasources/biometric_data_source.dart';
+
 import 'vault_shell_test_utils.dart';
 
 const _clash = PasskeyClashRequest(
@@ -55,9 +57,6 @@ class _LockingSessionCoordinator implements VaultSessionCoordinator {
 
   @override
   Future<String?> getPersistedKeyFilePath(String databasePath) async => null;
-
-  @override
-  Future<Set<String>> getProtectedKeyFilePaths() async => const {};
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

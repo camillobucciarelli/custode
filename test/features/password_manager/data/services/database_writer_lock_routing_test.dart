@@ -901,40 +901,6 @@ void main() {
       expect(recording.acquisitions, isNotEmpty);
       expect(recording.maxDepth, 1);
     });
-
-    test(
-      'importFromSelection with overwrite replaces under the lock',
-      () async {
-        final target = File(p.join(docsDir.path, 'databases', 'vault.kdbx'));
-        await target.parent.create(recursive: true);
-        final oldBytes = Uint8List.fromList([..._kdbxMagic, 1]);
-        await target.writeAsBytes(oldBytes, flush: true);
-        final newBytes = Uint8List.fromList([..._kdbxMagic, 2]);
-
-        await expectLater(
-          () => service(RefusingDatabasePathMutex()).importFromSelection(
-            fileName: 'vault.kdbx',
-            selectedBytes: newBytes,
-            overwriteExisting: true,
-          ),
-          throwsA(isA<LockRefused>()),
-        );
-        expect(await target.readAsBytes(), oldBytes);
-
-        final recording = RecordingDatabasePathMutex();
-        final result = await service(recording).importFromSelection(
-          fileName: 'vault.kdbx',
-          selectedBytes: newBytes,
-          overwriteExisting: true,
-        );
-        expect(result.path, target.path);
-        expect(await target.readAsBytes(), newBytes);
-        // The replace acquisition names both the imported copy and the target.
-        expect(recording.acquisitions.last, containsAll(<String>[target.path]));
-        expect(recording.acquisitions.last, hasLength(2));
-        expect(recording.maxDepth, 1);
-      },
-    );
   });
 
   group('DatabaseSyncOrchestrator lock routing', () {

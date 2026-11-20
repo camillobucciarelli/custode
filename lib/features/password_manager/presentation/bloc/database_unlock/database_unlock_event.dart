@@ -48,3 +48,25 @@ class UpdateKeyFilePath extends DatabaseUnlockEvent {
     RedactedValue<String?>(keyFilePath, redaction: '<redacted keyFilePath>'),
   ];
 }
+
+/// Missing-file recovery (spec 025 FR-U4): the user picked the file again.
+class LocateMissingDatabaseFile extends DatabaseUnlockEvent {
+  const LocateMissingDatabaseFile(this.selectedPath);
+
+  final String selectedPath;
+
+  @override
+  List<Object?> get props => [
+    RedactedValue<String>(selectedPath, redaction: '<redacted path>'),
+  ];
+}
+
+/// Fetch the mapped remote file again for a database whose local file is gone.
+class RedownloadMissingDatabase extends DatabaseUnlockEvent {
+  const RedownloadMissingDatabase();
+}
+
+/// Drop the database from the list (the file is already gone).
+class RemoveMissingDatabase extends DatabaseUnlockEvent {
+  const RemoveMissingDatabase();
+}

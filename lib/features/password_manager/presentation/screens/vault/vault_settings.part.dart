@@ -37,10 +37,6 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
   bool _biometricEnabled = false;
   int? _inactivityTimeoutSeconds;
   String? _keyFilePath;
-
-  /// spec 014 FR-3: what the "Key file" row shows — the recorded name, not
-  /// the opaque basename the file rests under.
-  String? _keyFileLabel;
   bool _busy = false;
   String? _loadedForPath;
   String? _loadingForPath;
@@ -165,9 +161,6 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
       final keyFilePath = await coordinator.getPersistedKeyFilePath(
         databasePath,
       );
-      final keyFileLabel = keyFilePath == null
-          ? null
-          : await MobileFileStorage.keyFileDisplayName(keyFilePath);
       // Guard against a stale result: the vault's active path may have
       // moved on while these awaits were in flight (e.g. a concurrent
       // `_ensureLoaded` for a different path completed first).
@@ -179,7 +172,6 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
         _biometricEnabled = biometricEnabled;
         _inactivityTimeoutSeconds = inactivityTimeoutSeconds;
         _keyFilePath = keyFilePath;
-        _keyFileLabel = keyFileLabel;
         _loadedForPath = databasePath;
       });
     } catch (_) {
@@ -260,48 +252,35 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
 
   Future<void> _pickKeyFile(String databasePath) async {
     if (_busy) return;
-    String? selectedPath;
-    if (isManagedStoragePlatform) {
-      // spec 015 FR-12 (T018): managed keys list only after device auth.
-      final authorized = await authorizeManagedKeyPickerAccess(
-        di.sl<BiometricDataSource>(),
-      );
-      if (!mounted || !authorized) return;
-      final protectedPaths = await di
-          .sl<VaultSessionCoordinator>()
-          .getProtectedKeyFilePaths();
-      if (!mounted) return;
-      final result = await showInternalKeyFileManagerDialog(
-        context,
-        initiallySelectedPath: _keyFilePath,
-        protectedPaths: {...protectedPaths, ?_keyFilePath},
-      );
-      if (result == null) return;
-      selectedPath = result.selectedPath;
-      if (selectedPath == null &&
-          !(result.currentSelectionDeleted && _keyFilePath != null)) {
-        return;
-      }
-    } else {
-      final picked = await FilePicker.pickFiles(
-        allowMultiple: false,
-        withData: false,
-      );
-      final file = picked?.files.single;
-      if (file?.path == null) return;
-      selectedPath = file!.path;
-    }
+    // Spec 025 FR-X5: the shared picker owns the device-auth gate and the
+    // key manager.
+    final picked = await pickKeyFile(context, current: _keyFilePath);
+    // Settings stores a path; a bytes-only pick (browser) has none to keep.
+    if (picked == null || (picked.path == null && !picked.isCleared)) return;
+    await _applyKeyFile(databasePath, picked.path);
+  }
 
+  Future<void> _removeKeyFile(String databasePath) async {
+    if (_busy) return;
+    // One tap would re-key the database with one factor fewer: ask first.
+    final confirmed = await showKvConfirmDialog(
+      context,
+      title: 'Remove key file?',
+      body:
+          'This database will then open with the master password alone. '
+          'The key file itself stays in Custode.',
+      confirmLabel: 'Remove',
+    );
+    if (confirmed != true) return;
+    await _applyKeyFile(databasePath, null);
+  }
+
+  /// Re-keys through `updateDatabaseSettings`, which refuses to leave the
+  /// database with no credential; a refusal restores the row.
+  Future<void> _applyKeyFile(String databasePath, String? keyFilePath) async {
     if (!mounted) return;
     final previous = _keyFilePath;
-    final label = selectedPath == null
-        ? null
-        : await MobileFileStorage.keyFileDisplayName(selectedPath);
-    if (!mounted) return;
-    setState(() {
-      _keyFilePath = selectedPath;
-      _keyFileLabel = label;
-    });
+    setState(() => _keyFilePath = keyFilePath);
     if (!await _persist(databasePath) && mounted) {
       setState(() => _keyFilePath = previous);
     }
@@ -616,13 +595,12 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination> {
                 },
               ),
               const SizedBox(height: 8),
-              _SettingsRow(
-                glyph: AppGlyph.key,
-                title: 'Key file',
-                subtitle: _keyFilePath == null || _keyFilePath!.trim().isEmpty
-                    ? 'None configured'
-                    : _keyFileLabel ?? path.basename(_keyFilePath!),
-                onTap: _busy ? null : () => _pickKeyFile(databasePath),
+              // Spec 025 FR-X5: the same key-file slot as unlock and create.
+              KeyFileRow(
+                path: _keyFilePath,
+                emptySubtitle: 'Optional second factor',
+                onPick: () => _pickKeyFile(databasePath),
+                onClear: () => _removeKeyFile(databasePath),
               ),
               const SizedBox(height: 8),
               // Recycle bin and Manage duplicates left this screen

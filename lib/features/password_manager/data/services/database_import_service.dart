@@ -108,9 +108,8 @@ class DatabaseImportService implements DatabaseFileRepository {
     required String fileName,
     String? selectedPath,
     List<int>? selectedBytes,
-    bool overwriteExisting = false,
   }) async {
-    var resolvedPath = await _resolveSelectedDatabasePath(
+    final resolvedPath = await _resolveSelectedDatabasePath(
       fileName: fileName,
       selectedPath: selectedPath,
       selectedBytes: selectedBytes,
@@ -139,13 +138,6 @@ class DatabaseImportService implements DatabaseFileRepository {
         }
       }
       throw failure;
-    }
-
-    if (_usesManagedStorage && overwriteExisting) {
-      resolvedPath = await _replaceManagedDatabase(
-        validImportPath: resolvedPath,
-        fileName: fileName,
-      );
     }
 
     final bytes = await File(resolvedPath).readAsBytes();
@@ -705,43 +697,6 @@ class DatabaseImportService implements DatabaseFileRepository {
         fileName: fileName,
         subdirectory: 'databases',
       );
-    });
-  }
-
-  Future<String> _replaceManagedDatabase({
-    required String validImportPath,
-    required String fileName,
-  }) async {
-    final targetPath = await MobileFileStorage.getPathInAppDirectory(
-      fileName: fileName,
-      subdirectory: 'databases',
-    );
-    if (p.equals(validImportPath, targetPath)) {
-      return targetPath;
-    }
-
-    return _mutex.withDatabaseLock([validImportPath, targetPath], () async {
-      final importedFile = File(validImportPath);
-      final targetFile = File(targetPath);
-      if (!await targetFile.exists()) {
-        return (await importedFile.rename(targetPath)).path;
-      }
-
-      final backupFile = File(
-        '$targetPath.import-backup-${DateTime.now().microsecondsSinceEpoch}',
-      );
-      await targetFile.rename(backupFile.path);
-      try {
-        await importedFile.rename(targetPath);
-        await backupFile.delete();
-        return targetPath;
-      } catch (_) {
-        if (await targetFile.exists()) {
-          await targetFile.delete();
-        }
-        await backupFile.rename(targetPath);
-        rethrow;
-      }
     });
   }
 

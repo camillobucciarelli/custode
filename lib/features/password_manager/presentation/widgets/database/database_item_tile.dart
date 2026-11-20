@@ -5,36 +5,23 @@ import '../../../../../../core/theme/app_radii.dart';
 import '../../../../../../core/widgets/kv_icon.dart';
 import '../../../../../../core/theme/app_text_styles.dart';
 import '../../../../../../core/theme/custode_colors.dart';
-import '../../../domain/entities/database_record.dart';
+import '../../../../../../core/widgets/kv_tag.dart';
 import '../../../domain/models/database_selection_item.dart';
+import '../entry/strength_strip.dart' show describeTimeAgo;
 import 'database_action_menu.dart';
 
-/// C-1 metadata subtitle: "On this device · biometrics on/off" for local
-/// databases, "Google Drive · synced `<relative time>`" (or the existing
-/// sync error) for Drive ones. `canonicalPath` is deliberately not part of
-/// this subtitle — it stays available via semantics/overflow only.
-String databaseSubtitle(DatabaseSelectionItem item, {DateTime? now}) {
-  if (item.sourceType == DatabaseSourceType.drive) {
-    if (item.lastSyncError != null && item.lastSyncError!.trim().isNotEmpty) {
-      return 'Google Drive · ${item.lastSyncError}';
-    }
-    final lastSyncAt = item.lastSyncAt;
-    if (lastSyncAt == null) {
-      return 'Google Drive · not synced yet';
-    }
-    return 'Google Drive · synced ${_relativeTime(lastSyncAt, now ?? DateTime.now())}';
-  }
-  final biometrics = item.biometricProtectionEnabled ? 'on' : 'off';
-  return 'On this device · biometrics $biometrics';
-}
-
-String _relativeTime(DateTime value, DateTime now) {
-  final diff = now.difference(value);
-  if (diff.inSeconds < 60) return 'just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-  if (diff.inHours < 24) return '${diff.inHours} h ago';
-  if (diff.inDays < 7) return '${diff.inDays} d ago';
-  return '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+/// FR-L3 status line: `Synced <relative>` or the existing sync error for a
+/// remote database, nothing for a local one. Where the database lives is the
+/// group header's job, and credentials are tags.
+String? databaseStatusLine(DatabaseSelectionItem item, {DateTime? now}) {
+  if (item.remoteProviderId == null) return null;
+  final error = item.lastSyncError?.trim();
+  if (error != null && error.isNotEmpty) return error;
+  final lastSyncAt = item.lastSyncAt;
+  if (lastSyncAt == null) return null;
+  // `describeTimeAgo` words an entry's password age ("changed today").
+  final ago = describeTimeAgo(lastSyncAt, now ?? DateTime.now());
+  return 'Synced ${ago.replaceFirst('changed ', '')}';
 }
 
 class DatabaseItemTile extends StatelessWidget {
@@ -52,28 +39,37 @@ class DatabaseItemTile extends StatelessWidget {
   final Future<void> Function() onExport;
   final Future<void> Function() onRemove;
 
-  /// Only invoked for `item.isMissing` (FR-1). Coordinator validates hash
-  /// match before rebinding the record — see `LocateMissingDatabase`.
+  /// The `Locate` action of a missing row (FR-L4). Tapping the row itself
+  /// still calls [onOpen]: Unlock owns the full repair state.
   final Future<void> Function()? onLocate;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<CustodeColors>()!;
-    final active = item.isActive && !item.isMissing;
+    final missing = item.isMissing;
+    final active = item.isActive && !missing;
+    final status = missing ? 'File not found' : databaseStatusLine(item);
+    final tagVariant = active ? KvTagVariant.accent : KvTagVariant.nested;
+    final tags = [
+      if (!missing && item.biometricProtectionEnabled)
+        KvTag(label: 'Biometrics', variant: tagVariant),
+      if (!missing && item.keyFileConfigured)
+        KvTag(label: 'Key file', variant: tagVariant),
+    ];
 
     return Semantics(
       button: true,
       label: item.displayName,
       value: item.canonicalPath,
       child: _HoverSurface(
-        onTap: item.isMissing ? onLocate : () => onOpen(),
+        onTap: () => onOpen(),
         baseColor: active ? colors.attentionTint : colors.surface,
         // Active row: tint alone is too close to the background, so the
         // selection border is always on (not just hover/focus).
         borderColor: active ? colors.selectionBorder : Colors.transparent,
         hoveredBorderColor: colors.selectionBorder.withValues(alpha: 0.5),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+          padding: const EdgeInsets.fromLTRB(16, 11, 6, 11),
           child: Row(
             children: [
               Container(
@@ -81,20 +77,24 @@ class DatabaseItemTile extends StatelessWidget {
                 height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: item.isMissing
+                  color: missing
                       ? colors.attentionTint
+                      : active
+                      ? colors.actionFill
                       : colors.surfaceNested,
                   shape: BoxShape.circle,
                 ),
                 child: KvIcon(
-                  glyph: item.isMissing
+                  glyph: missing
                       ? AppGlyph.warning
-                      : item.sourceType == DatabaseSourceType.drive
+                      : item.remoteProviderId != null
                       ? AppGlyph.cloud
                       : AppGlyph.file,
                   size: 18,
-                  color: item.isMissing
+                  color: missing
                       ? colors.attentionText
+                      : active
+                      ? colors.actionText
                       : colors.iconNeutral,
                 ),
               ),
@@ -102,6 +102,7 @@ class DatabaseItemTile extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       item.displayName,
@@ -111,29 +112,50 @@ class DatabaseItemTile extends StatelessWidget {
                         color: colors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.isMissing
-                          ? 'File not found on this device'
-                          : databaseSubtitle(item),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.secondary.copyWith(
-                        color: item.isMissing
-                            ? colors.attentionText
-                            : colors.textSecondary,
+                    if (status != null || tags.isNotEmpty) ...[
+                      SizedBox(height: missing ? 2 : 5),
+                      // Wraps instead of clipping when a long sync error
+                      // meets two tags on a narrow phone.
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (status != null)
+                            Text(
+                              status,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.secondary.copyWith(
+                                fontWeight: missing ? FontWeight.w600 : null,
+                                color: missing
+                                    ? colors.attentionText
+                                    : colors.textSecondary,
+                              ),
+                            ),
+                          ...tags,
+                        ],
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
-              if (item.isMissing)
-                TextButton(onPressed: onLocate, child: const Text('Locate')),
+              if (missing && onLocate != null)
+                TextButton(
+                  onPressed: onLocate,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(44, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Locate'),
+                ),
               DatabaseActionMenu(
+                name: item.displayName,
                 onOpen: () => onOpen(),
                 onExport: () => onExport(),
                 onRemove: () => onRemove(),
-                onLocate: item.isMissing ? onLocate : null,
+                onLocate: missing ? onLocate : null,
               ),
             ],
           ),
@@ -201,7 +223,7 @@ class _HoverSurfaceState extends State<_HoverSurface> {
           child: AnimatedContainer(
             duration: duration,
             curve: Curves.easeOutCubic,
-            constraints: const BoxConstraints(minHeight: 62),
+            constraints: const BoxConstraints(minHeight: 68),
             decoration: BoxDecoration(
               color: widget.baseColor,
               borderRadius: BorderRadius.circular(AppRadii.row),

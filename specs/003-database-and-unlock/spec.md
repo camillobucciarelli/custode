@@ -4,6 +4,16 @@
 **Design source**: `01-02 Database & Unlock.dc.html`,
 `specs/_design/PIXEL_SPEC.md` §4, `specs/_design/HANDOFF.md` §Screens `01-02`.
 
+> **Partly superseded by [spec 025](../025-database-flows-redesign/spec.md)**
+> (database flows redesign). Superseded: C-1 last paragraph (row subtitles),
+> C-2 last sentence (create+upload / switch account empty state), C-6 first
+> sentence, FR-1 except the Locate rules, FR-2, FR-3 empty-state sentence, FR-4
+> sheet and labels (outcomes kept), FR-5 layout/links/post-Drive prompt
+> (decrypting kept), "Copy preservation contract" including the widget
+> disposition paragraph, "Exact golden inventory — 22 files", acceptance
+> criteria 1, 8 and 10. Still normative: C-3, C-4, C-5, C-7 and acceptance
+> criteria 2 to 7, 9 and 11.
+
 ## Why
 
 Database selection and unlock sit outside the vault shell. Current selection
@@ -232,6 +242,8 @@ indeterminate semantics. Post-Drive prompt uses `Use Face ID for <basename>?`.
 
 ## Copy preservation contract
 
+> Superseded by spec 025 "Copy contract" and "Deletions".
+
 Before edits, snapshot literals from `database_selection_screen.dart`,
 `create_database_dialog.dart`, `database_unlock_screen.dart`,
 `database_unlock_widgets.part.dart`, `internal_key_file_manager_dialog.dart`,
@@ -269,6 +281,8 @@ implementation. Obsolete path-only parameters are removed after all callers
 compile.
 
 ## Exact golden inventory — 22 files
+
+> Superseded by spec 025 "Golden inventory".
 
 | File | State |
 | --- | --- |

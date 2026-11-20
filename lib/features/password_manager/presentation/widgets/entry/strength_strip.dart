@@ -181,6 +181,53 @@ class StrengthStrip extends StatelessWidget {
   }
 }
 
+/// Four-notch strength bar with its label, shared by the change-password
+/// screen and the Create wizard.
+class StrengthBar extends StatelessWidget {
+  const StrengthBar({super.key, required this.assessment});
+
+  final PasswordStrengthAssessment assessment;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<CustodeColors>()!;
+    final filled = switch (assessment.level) {
+      PasswordStrengthLevel.weak => 1,
+      PasswordStrengthLevel.fair => 2,
+      PasswordStrengthLevel.good => 3,
+      PasswordStrengthLevel.strong => 4,
+    };
+    final activeColor = assessment.level == PasswordStrengthLevel.strong
+        ? colors.positiveFill
+        : AppColors.accent400;
+
+    return Row(
+      children: [
+        for (var i = 0; i < 4; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              height: 6,
+              decoration: BoxDecoration(
+                color: i < filled ? activeColor : colors.divider,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(width: 8),
+        Text(
+          assessment.label,
+          style: AppTextStyles.metaLarge.copyWith(
+            color: colors.positiveText,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StrengthNotches extends StatelessWidget {
   const _StrengthNotches({required this.level, required this.colors});
 

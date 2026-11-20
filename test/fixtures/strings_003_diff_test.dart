@@ -19,8 +19,13 @@ const _sectionToCurrentFiles = <String, List<String>>{
     'lib/features/password_manager/presentation/screens/database_selection_screen.dart',
     'lib/features/password_manager/presentation/screens/welcome_screen.dart',
     'lib/features/password_manager/presentation/widgets/database/database_selection_sheets.dart',
-    'lib/features/password_manager/presentation/widgets/database/drive_picker_sheet.dart',
-    'lib/features/password_manager/presentation/widgets/database/recent_databases_section.dart',
+    // Spec 025 S2: the Drive sheet became the shared remote file list and the
+    // source and conflict sheets.
+    'lib/features/password_manager/presentation/widgets/sync/remote_file_picker.dart',
+    'lib/features/password_manager/presentation/widgets/sync/remote_file_list.dart',
+    'lib/features/password_manager/presentation/widgets/database/database_source_sheet.dart',
+    'lib/features/password_manager/presentation/widgets/database/database_conflict_sheet.dart',
+    'lib/features/password_manager/presentation/widgets/database/database_grouped_list.dart',
   ],
   'create_database_dialog.dart': [
     'lib/features/password_manager/presentation/screens/create_database_screen.dart',
@@ -28,20 +33,24 @@ const _sectionToCurrentFiles = <String, List<String>>{
   'database_unlock_screen.dart': [
     'lib/features/password_manager/presentation/screens/database_unlock_screen.dart',
     'lib/features/password_manager/presentation/screens/database_unlock_widgets.part.dart',
-    'lib/features/password_manager/presentation/widgets/database/biometric_prompt_sheet.dart',
+    // Spec 025: the key-file slot and the biometric offer moved out of the
+    // unlock screen into shared widgets.
+    'lib/features/password_manager/presentation/widgets/key_file_picker.dart',
+    'lib/features/password_manager/presentation/widgets/database/biometric_offer_sheet.dart',
   ],
   'database_unlock_widgets.part.dart': [
     'lib/features/password_manager/presentation/screens/database_unlock_widgets.part.dart',
+    'lib/features/password_manager/presentation/widgets/key_file_picker.dart',
   ],
   'internal_key_file_manager_dialog.dart': [
-    // Unchanged: still used by the (out-of-scope) vault-shell key-file
-    // manager entry point. spec-003 adds a second, sheet-based surface
-    // (`internal_key_file_manager_sheet.dart`) for the unlock screen only.
-    'lib/features/password_manager/presentation/widgets/internal_key_file_manager_dialog.dart',
+    // Spec 025 T404: the sheet is the only key manager; settings reaches it
+    // through `pickKeyFile` and the dialog is gone.
     'lib/features/password_manager/presentation/widgets/internal_key_file_manager_sheet.dart',
+    // Its delete confirmation (and that dialog's `Cancel`) is the shared one.
+    'lib/core/widgets/kv_confirm_dialog.dart',
   ],
   'recent_databases_section.dart': [
-    'lib/features/password_manager/presentation/widgets/database/recent_databases_section.dart',
+    'lib/features/password_manager/presentation/widgets/database/database_grouped_list.dart',
   ],
   'database_item_tile.dart': [
     'lib/features/password_manager/presentation/widgets/database/database_item_tile.dart',
@@ -123,6 +132,45 @@ const _approvedSupersededLiterals = <String>{
   // file" inline link shown only when no key file is selected yet;
   // `_KeyFileSelector` is now only built once a key file exists.
   'Select key file',
+  // Spec 025 FR-U1, FR-U6 (copy contract): the unlock layout drops its
+  // helper line and the two button labels, the key slot is one row
+  // ("Stored in Custode"), and the two biometric snackbars are retired with
+  // the pre-unlock prompt.
+  'Unlock vault',
+  'Optional while a key file is selected.',
+  'Required if no key file is selected.',
+  'Stored in app internal key storage.',
+  'Biometric protection enabled for this database.',
+  'Biometric protection remains disabled for this database.',
+  // Spec 025 S2 (copy contract, "Retired strings"): Open is one action with a
+  // source sheet, the overwrite dialog and the 003 duplicate sheet are one
+  // conflict sheet, and the welcome body is rewritten.
+  'Open from Google Drive is currently desktop/mobile only.',
+  'Replace existing database?',
+  'A database named "',
+  '" already exists in app storage. Do you want to replace it?',
+  'Open existing database',
+  'Choose a .kdbx file from your device',
+  'Download a .kdbx and open a local copy',
+  'Duplicate database detected',
+  'Imported: ',
+  'Choose how to continue.',
+  'Use existing',
+  'Open an existing KDBX database or create a new one to start securely storing your credentials.',
+  // Spec 025 S3 (copy contract, FR-C2 to FR-C4): the wizard is rebuilt on the
+  // Kv field recipe: field names follow the mockups, the storage paragraph
+  // and the biometric helper line give way to source cards and the switch
+  // row, and the default name no longer carries the extension.
+  'Choose the database file name and security options. On native platforms, the database and generated key file are saved in app internal storage, so export manual backups regularly.',
+  'Database file name',
+  'Enter a database file name.',
+  'Invalid characters in file name.',
+  'Master Password',
+  'Confirm Password',
+  'Enable biometric protection',
+  'If enabled, unlock requires biometric authentication when available.',
+  'Remove key file',
+  'new_database.kdbx',
   // OAuth env-key rename (refactor/oauth-env-key-names): dart-define keys now
   // map 1:1 to GCP OAuth client types, so the error copy references the new
   // key names (GOOGLE_WEB_CLIENT_ID / GOOGLE_IOS_CLIENT_ID).

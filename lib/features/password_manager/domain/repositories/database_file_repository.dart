@@ -12,7 +12,7 @@ import '../models/database_import_transaction.dart';
 /// `FilePicker`, `MobileFileStorage` or `crypto` directly.
 abstract class DatabaseFileRepository {
   /// Whether a file exists at [path]. Used for recent-item `isMissing` and
-  /// for `removeAndDeleteFile` / `hasManagedDatabaseNamed` checks.
+  /// for the `removeAndDeleteFile` check.
   Future<bool> fileExists(String path);
 
   /// Content hash of the file at [path] (used for duplicate detection and

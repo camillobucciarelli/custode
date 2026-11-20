@@ -73,11 +73,7 @@ const _presentationDriveAllowlist = <String>{
   'DriveLinkResult',
   'ExistingDriveLinkResult',
   'NewDriveLinkResult',
-  'showDrivePickerSheet',
-  'DrivePickerSheetResult',
   'driveOpenErrorMessage',
-  'onOpenFromGoogleDrive',
-  'onOpenFromDrive',
   // Private handlers/helpers inside the above surfaces.
   '_onConnectGoogleDrive',
   '_onDisconnectGoogleDrive',
@@ -95,10 +91,6 @@ const _presentationDriveAllowlist = <String>{
   '_prepareDriveDuplicate',
   '_pickExistingDriveFile',
   '_createNewDriveFile',
-  '_openFromGoogleDrive',
-  '_DrivePickerSheetContent',
-  '_DrivePickerSheetContentState',
-  '_DriveEmptyState',
 };
 
 /// Google *service* names may appear in a presentation TEST that wires the

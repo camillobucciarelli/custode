@@ -14,6 +14,7 @@ import 'package:password_manager/features/password_manager/domain/errors/databas
 import 'package:password_manager/features/password_manager/domain/models/apple_autofill_v2_models.dart';
 import 'package:password_manager/features/password_manager/domain/models/database_dedup_result.dart';
 import 'package:password_manager/features/password_manager/domain/models/database_selection_item.dart';
+import 'package:password_manager/features/password_manager/domain/models/cloud_storage_error.dart';
 import 'package:password_manager/features/password_manager/domain/models/database_sync_mapping.dart';
 import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
 import 'package:password_manager/features/password_manager/domain/models/remote_file.dart';
@@ -101,6 +102,7 @@ void main() {
         getActiveDatabaseUseCase: GetActiveDatabaseUseCase(registryRepository),
         resolveDatabaseDuplicateUseCase: ResolveDatabaseDuplicateUseCase(
           registryRepository,
+          syncRepository,
         ),
         databaseSyncRepository: syncRepository,
         linkDatabaseToRemote: LinkDatabaseToRemoteUseCase(syncRepository),
@@ -136,6 +138,7 @@ void main() {
           ),
           resolveDatabaseDuplicateUseCase: ResolveDatabaseDuplicateUseCase(
             registryRepository,
+            syncRepository,
           ),
           databaseSyncRepository: syncRepository,
           linkDatabaseToRemote: LinkDatabaseToRemoteUseCase(syncRepository),
@@ -276,6 +279,7 @@ void main() {
           ),
           resolveDatabaseDuplicateUseCase: ResolveDatabaseDuplicateUseCase(
             registryRepository,
+            syncRepository,
           ),
           databaseSyncRepository: syncRepository,
           linkDatabaseToRemote: LinkDatabaseToRemoteUseCase(syncRepository),
@@ -624,32 +628,6 @@ void main() {
       expect(registryRepository.records.single.databaseId, 'db-only');
     });
 
-    test('invalid overwrite keeps existing database bytes', () async {
-      final targetPath = await _writeManagedDatabase(tempDir, 'existing.kdbx');
-      final originalBytes = await File(targetPath).readAsBytes();
-      final invalidFile = File('${tempDir.path}/incoming/existing.kdbx');
-      await invalidFile.parent.create(recursive: true);
-      await invalidFile.writeAsBytes(const [1, 2, 3], flush: true);
-
-      await expectLater(
-        databaseImportService.importFromSelection(
-          fileName: 'existing.kdbx',
-          selectedPath: invalidFile.path,
-          overwriteExisting: true,
-        ),
-        throwsException,
-      );
-
-      expect(await File(targetPath).readAsBytes(), originalBytes);
-      expect(
-        await Directory('${tempDir.path}/databases')
-            .list()
-            .where((entry) => entry is File)
-            .length,
-        1,
-      );
-    });
-
     test('local duplicate cancel preserves existing database bytes', () async {
       final targetPath = await _writeManagedDatabase(tempDir, 'existing.kdbx');
       final originalBytes = await File(targetPath).readAsBytes();
@@ -677,7 +655,6 @@ void main() {
       final pending = await coordinator.selectExistingDatabase(
         fileName: 'existing.kdbx',
         selectedPath: incomingFile.path,
-        overwriteExisting: true,
       );
       expect(pending.status, DatabaseSessionStatus.duplicateDecisionRequired);
       expect(await File(targetPath).readAsBytes(), originalBytes);
@@ -693,54 +670,16 @@ void main() {
       expect(await staging.list().isEmpty, isTrue);
     });
 
-    test('local overwrite commits only after validation and dedup', () async {
-      final targetPath = await _writeManagedDatabase(tempDir, 'existing.kdbx');
-      final originalBytes = await File(targetPath).readAsBytes();
-      final incomingBytes = <int>[
-        0x03,
-        0xD9,
-        0xA2,
-        0x9A,
-        0x67,
-        0xFB,
-        0x4B,
-        0xB5,
-        ...utf8.encode('replacement'),
-      ];
-      final incomingFile = File('${tempDir.path}/incoming/existing.kdbx');
-      await incomingFile.parent.create(recursive: true);
-      await incomingFile.writeAsBytes(incomingBytes, flush: true);
-      registryRepository.records = [
-        _record(
-          id: 'db-existing',
-          path: targetPath,
-        ).copyWith(fileHash: md5.convert(originalBytes).toString()),
-      ];
-
-      final result = await coordinator.selectExistingDatabase(
-        fileName: 'existing.kdbx',
-        selectedPath: incomingFile.path,
-        overwriteExisting: true,
-      );
-
-      expect(result.status, DatabaseSessionStatus.success);
-      expect(result.path, targetPath);
-      expect(await File(targetPath).readAsBytes(), incomingBytes);
-      expect(registryRepository.records.single.databaseId, 'db-existing');
-      final staging = Directory(p.join(tempDir.path, 'database_imports'));
-      expect(await staging.list().isEmpty, isTrue);
-    });
-
-    test('corrupt Drive overwrite preserves existing bytes', () async {
+    test('corrupt Drive download preserves existing bytes', () async {
       final existingPath = await _writeManagedDatabase(tempDir, 'remote.kdbx');
       final originalBytes = await File(existingPath).readAsBytes();
       syncRepository.downloadBytes = Uint8List.fromList(const [1, 2, 3]);
 
       await expectLater(
         coordinator.selectDriveDatabase(
+          remoteProviderId: 'google_drive',
           remoteFileId: 'remote-id',
           remoteFileName: 'remote.kdbx',
-          overwriteExisting: true,
         ),
         throwsException,
       );
@@ -770,6 +709,45 @@ void main() {
         picker.account,
         const StorageAccountSummary(displayLabel: 'Google Drive account'),
       );
+    });
+
+    test('switchRemoteAccount disconnects, reconnects, then reloads the list '
+        'and leaves mappings alone', () async {
+      syncRepository.connected = true;
+      syncRepository.remoteFiles = const [
+        RemoteFile(providerId: 'google_drive', id: 'r1', name: 'r.kdbx'),
+      ];
+      syncRepository.mappings['/db/a.kdbx'] = const DatabaseSyncMapping(
+        databasePath: '/db/a.kdbx',
+        providerId: 'google_drive',
+        remoteFileId: 'r1',
+        remoteFileName: 'r.kdbx',
+      );
+
+      final data = await coordinator.switchRemoteAccount();
+
+      expect(syncRepository.connectionCalls, ['disconnect', 'connect']);
+      expect(syncRepository.connected, isTrue);
+      expect(data.files.single.id, 'r1');
+      expect(syncRepository.mappings.keys, ['/db/a.kdbx']);
+    });
+
+    test('a failed or cancelled switch leaves the repository disconnected and '
+        'rethrows', () async {
+      syncRepository.connected = true;
+      syncRepository.connectError = Exception('Google sign-in cancelled.');
+
+      await expectLater(coordinator.switchRemoteAccount(), throwsException);
+
+      expect(syncRepository.connectionCalls, ['disconnect', 'connect']);
+      expect(syncRepository.connected, isFalse);
+    });
+
+    test('connectedAccountOrNull never connects', () async {
+      expect(await coordinator.connectedAccountOrNull(), isNull);
+      syncRepository.connected = true;
+      expect(await coordinator.connectedAccountOrNull(), isNotNull);
+      expect(syncRepository.connectCalls, 0);
     });
 
     test('Drive reconnect re-authorizes even while still signed in', () async {
@@ -803,9 +781,9 @@ void main() {
       final originalBytes = await File(existingPath).readAsBytes();
 
       final pending = await coordinator.selectDriveDatabase(
+        remoteProviderId: 'google_drive',
         remoteFileId: 'remote-id',
         remoteFileName: 'remote.kdbx',
-        overwriteExisting: true,
       );
 
       expect(await File(existingPath).readAsBytes(), originalBytes);
@@ -829,9 +807,9 @@ void main() {
       final originalBytes = await File(existingPath).readAsBytes();
 
       final pending = await coordinator.selectDriveDatabase(
+        remoteProviderId: 'google_drive',
         remoteFileId: 'remote-id',
         remoteFileName: 'remote.kdbx',
-        overwriteExisting: true,
       );
       final resolved = await coordinator.resolveDuplicateDecision(
         duplicatePrompt: pending.duplicatePrompt!,
@@ -852,9 +830,9 @@ void main() {
       );
 
       final pending = await coordinator.selectDriveDatabase(
+        remoteProviderId: 'google_drive',
         remoteFileId: 'remote-id',
         remoteFileName: 'remote.kdbx',
-        overwriteExisting: true,
       );
       final resolved = await coordinator.resolveDuplicateDecision(
         duplicatePrompt: pending.duplicatePrompt!,
@@ -879,9 +857,9 @@ void main() {
         final originalBytes = await File(existingPath).readAsBytes();
 
         final pending = await coordinator.selectDriveDatabase(
+          remoteProviderId: 'google_drive',
           remoteFileId: 'remote-id',
           remoteFileName: 'remote.kdbx',
-          overwriteExisting: true,
         );
         expect(await File(existingPath).readAsBytes(), originalBytes);
 
@@ -903,6 +881,458 @@ void main() {
         expect(registryRepository.records.single.canonicalPath, existingPath);
       },
     );
+
+    group('spec 025 T201 duplicate outcomes (characterization)', () {
+      // Pins today's four outcomes of a duplicate import, for a local and a
+      // Drive source, BEFORE the name-based overwrite branch is removed
+      // (risk R3). They must pass unmodified after that removal.
+      late Directory staging;
+
+      setUp(() {
+        staging = Directory(p.join(tempDir.path, 'database_imports'));
+      });
+
+      Future<bool> stagingIsEmpty() async =>
+          !await staging.exists() || await staging.list().isEmpty;
+
+      List<String> backups() =>
+          Directory(p.join(tempDir.path, 'databases'))
+              .listSync()
+              .map((entity) => entity.path)
+              .where((path) => path.contains('.import-backup-'))
+              .toList(growable: false);
+
+      List<String> databaseFiles() =>
+          Directory(p.join(tempDir.path, 'databases'))
+              .listSync()
+              .map((entity) => entity.path)
+              .where((path) => !path.contains('.import-backup-'))
+              .toList(growable: false);
+
+      final incomingBytes = <int>[
+        0x03, 0xD9, 0xA2, 0x9A, 0x67, 0xFB, 0x4B, 0xB5, //
+        ...utf8.encode('incoming'),
+      ];
+
+      /// An existing local database whose registered hash equals the bytes
+      /// about to be imported, so the import is a hash duplicate.
+      Future<({String path, List<int> original})> seedLocalDuplicate() async {
+        final targetPath = await _writeManagedDatabase(
+          tempDir,
+          'existing.kdbx',
+        );
+        final original = await File(targetPath).readAsBytes();
+        registryRepository.records = [
+          _record(
+            id: 'db-existing',
+            path: targetPath,
+          ).copyWith(fileHash: md5.convert(incomingBytes).toString()),
+        ];
+        final incomingFile = File('${tempDir.path}/incoming/existing.kdbx');
+        await incomingFile.parent.create(recursive: true);
+        await incomingFile.writeAsBytes(incomingBytes, flush: true);
+        return (path: targetPath, original: original);
+      }
+
+      Future<DatabaseSelectionSessionResult> pendingLocal() =>
+          coordinator.selectExistingDatabase(
+            fileName: 'existing.kdbx',
+            selectedPath: '${tempDir.path}/incoming/existing.kdbx',
+          );
+
+      Future<DatabaseSelectionSessionResult> pendingRemote() =>
+          coordinator.selectDriveDatabase(
+            remoteProviderId: 'google_drive',
+            remoteFileId: 'remote-id',
+            remoteFileName: 'remote.kdbx',
+          );
+
+      Future<DatabaseSelectionSessionResult> resolve(
+        DatabaseSelectionSessionResult pending,
+        DatabaseDuplicateResolution decision,
+      ) {
+        expect(pending.status, DatabaseSessionStatus.duplicateDecisionRequired);
+        return coordinator.resolveDuplicateDecision(
+          duplicatePrompt: pending.duplicatePrompt!,
+          decision: decision,
+        );
+      }
+
+      test(
+        'local useExisting opens the existing file and discards staging',
+        () async {
+          final seed = await seedLocalDuplicate();
+
+          final resolved = await resolve(
+            await pendingLocal(),
+            DatabaseDuplicateResolution.useExisting,
+          );
+
+          expect(resolved.status, DatabaseSessionStatus.success);
+          expect(resolved.path, seed.path);
+          expect(await File(seed.path).readAsBytes(), seed.original);
+          expect(registryRepository.records, hasLength(1));
+          expect(await stagingIsEmpty(), isTrue);
+        },
+      );
+
+      test(
+        'local keepBoth adds a second file and leaves the first alone',
+        () async {
+          final seed = await seedLocalDuplicate();
+
+          final resolved = await resolve(
+            await pendingLocal(),
+            DatabaseDuplicateResolution.keepBoth,
+          );
+
+          expect(resolved.path, isNot(seed.path));
+          expect(await File(resolved.path!).readAsBytes(), incomingBytes);
+          expect(await File(seed.path).readAsBytes(), seed.original);
+          expect(registryRepository.records, hasLength(2));
+          expect(await stagingIsEmpty(), isTrue);
+        },
+      );
+
+      test('local replace backs up first, keeps the id, drops the backup '
+          'on success', () async {
+        final seed = await seedLocalDuplicate();
+        final backupsDuringCommit = <List<String>>[];
+        registryRepository.onUpsert = () => backupsDuringCommit.add(backups());
+
+        final resolved = await resolve(
+          await pendingLocal(),
+          DatabaseDuplicateResolution.replaceExisting,
+        );
+
+        expect(backupsDuringCommit.single, hasLength(1));
+        expect(resolved.path, seed.path);
+        expect(await File(seed.path).readAsBytes(), incomingBytes);
+        expect(registryRepository.records.single.databaseId, 'db-existing');
+        expect(backups(), isEmpty);
+        expect(await stagingIsEmpty(), isTrue);
+      });
+
+      test(
+        'local replace failing downstream restores the original bytes',
+        () async {
+          final seed = await seedLocalDuplicate();
+          final pending = await pendingLocal();
+          registryRepository.failNextUpsert = true;
+
+          await expectLater(
+            resolve(pending, DatabaseDuplicateResolution.replaceExisting),
+            throwsException,
+          );
+
+          expect(await File(seed.path).readAsBytes(), seed.original);
+          expect(backups(), isEmpty);
+          expect(registryRepository.records.single.databaseId, 'db-existing');
+        },
+      );
+
+      test('local keepBoth failing downstream leaves no second file', () async {
+        final seed = await seedLocalDuplicate();
+        final pending = await pendingLocal();
+        registryRepository.failNextUpsert = true;
+
+        await expectLater(
+          resolve(pending, DatabaseDuplicateResolution.keepBoth),
+          throwsException,
+        );
+
+        expect(databaseFiles(), [seed.path]);
+        expect(await File(seed.path).readAsBytes(), seed.original);
+        expect(registryRepository.records, hasLength(1));
+      });
+
+      test('Drive cancel and useExisting discard the staged bytes', () async {
+        await _prepareDriveDuplicate(
+          tempDir,
+          registryRepository,
+          syncRepository,
+        );
+        await resolve(
+          await pendingRemote(),
+          DatabaseDuplicateResolution.cancel,
+        );
+        expect(await stagingIsEmpty(), isTrue);
+
+        await resolve(
+          await pendingRemote(),
+          DatabaseDuplicateResolution.useExisting,
+        );
+        expect(await stagingIsEmpty(), isTrue);
+        expect(registryRepository.records, hasLength(1));
+      });
+
+      test(
+        'Drive keepBoth discards staging and the first file is untouched',
+        () async {
+          final existingPath = await _prepareDriveDuplicate(
+            tempDir,
+            registryRepository,
+            syncRepository,
+          );
+          final original = await File(existingPath).readAsBytes();
+
+          await resolve(
+            await pendingRemote(),
+            DatabaseDuplicateResolution.keepBoth,
+          );
+
+          expect(await File(existingPath).readAsBytes(), original);
+          expect(await stagingIsEmpty(), isTrue);
+        },
+      );
+
+      test(
+        'Drive replace backs up first and drops the backup on success',
+        () async {
+          final existingPath = await _prepareDriveDuplicate(
+            tempDir,
+            registryRepository,
+            syncRepository,
+          );
+          final backupsDuringCommit = <List<String>>[];
+          registryRepository.onUpsert = () =>
+              backupsDuringCommit.add(backups());
+
+          await resolve(
+            await pendingRemote(),
+            DatabaseDuplicateResolution.replaceExisting,
+          );
+
+          expect(backupsDuringCommit.single, hasLength(1));
+          expect(
+            await File(existingPath).readAsBytes(),
+            syncRepository.downloadBytes,
+          );
+          expect(backups(), isEmpty);
+          expect(await stagingIsEmpty(), isTrue);
+        },
+      );
+
+      test('Drive replace failing at the link step restores bytes and '
+          'registry', () async {
+        final existingPath = await _prepareDriveDuplicate(
+          tempDir,
+          registryRepository,
+          syncRepository,
+        );
+        final original = await File(existingPath).readAsBytes();
+        final pending = await pendingRemote();
+        syncRepository.linkError = Exception('link failed');
+
+        await expectLater(
+          resolve(pending, DatabaseDuplicateResolution.replaceExisting),
+          throwsException,
+        );
+
+        expect(await File(existingPath).readAsBytes(), original);
+        expect(backups(), isEmpty);
+        expect(registryRepository.records, hasLength(1));
+        expect(registryRepository.records.single.databaseId, 'db-existing');
+        expect(
+          syncRepository.mappings[existingPath]!.remoteFileId,
+          'old-remote',
+        );
+      });
+
+      test('Drive keepBoth failing at the link step removes the new file '
+          'and record', () async {
+        final existingPath = await _prepareDriveDuplicate(
+          tempDir,
+          registryRepository,
+          syncRepository,
+        );
+        final pending = await pendingRemote();
+        syncRepository.linkError = Exception('link failed');
+
+        await expectLater(
+          resolve(pending, DatabaseDuplicateResolution.keepBoth),
+          throwsException,
+        );
+
+        expect(databaseFiles(), [existingPath]);
+        expect(registryRepository.records, hasLength(1));
+      });
+    });
+
+    group('spec 025 FR-O6 name-only conflict', () {
+      // The registry display name is the only name truth; no hash and no
+      // source matches, so the four outcomes run on a different file that
+      // merely shares a name.
+      late String existingPath;
+      late List<int> existingBytes;
+      final incomingBytes = <int>[
+        0x03, 0xD9, 0xA2, 0x9A, 0x67, 0xFB, 0x4B, 0xB5, //
+        ...utf8.encode('name-only incoming'),
+      ];
+
+      Future<DatabaseSelectionSessionResult> pending({List<int>? bytes}) async {
+        final incoming = File('${tempDir.path}/incoming/existing.kdbx');
+        await incoming.parent.create(recursive: true);
+        await incoming.writeAsBytes(bytes ?? incomingBytes, flush: true);
+        final result = await coordinator.selectExistingDatabase(
+          fileName: 'existing.kdbx',
+          selectedPath: incoming.path,
+        );
+        expect(result.status, DatabaseSessionStatus.duplicateDecisionRequired);
+        expect(
+          result.duplicatePrompt!.matchType,
+          DatabaseDuplicateMatchType.name,
+        );
+        return result;
+      }
+
+      Future<DatabaseSelectionSessionResult> resolve(
+        DatabaseSelectionSessionResult prompt,
+        DatabaseDuplicateResolution decision,
+      ) => coordinator.resolveDuplicateDecision(
+        duplicatePrompt: prompt.duplicatePrompt!,
+        decision: decision,
+      );
+
+      Future<bool> stagingIsEmpty() async {
+        final staging = Directory(p.join(tempDir.path, 'database_imports'));
+        return !await staging.exists() || await staging.list().isEmpty;
+      }
+
+      setUp(() async {
+        existingPath = await _writeManagedDatabase(tempDir, 'existing.kdbx');
+        existingBytes = await File(existingPath).readAsBytes();
+        registryRepository.records = [
+          _record(
+            id: 'db-existing',
+            path: existingPath,
+          ).copyWith(fileHash: 'unrelated-hash'),
+        ];
+      });
+
+      test('cancel discards the staged bytes and changes nothing', () async {
+        await resolve(await pending(), DatabaseDuplicateResolution.cancel);
+
+        expect(await File(existingPath).readAsBytes(), existingBytes);
+        expect(registryRepository.records, hasLength(1));
+        expect(await stagingIsEmpty(), isTrue);
+      });
+
+      test('useExisting opens the existing file and imports nothing', () async {
+        final resolved = await resolve(
+          await pending(),
+          DatabaseDuplicateResolution.useExisting,
+        );
+
+        expect(resolved.path, existingPath);
+        expect(resolved.message, isNull);
+        expect(await File(existingPath).readAsBytes(), existingBytes);
+        expect(registryRepository.records, hasLength(1));
+        expect(await stagingIsEmpty(), isTrue);
+      });
+
+      test(
+        'Drive useExisting does not re-point the existing mapping',
+        () async {
+          syncRepository.mappings[existingPath] = DatabaseSyncMapping(
+            databasePath: existingPath,
+            providerId: 'google_drive',
+            remoteFileId: 'old-remote',
+            remoteFileName: 'old.kdbx',
+            autoSyncEnabled: true,
+          );
+          syncRepository.downloadBytes = Uint8List.fromList(incomingBytes);
+          final prompt = await coordinator.selectDriveDatabase(
+            remoteProviderId: 'google_drive',
+            remoteFileId: 'remote-id',
+            remoteFileName: 'existing.kdbx',
+          );
+          expect(
+            prompt.duplicatePrompt!.matchType,
+            DatabaseDuplicateMatchType.name,
+          );
+
+          await resolve(prompt, DatabaseDuplicateResolution.useExisting);
+
+          expect(
+            syncRepository.mappings[existingPath]!.remoteFileId,
+            'old-remote',
+          );
+          expect(await stagingIsEmpty(), isTrue);
+        },
+      );
+
+      test('keepBoth adds a record with a numeric suffix, then the next free '
+          'one', () async {
+        final first = await resolve(
+          await pending(),
+          DatabaseDuplicateResolution.keepBoth,
+        );
+        expect(first.path, isNot(existingPath));
+        expect(await File(existingPath).readAsBytes(), existingBytes);
+        expect(registryRepository.records.map((r) => r.displayName).toSet(), {
+          'existing.kdbx',
+          'existing (2).kdbx',
+        });
+
+        // Different content, so only the name matches again.
+        await resolve(
+          await pending(bytes: [...incomingBytes, 9]),
+          DatabaseDuplicateResolution.keepBoth,
+        );
+        expect(registryRepository.records.map((r) => r.displayName).toSet(), {
+          'existing.kdbx',
+          'existing (2).kdbx',
+          'existing (3).kdbx',
+        });
+        expect(await stagingIsEmpty(), isTrue);
+      });
+
+      test(
+        'replace backs up, keeps the id and drops the old profile',
+        () async {
+          securityRepository.profiles['db-existing'] =
+              const DatabaseSecurityProfile(
+                databaseId: 'db-existing',
+                biometricProtectionEnabled: true,
+              );
+          final resolved = await resolve(
+            await pending(),
+            DatabaseDuplicateResolution.replaceExisting,
+          );
+
+          expect(resolved.path, existingPath);
+          expect(await File(existingPath).readAsBytes(), incomingBytes);
+          expect(registryRepository.records.single.databaseId, 'db-existing');
+          expect(securityRepository.profiles, isEmpty);
+          expect(
+            Directory(p.join(tempDir.path, 'databases'))
+                .listSync()
+                .where((e) => e.path.contains('.import-backup-')),
+            isEmpty,
+          );
+          expect(await stagingIsEmpty(), isTrue);
+        },
+      );
+
+      test('replace failing downstream restores bytes and profile', () async {
+        const profile = DatabaseSecurityProfile(
+          databaseId: 'db-existing',
+          biometricProtectionEnabled: true,
+        );
+        securityRepository.profiles['db-existing'] = profile;
+        final prompt = await pending();
+        registryRepository.failNextUpsert = true;
+
+        await expectLater(
+          resolve(prompt, DatabaseDuplicateResolution.replaceExisting),
+          throwsException,
+        );
+
+        expect(await File(existingPath).readAsBytes(), existingBytes);
+        expect(securityRepository.profiles['db-existing'], profile);
+      });
+    });
 
     test('protected key paths include shared profiles once', () async {
       // Native absolute path, not the `/tmp/...` literal this used to use.
@@ -1421,6 +1851,7 @@ void main() {
           ),
           resolveDatabaseDuplicateUseCase: ResolveDatabaseDuplicateUseCase(
             registryRepository,
+            syncRepository,
           ),
           databaseSyncRepository: syncRepository,
           linkDatabaseToRemote: LinkDatabaseToRemoteUseCase(syncRepository),
@@ -1475,6 +1906,7 @@ void main() {
           ),
           resolveDatabaseDuplicateUseCase: ResolveDatabaseDuplicateUseCase(
             registryRepository,
+            syncRepository,
           ),
           databaseSyncRepository: syncRepository,
           linkDatabaseToRemote: LinkDatabaseToRemoteUseCase(syncRepository),
@@ -1561,22 +1993,29 @@ void main() {
         await expectNothingCommitted(expectedDatabaseCount: 1);
       });
 
-      test('keystore failure during biometric persistence rolls everything '
-          'back', () async {
+      test('keystore failure during biometric persistence keeps the vault, '
+          'withdraws the flag and reports the notice (spec 025)', () async {
         await seedPriorState();
         secureDataSource.failNextSaveMasterPassword = true;
 
-        await expectLater(
-          realCoordinator.createNewDatabase(
-            databaseFileName: 'fresh.kdbx',
-            password: 'fresh-secret',
-            biometricProtectionEnabled: true,
-            generateKeyFile: false,
-          ),
-          throwsException,
+        final result = await realCoordinator.createNewDatabase(
+          databaseFileName: 'fresh.kdbx',
+          password: 'fresh-secret',
+          biometricProtectionEnabled: true,
+          generateKeyFile: false,
         );
 
-        await expectNothingCommitted(expectedDatabaseCount: 1);
+        expect(result.status, DatabaseSessionStatus.success);
+        expect(result.openVault, isTrue);
+        expect(result.message, biometricsNotEnabledNotice);
+        final created = registryRepository.records.firstWhere(
+          (r) => r.databaseId != 'db-prior',
+        );
+        final profile = securityRepository.profiles[created.databaseId]!;
+        expect(profile.biometricProtectionEnabled, isFalse);
+        expect(profile.biometricOfferAnswered, isTrue);
+        expect(secureDataSource.passwords.keys, ['db-prior']);
+        expect(sessionSecretHolder.read(), 'fresh-secret');
       });
 
       test('T006: the user-selected key file survives every failure', () async {
@@ -1619,8 +2058,9 @@ void main() {
         await expectNothingCommitted(expectedDatabaseCount: 1);
       });
 
-      test('a successful key-only create never seeds an empty session secret '
-          'and never writes to the secure store (AC-6)', () async {
+      test('a successful key-only create holds the empty password like a '
+          'manual key-only unlock and never writes to the secure store '
+          '(AC-6)', () async {
         await seedPriorState();
 
         final result = await realCoordinator.createNewDatabase(
@@ -1631,13 +2071,122 @@ void main() {
         );
 
         expect(result.status, DatabaseSessionStatus.success);
-        expect(
-          sessionSecretHolder.hasSecret,
-          isFalse,
-          reason: 'a key-only vault has no password secret to hold',
-        );
+        expect(result.openVault, isTrue);
+        expect(sessionSecretHolder.read(), '');
         expect(secureDataSource.passwords, {'db-prior': 'prior-secret'});
         expect(await managedFiles('keys'), hasLength(1));
+      });
+
+      test('a created database marks the biometric offer answered whether '
+          'the switch was on or off', () async {
+        await seedPriorState();
+
+        final result = await realCoordinator.createNewDatabase(
+          databaseFileName: 'fresh.kdbx',
+          password: 'fresh-secret',
+          biometricProtectionEnabled: false,
+          generateKeyFile: false,
+        );
+
+        expect(result.message, isNull);
+        final created = registryRepository.records.firstWhere(
+          (r) => r.databaseId != 'db-prior',
+        );
+        expect(
+          securityRepository
+              .profiles[created.databaseId]!
+              .biometricOfferAnswered,
+          isTrue,
+        );
+      });
+
+      group('create on Google Drive (spec 025 FR-C5)', () {
+        test('links once with a null id and the .kdbx name, then stamps the '
+            'record drive', () async {
+          await seedPriorState();
+          syncRepository.linkCalls.clear();
+
+          final result = await realCoordinator.createNewDatabase(
+            databaseFileName: 'Personal',
+            password: 'fresh-secret',
+            biometricProtectionEnabled: false,
+            generateKeyFile: false,
+            createOnRemote: true,
+          );
+
+          expect(result.status, DatabaseSessionStatus.success);
+          expect(result.message, isNull);
+          expect(syncRepository.linkCalls, hasLength(1));
+          expect(syncRepository.linkCalls.single.remoteFileId, isNull);
+          expect(
+            syncRepository.linkCalls.single.remoteFileName,
+            'Personal.kdbx',
+          );
+          final created = registryRepository.records.firstWhere(
+            (r) => r.databaseId != 'db-prior',
+          );
+          expect(created.sourceType, DatabaseSourceType.drive);
+          expect(created.sourceRef, 'remote-id');
+          expect(syncRepository.mappings, hasLength(1));
+        });
+
+        for (final failure in <Object>[
+          Exception('boom'),
+          const CloudStorageException(
+            CloudStorageErrorCode.authorizationRequired,
+          ),
+        ]) {
+          test('a link failure (${failure.runtimeType}) keeps the local '
+              'vault, session and profile and returns the notice', () async {
+            await seedPriorState();
+            syncRepository.linkError = failure;
+
+            final result = await realCoordinator.createNewDatabase(
+              databaseFileName: 'fresh.kdbx',
+              password: 'fresh-secret',
+              biometricProtectionEnabled: false,
+              generateKeyFile: false,
+              createOnRemote: true,
+            );
+
+            expect(result.status, DatabaseSessionStatus.success);
+            expect(result.openVault, isTrue);
+            expect(result.message, remoteCreateFailedNotice);
+            expect(await managedFiles('databases'), hasLength(2));
+            final created = registryRepository.records.firstWhere(
+              (r) => r.databaseId != 'db-prior',
+            );
+            expect(created.sourceType, DatabaseSourceType.created);
+            expect(securityRepository.profiles[created.databaseId], isNotNull);
+            expect(registryRepository.activeId, created.databaseId);
+            expect(sessionSecretHolder.read(), 'fresh-secret');
+            expect(syncRepository.mappings, isEmpty);
+          });
+        }
+
+        test('a local create never touches the sync repository', () async {
+          await seedPriorState();
+          syncRepository.linkCalls.clear();
+
+          await realCoordinator.createNewDatabase(
+            databaseFileName: 'fresh.kdbx',
+            password: 'fresh-secret',
+            biometricProtectionEnabled: false,
+            generateKeyFile: false,
+          );
+
+          expect(syncRepository.linkCalls, isEmpty);
+        });
+      });
+
+      test('connectRemoteAccount signs in and reads the account; a refused '
+          'sign-in yields null', () async {
+        expect(await realCoordinator.connectRemoteAccount(), isNotNull);
+        expect(syncRepository.connectCalls, 1);
+
+        syncRepository.connected = false;
+        syncRepository.connectError = Exception('cancelled');
+        expect(await realCoordinator.connectRemoteAccount(), isNull);
       });
     });
   });
@@ -1780,6 +2329,10 @@ class _FakeRegistryRepository implements DatabaseRegistryRepository {
   bool failNextUpsert = false;
   bool failNextSetActive = false;
 
+  /// Runs on every upsert, before it is applied (spec 025 T201 observes the
+  /// replace backup at the instant the commit is still reversible).
+  void Function()? onUpsert;
+
   @override
   Future<DatabaseRecord?> findByHash(String fileHash) async {
     for (final record in records) {
@@ -1837,6 +2390,7 @@ class _FakeRegistryRepository implements DatabaseRegistryRepository {
 
   @override
   Future<void> upsert(DatabaseRecord record) async {
+    onUpsert?.call();
     if (failNextUpsert) {
       failNextUpsert = false;
       throw Exception('Simulated registry upsert failure.');
@@ -1948,15 +2502,27 @@ class _FakeSyncRepository implements DatabaseSyncRepository {
   bool connected = false;
   int connectCalls = 0;
   _MappingMoveFailurePoint? failNextMoveAt;
+  Object? linkError;
+  final List<({String? remoteFileId, String? remoteFileName})> linkCalls = [];
+
+  /// Connection calls in order, for the switch-account sequencing test.
+  final List<String> connectionCalls = [];
+  Object? connectError;
 
   @override
   Future<void> connect() async {
     connectCalls += 1;
+    connectionCalls.add('connect');
+    final error = connectError;
+    if (error != null) throw error;
     connected = true;
   }
 
   @override
-  Future<void> disconnect() async {}
+  Future<void> disconnect() async {
+    connectionCalls.add('disconnect');
+    connected = false;
+  }
 
   @override
   Future<Uint8List> downloadRemoteFile(String fileId) async {
@@ -1981,6 +2547,9 @@ class _FakeSyncRepository implements DatabaseSyncRepository {
     String? remoteFileId,
     String? remoteFileName,
   }) async {
+    linkCalls.add((remoteFileId: remoteFileId, remoteFileName: remoteFileName));
+    final linkFailure = linkError;
+    if (linkFailure != null) throw linkFailure;
     final mapping = DatabaseSyncMapping(
       databasePath: databasePath,
       providerId: 'google_drive',

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
@@ -11,105 +10,87 @@ import '../../../../../core/responsive/breakpoints.dart';
 import '../../../../../core/theme/app_glyph.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/theme/custode_colors.dart';
-import '../../../../../core/utils/mobile_file_storage.dart';
-import '../../../../../core/theme/app_radii.dart';
 import '../../../../../core/widgets/kv_bottom_sheet.dart';
+import '../../../../../core/widgets/kv_circle_icon_button.dart';
 import '../../../../../core/widgets/kv_confirm_dialog.dart';
-import '../../../../../core/widgets/kv_icon.dart';
+import '../../../../../core/widgets/kv_spinner.dart';
 import '../../../../../core/widgets/kv_pill_button.dart';
 import '../../../../../injection_container.dart' as di;
 import '../../domain/errors/database_access_failure.dart';
+import '../../domain/models/database_dedup_result.dart';
 import '../../domain/repositories/database_file_repository.dart';
+import '../../domain/entities/database_record.dart';
 import '../../domain/models/database_selection_item.dart';
 import '../bloc/database_selection/database_selection_bloc.dart';
 import '../bloc/database_selection/database_selection_event.dart';
 import '../bloc/database_selection/database_selection_state.dart';
-import '../coordinators/database_session_coordinator.dart';
 import 'create_database_screen.dart';
 import 'database_unlock_screen.dart';
+import 'vault_screen.dart';
 import 'welcome_screen.dart';
 import '../widgets/database/database_selection_sheets.dart';
-import '../widgets/database/drive_picker_sheet.dart';
-import '../widgets/database/recent_databases_section.dart';
+import '../widgets/database/database_conflict_sheet.dart';
+import '../widgets/database/database_source_sheet.dart';
+import '../widgets/database/add_database_sheet.dart';
+import '../widgets/database/database_grouped_list.dart';
+import '../widgets/sync/remote_file_picker.dart';
 import '../utils/platform_utils.dart';
 
 class DatabaseSelectionScreen extends StatelessWidget {
-  const DatabaseSelectionScreen({super.key});
+  const DatabaseSelectionScreen({super.key, this.debugVaultBuilder});
 
-  Future<void> _openFromGoogleDrive(BuildContext context) async {
-    if (kIsWeb) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Open from Google Drive is currently desktop/mobile only.',
+  /// `VaultScreen` needs the whole vault DI graph; tests stub it here, like
+  /// `DatabaseUnlockScreen.debugVaultBuilder`.
+  @visibleForTesting
+  final Widget Function(String databasePath)? debugVaultBuilder;
+
+  /// Spec 025 FR-O1/FR-O2: one entry for every source. The source sheet
+  /// decides between the system picker and the remote list; both end in the
+  /// same staging, conflict detection and conflict sheet.
+  Future<void> _onOpenDatabase(BuildContext context) async {
+    final source = await showDatabaseSourceSheet(context);
+    if (source == null || !context.mounted) return;
+    switch (source) {
+      case DatabaseSource.device:
+        await _pickLocalDatabase(context);
+      case DatabaseSource.remote:
+        final file = await pickRemoteFile(context);
+        if (file == null || !context.mounted) return;
+        context.read<DatabaseSelectionBloc>().add(
+          SelectDriveDatabase(
+            remoteProviderId: file.providerId,
+            remoteFileId: file.id,
+            remoteFileName: file.name,
           ),
-        ),
-      );
-      return;
-    }
-
-    final coordinator = di.sl<DatabaseSessionCoordinator>();
-    final result = await showDrivePickerSheet(
-      context,
-      loadPickerData: coordinator.getRemoteFileSelectionData,
-      reconnectPickerData: coordinator.reconnectRemoteFileSelectionData,
-    );
-    if (result == null || !context.mounted) {
-      return;
-    }
-
-    if (result.switchAccount) {
-      // Reconnect flow: force a fresh connect on next open by disconnecting
-      // implicitly through the coordinator's normal connect-if-needed path.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Choose "Open from Google Drive" again to switch account.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (result.createAndUpload) {
-      await _onCreateDatabase(context);
-      return;
-    }
-
-    final selected = result.file;
-    if (selected == null) {
-      return;
-    }
-
-    var overwriteExisting = false;
-    if (isManagedStoragePlatform) {
-      final exists = await coordinator.hasManagedDatabaseNamed(selected.name);
-      if (!context.mounted) return;
-      if (exists) {
-        final confirm = await _showOverwriteDatabaseSheet(
-          context,
-          selected.name,
         );
-        if (confirm != true || !context.mounted) return;
-        overwriteExisting = true;
-      }
     }
+  }
 
-    if (!context.mounted) return;
-    context.read<DatabaseSelectionBloc>().add(
-      SelectDriveDatabase(
-        remoteFileId: selected.id,
-        remoteFileName: selected.name,
-        overwriteExisting: overwriteExisting,
-      ),
-    );
+  /// Spec 025 FR-L1: the header "+" offers the same two actions as Welcome.
+  Future<void> _onAddDatabase(BuildContext context) async {
+    final action = await showAddDatabaseSheet(context);
+    if (action == null || !context.mounted) return;
+    switch (action) {
+      case AddDatabaseAction.create:
+        await _onCreateDatabase(context);
+      case AddDatabaseAction.open:
+        await _onOpenDatabase(context);
+    }
   }
 
   Future<void> _onOpenRecentDatabase(
     BuildContext context,
     DatabaseSelectionItem item,
   ) async {
+    if (item.isMissing) {
+      // FR-L4: nothing to open; Unlock owns the repair state (locate,
+      // download again, remove).
+      AppNavigation.pushFadeReplacement(
+        context,
+        DatabaseUnlockScreen(databasePath: item.canonicalPath),
+      );
+      return;
+    }
     context.read<DatabaseSelectionBloc>().add(
       OpenRecentDatabase(item.canonicalPath),
     );
@@ -142,7 +123,7 @@ class DatabaseSelectionScreen extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final path = item.canonicalPath;
 
-    if (kIsWeb) {
+    if (!persistsDatabases) {
       messenger.showSnackBar(
         const SnackBar(
           content: Text(
@@ -198,11 +179,13 @@ class DatabaseSelectionScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _onSelectExistingDatabase(BuildContext context) async {
+  Future<void> _pickLocalDatabase(BuildContext context) async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['kdbx'],
-      withData: kIsWeb || isManagedStoragePlatform,
+      // Bytes on every platform: managed storage and the browser both stage
+      // from memory, desktop simply also has a path.
+      withData: true,
     );
 
     if (result == null || !context.mounted) return;
@@ -216,27 +199,11 @@ class DatabaseSelectionScreen extends StatelessWidget {
         ? fallbackName
         : selectedFile.name;
 
-    var overwriteExisting = false;
-    if (isManagedStoragePlatform) {
-      final exists = await MobileFileStorage.fileExistsInAppDirectory(
-        fileName: fileName,
-        subdirectory: 'databases',
-      );
-      if (!context.mounted) return;
-      if (exists) {
-        final confirm = await _showOverwriteDatabaseSheet(context, fileName);
-        if (confirm != true || !context.mounted) return;
-        overwriteExisting = true;
-      }
-    }
-
-    if (!context.mounted) return;
     context.read<DatabaseSelectionBloc>().add(
       SelectExistingDatabase(
         fileName: fileName,
         selectedPath: selectedPath,
         selectedBytes: selectedFile.bytes,
-        overwriteExisting: overwriteExisting,
       ),
     );
   }
@@ -306,7 +273,7 @@ class DatabaseSelectionScreen extends StatelessWidget {
               ),
               KvSecondaryPillButton(
                 label: 'Remove and delete file',
-                onPressed: kIsWeb
+                onPressed: !persistsDatabases
                     ? null
                     : () => Navigator.of(sheetContext)
                           .pop(RecentDatabaseRemovalMode.removeAndDeleteFile),
@@ -335,32 +302,31 @@ class DatabaseSelectionScreen extends StatelessWidget {
     );
   }
 
-  Future<bool?> _showOverwriteDatabaseSheet(
-    BuildContext context,
-    String fileName,
-  ) {
-    return showKvConfirmDialog(
-      context,
-      title: 'Replace existing database?',
-      body:
-          'A database named "$fileName" already exists in app storage. Do you want to replace it?',
-      confirmLabel: 'Replace',
-    );
-  }
-
   Future<void> _handleDuplicateDecisionPrompt(
     BuildContext context,
     DatabaseSelectionDuplicateDecisionRequired state,
   ) async {
-    final decision = await showDuplicateDatabaseSheet(
+    final bloc = context.read<DatabaseSelectionBloc>();
+    final prompt = state.duplicatePrompt;
+    final decision = await showDatabaseConflictSheet(
       context,
-      importedName: state.duplicatePrompt.imported.fileName,
-      existingName: state.duplicatePrompt.existingRecord.displayName,
+      importedName: prompt.imported.fileName,
+      importedRemote: prompt.imported.sourceType == DatabaseSourceType.drive,
+      existingName: prompt.existingRecord.displayName,
+      // Remote means "has a sync mapping" (FR-X4), not the record's origin.
+      existingRemote: state.items.any(
+        (item) =>
+            item.databaseId == prompt.existingRecord.databaseId &&
+            item.remoteProviderId != null,
+      ),
+      recommendExisting: prompt.matchType != DatabaseDuplicateMatchType.name,
+      allowReplace: prompt.canReplaceExisting,
     );
-    if (!context.mounted || decision == null) return;
-
-    context.read<DatabaseSelectionBloc>().add(
-      ResolveDuplicateDecision(decision),
+    // Any dismissal is a cancel (spec 025 FR-O7): the staged import must
+    // never outlive the question.
+    if (bloc.isClosed) return;
+    bloc.add(
+      ResolveDuplicateDecision(decision ?? DatabaseDuplicateResolution.cancel),
     );
   }
 
@@ -419,12 +385,16 @@ class DatabaseSelectionScreen extends StatelessWidget {
                 ScaffoldMessenger.of(context)
                     .showSnackBar(SnackBar(content: Text(state.userMessage!)));
               }
+              // The wizard does not pop itself on success (FR-C6), so exactly
+              // one navigation happens: close it, then replace this screen.
+              final route = ModalRoute.of(context);
+              Navigator.of(context).popUntil((r) => r == route);
               AppNavigation.pushFadeReplacement(
                 context,
-                DatabaseUnlockScreen(
-                  databasePath: state.path,
-                  promptBiometricSetup: state.promptBiometricSetup,
-                ),
+                state.openVault
+                    ? debugVaultBuilder?.call(state.path) ??
+                          VaultScreen(databasePath: state.path)
+                    : DatabaseUnlockScreen(databasePath: state.path),
               );
               return;
             }
@@ -437,79 +407,107 @@ class DatabaseSelectionScreen extends StatelessWidget {
             }
           },
           builder: (context, state) {
-            if (state is DatabaseSelectionLoading ||
-                state is DatabaseSelectionInitial) {
+            if (state is DatabaseSelectionInitial) {
               return const Center(child: CircularProgressIndicator());
             }
-
-            if (state.items.isEmpty) {
-              return WelcomeScreen(
-                onCreateDatabase: () => _onCreateDatabase(context),
-                onOpenExistingDatabase: () =>
-                    _onSelectExistingDatabase(context),
-                onOpenFromGoogleDrive: () => _openFromGoogleDrive(context),
-              );
-            }
-
-            final viewportWidth = MediaQuery.sizeOf(context).width;
-            final isTablet = viewportWidth >= Breakpoints.mobile;
-
-            const header = _RecentHeader();
-            final list = RecentDatabasesSection(
-              items: state.items,
-              onOpen: (item) => _onOpenRecentDatabase(context, item),
-              onExport: (item) => _onExportRecentDatabase(context, item),
-              onRemove: (item) => _onRemoveRecentDatabase(context, item),
-              onLocate: (item) => _onLocateDatabase(context, item),
-            );
-            final addSection = _AddSection(
-              onCreate: () => _onCreateDatabase(context),
-              onOpenExisting: () => _onSelectExistingDatabase(context),
-              onOpenFromDrive: () => _openFromGoogleDrive(context),
-            );
-
-            if (!isTablet) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    header,
-                    const SizedBox(height: 18),
-                    list,
-                    const SizedBox(height: 16),
-                    addSection,
-                  ],
-                ),
-              );
-            }
-
-            // Tablet ≥600: identity/actions left, database cards right.
-            return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                key: const ValueKey('selection-two-column-row'),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 260,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          header,
-                          const SizedBox(height: 18),
-                          addSection,
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(child: SingleChildScrollView(child: list)),
-                ],
-              ),
+            // Spec 025 FR-X6: a running action keeps the screen mounted and
+            // puts the spinner over it, so the user never loses their place.
+            return Stack(
+              children: [
+                _content(context, state),
+                if (state is DatabaseSelectionLoading)
+                  _BusyOverlay(label: state.label),
+              ],
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, DatabaseSelectionState state) {
+    if (state.items.isEmpty) {
+      return WelcomeScreen(
+        onCreateDatabase: () => _onCreateDatabase(context),
+        onOpenDatabase: () => _onOpenDatabase(context),
+      );
+    }
+
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final isTablet = viewportWidth >= Breakpoints.mobile;
+
+    final header = _RecentHeader(onAdd: () => _onAddDatabase(context));
+    final list = DatabaseGroupedList(
+      items: state.items,
+      remoteAccount: state.remoteAccount,
+      onOpen: (item) => _onOpenRecentDatabase(context, item),
+      onExport: (item) => _onExportRecentDatabase(context, item),
+      onRemove: (item) => _onRemoveRecentDatabase(context, item),
+      onLocate: (item) => _onLocateDatabase(context, item),
+    );
+
+    if (!isTablet) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [header, const SizedBox(height: 22), list],
+        ),
+      );
+    }
+
+    // Tablet >=600: identity and "+" left, database groups right.
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Row(
+        key: const ValueKey('selection-two-column-row'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 260, child: header),
+          const SizedBox(width: 24),
+          Expanded(child: SingleChildScrollView(child: list)),
+        ],
+      ),
+    );
+  }
+}
+
+/// The labelled, non-destructive busy state (spec 025 FR-X6).
+class _BusyOverlay extends StatelessWidget {
+  const _BusyOverlay({this.label});
+
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<CustodeColors>()!;
+    return Positioned.fill(
+      child: Semantics(
+        container: true,
+        liveRegion: true,
+        label: label ?? 'Working',
+        child: ColoredBox(
+          color: colors.ground.withValues(alpha: 0.72),
+          child: Center(
+            child: ExcludeSemantics(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const KvSpinner(),
+                  if (label != null) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      label!,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.body.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -517,7 +515,9 @@ class DatabaseSelectionScreen extends StatelessWidget {
 }
 
 class _RecentHeader extends StatelessWidget {
-  const _RecentHeader();
+  const _RecentHeader({required this.onAdd});
+
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -539,80 +539,25 @@ class _RecentHeader extends StatelessWidget {
         Expanded(
           child: Tooltip(
             message: 'Choose a database to continue',
-            child: Text(
-              'Databases',
-              style: AppTextStyles.screenTitle.copyWith(
-                color: colors.textPrimary,
+            child: Semantics(
+              header: true,
+              child: Text(
+                'Databases',
+                style: AppTextStyles.screenTitle.copyWith(
+                  color: colors.textPrimary,
+                ),
               ),
             ),
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _AddSection extends StatelessWidget {
-  const _AddSection({
-    required this.onCreate,
-    required this.onOpenExisting,
-    required this.onOpenFromDrive,
-  });
-
-  final VoidCallback onCreate;
-  final VoidCallback onOpenExisting;
-  final VoidCallback onOpenFromDrive;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<CustodeColors>()!;
-
-    Widget row({
-      required AppGlyph icon,
-      required String label,
-      required VoidCallback onTap,
-    }) {
-      return InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.rowNested),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              KvIcon(glyph: icon, size: 18, color: colors.iconNeutral),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTextStyles.rowTitle.copyWith(
-                    color: colors.textPrimary,
-                  ),
-                ),
-              ),
-              KvIcon(
-                glyph: AppGlyph.chevronRight,
-                size: 17,
-                color: colors.iconNeutral,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        row(icon: AppGlyph.add, label: 'Create new database', onTap: onCreate),
-        row(
-          icon: AppGlyph.folderOpen,
-          label: 'Open existing database',
-          onTap: onOpenExisting,
-        ),
-        row(
-          icon: AppGlyph.cloud,
-          label: 'Open from Google Drive',
-          onTap: onOpenFromDrive,
+        const SizedBox(width: 12),
+        KvCircleIconButton(
+          glyph: AppGlyph.add,
+          tooltip: 'Add database',
+          filled: true,
+          size: 44,
+          iconSize: 20,
+          onPressed: onAdd,
         ),
       ],
     );

@@ -182,23 +182,137 @@ Only the values that are not derivable from the components above.
 ### Welcome (01)
 Mark 88 radius 26; headline 38 max 15ch; body 15 max 34ch; three pills stacked
 with gap 10; block vertically centred, bottom padding 34.
+Superseded by Welcome (15), spec 025.
 
 ### Database list (01)
 Header row: mark 40, title Caprasimo 26 flexed, add button 40 circle
 `accent-300`. `Recent` label 20 above the list. Rows radius 24, padding 14,
 leading square 40 radius 14. "Add" section label 24 above, its rows are
 borderless 12 / 6 padding with a trailing chevron 17.
+Superseded by Database list (15) and Add sheet (15), spec 025.
 
 ### Create database (01)
 Back button 40 circle, then the 3-bar progress flexed beside it with gap 14.
 Step label 11 uppercase, title Caprasimo 28–30, body 13.5. Fields gap 16.
 Footer: primary pill + caption 12 centred.
+Superseded by Create database (15), spec 025 (two steps, not three).
 
 ### Unlock (02)
 Feature square 66 radius 24 (`accent-200` / `accent-900`); title Caprasimo 32;
 subtitle 13.5; password field 56 tall; primary pill; two inline links 13
 `accent-800` separated by a 1 × 14 divider. Biometric gate (dark): circle 104
 with a 50 px glyph, centred text, two stacked pills.
+Password and key-file states superseded by Unlock (15), spec 025. The biometric
+gate and the decrypting view are not redesigned and stay as measured here.
+
+### Database flows (15), shared
+Record `15 Database flows.dc.html`, contract `specs/025-database-flows-redesign/spec.md`.
+Phone 390 x 844 light only; tablet/desktop and dark are not in the approved
+mockups (open, see the spec 025 golden inventory).
+Icon buttons on these screens are 44 (back, add, reveal, overflow), not the 36
+of section 2. Uppercase labels are 11 / 700, +0.09em. Secondary text in the
+mockups is `#665F53`, which is not a token; read as `neutral-700`. Whether it
+should be `neutral-600` as in section 2 is open.
+Sheets: radius 32 top corners, padding 10 / 18 / 30, grabber 46 x 5
+`neutral-300`, gap 14, title Caprasimo 22 / 1.15 with margin 6 / 2 / 2,
+backdrop 42 %.
+Source option card (source choice, add actions, file rows, key-file row,
+biometric row): min height 64, radius 22, padding 13 / 16, gap 12,
+`neutral-200`; leading circle 38 `neutral-100` with an 18 glyph `neutral-700`;
+title 15 / 600 / 1.25, subtitle 12.5 / 1.4, text gap 2; trailing chevron 18 or
+a text action 13.5 / 600 `accent-800`. Selected: `accent-100` fill, 1.5 border
+`accent-400`, text `accent-900`, circle `accent-300` / `accent-900`, trailing
+check 18. Stacked cards gap 8. Disabled card (no remote source): keeps its
+place with the reason as subtitle; its measurements are not drawn (open).
+Small tag: padding 3 / 9, radius 999, 10 / 700, +0.08em, uppercase.
+Text action (Cancel, Remove from list, Use biometrics): 15 / 600 `accent-800`,
+min height 44, centred.
+
+### Welcome (15)
+Side padding 20, bottom padding 34. Mark 88 radius 26; headline 38 / 1.1,
+letter-spacing -0.57; body 15 / 1.45 `neutral-700`; gap 18; block centred in the
+free space. Two pills pinned to the bottom, gap 10: primary, then secondary in
+Figtree 15 / 600. Implemented max content width 480.
+
+### Source sheet (15)
+Shared sheet; two source option cards; privacy line under them: lock glyph 14
+(margin-top 2) + 12.5 / 1.4 text, gap 8, margin 2. `This device` uses the
+`monitor` glyph in the implementation (mockup: smartphone).
+
+### Drive files (15)
+Sheet height 724. Account row: padding 4 / 2, gap 12; avatar 38 circle
+`accent-300` / `accent-900`, letter 15 / 700; uppercase label over the email
+15 / 600, gap 2; `Switch account` 13.5 / 600 `accent-800`, min height 44.
+Search: height 52, radius 22, padding 0 / 16, glyph 18, gap 10. File rows are
+source option cards with a file glyph; mockup gap 8, implemented list gap 9.
+Subtitle `Modified <date> · <size>`: implemented with an absolute date
+(`12 Mar 2026`), not the mockup's relative one. `Already added` small tag
+`accent-2-100` / `accent-2-900` replaces the chevron. Privacy line at the
+bottom. Loading and empty states are not in the approved mockups (open).
+
+### Conflict sheet (15)
+Sheet bottom padding 26, title margin 6 / 2 / 0. Importing / Existing grid:
+label column 76, gaps 6 / 10, 13.5 / 1.45; label `neutral-700`, name 600, source
+in parentheses 400 `neutral-700`. Options: min height 68, radius 20, padding
+13 / 16, gap 8; the recommended one in the selected style with a `Recommended`
+small tag `accent-300` / `accent-900`. `Cancel` text action, padding 0 / 20.
+
+### Create database (15)
+Padding 16 / 20 / 34. Header stack gap 14: back 44 circle `neutral-200`
+(margin-left -4, glyph 18); 2-bar progress, height 5, gap 6, radius 999, done
+`accent-500`, pending `neutral-300`; step label 12.5 / 1.4 `neutral-700` (not
+uppercase); title Caprasimo 28 / 1.14, letter-spacing -0.42. Section gap 22 on
+step 1, 18 on step 2. Field 52, radius 22, padding 0 / 16; label to field 7;
+caption 12.5 / 1.4, 7 under the field. Step 1: label to cards 8. Step 2:
+password field padding 0 / 8 / 0 / 16 with a 44 reveal target, glyph 18;
+strength 4 bars, height 5, gap 5, word 12.5 / 600 at the end, gap 10 (mockup
+draws `Good` in `accent-2-900`; the implementation reuses `StrengthBar`, its
+colours are not re-measured here). Switch: implemented `KvSwitch` 44 x 26 as in
+section 2 (mockup: 52 x 30 track `accent-900`, knob 24 `accent-300`, in a
+52 x 44 target). Footer gap 10: primary pill + caption 12.5 centred.
+
+### Unlock (15)
+Padding 16 / 20 / 34, block gap 20. Back 44 circle. Identity stack gap 14,
+margin-top 12: source chip (padding 6 / 12, radius 999, `neutral-200`, glyph 14,
+gap 8, 12.5 / 600 `neutral-700`); feature square 66 radius 20 `neutral-200` with
+a 28 glyph (was radius 24 on `accent-200`); title Caprasimo 32 / 1.14.
+Password field 52 (was 56), radius 22, 44 reveal target. Key-file slot: source
+option card; selected state padding 10 / 10 / 10 / 16, remove button 36 circle
+`neutral-100` inside a 44 target, glyph 16. Actions margin-top 6, gap 6: primary
+pill, then the `Use biometrics` text action with an 18 glyph, gap 8.
+Error: 2 px ring `accent-700` on the field, message 12.5 / 600 `accent-700`
+under it; implemented as the field's error text with no icon (mockup: 14 glyph,
+gap 8).
+
+### Unlock, missing file (15)
+Same frame as Unlock (15). Feature square 66 radius 20 `accent-100` /
+`accent-700`, warning glyph 28; title 32; body 15 / 1.45 `neutral-700`. Actions
+margin-top 6, gap 10: primary pill, secondary pill (Figtree 15 / 600), text
+action. `Back to databases` pinned to the bottom: 13.5 / 600 `accent-800`,
+glyph 16, gap 8, min height 44.
+
+### Biometric offer (15)
+Shared sheet. Feature square 66 radius 20 `neutral-200`, glyph 28, margin-top 8
+(not the 52 circle of the bottom-sheet component); title 22; body 13.5 / 1.45;
+two stacked pills, gap 10, margin-top 6. Shown over the unlock screen.
+
+### Database list (15)
+Padding 20 / 20 / 34, section gap 22. Header gap 12: mark 40 radius 14, title
+Caprasimo 28 flexed, add button 44 circle `accent-300` / `accent-900`, glyph 20.
+Group: header glyph 14 + uppercase label, gap 8, margin 0 / 2; 8 to the rows and
+between rows. Row: min height 68, radius 22, padding 0 / 6 / 0 / 16, 1.5 border
+(transparent, `accent-400` with `accent-100` fill on the highlighted row);
+leading circle 38; name 15 / 600; second line 5 below: status 12.5 / 1.4 and
+small tags, gap 6 to 8 (`neutral-100` / `neutral-700`; `accent-300` /
+`accent-900` on the highlighted row); trailing overflow 44 target, glyph 18.
+Status wording is day-granular in the implementation (`Synced today`).
+Missing row: circle `accent-100` / `accent-700` with the warning glyph,
+`File not found` 12.5 / 600 `accent-700` 2 below the name, `Locate` 13.5 / 600
+`accent-800`, min height 44, padding 0 / 8, before the overflow.
+
+### Add sheet (15)
+Shared sheet; two source option cards with chevrons; the first leading circle
+is `accent-300` / `accent-900` with a plus glyph.
 
 ### Entry detail (04)
 Header: avatar 56 (font 22), title Caprasimo 28, subtitle 13.5, 14 gap; header

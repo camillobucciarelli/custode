@@ -14,7 +14,7 @@ import '../domain/usecases/validate_database_usecase.dart';
 void registerPasswordManagerDomainDependencies(GetIt sl) {
   sl.registerLazySingleton(() => PasswordGeneratorService());
   sl.registerLazySingleton(() => GetActiveDatabaseUseCase(sl()));
-  sl.registerLazySingleton(() => ResolveDatabaseDuplicateUseCase(sl()));
+  sl.registerLazySingleton(() => ResolveDatabaseDuplicateUseCase(sl(), sl()));
   // spec 010 T401/T502: the two atomic remote actions behind the sync port.
   sl.registerLazySingleton(() => LinkDatabaseToRemoteUseCase(sl()));
   sl.registerLazySingleton(() => SyncDatabaseNowUseCase(sl()));

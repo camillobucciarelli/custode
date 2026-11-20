@@ -13,7 +13,8 @@ import 'package:password_manager/features/password_manager/domain/errors/google_
 import 'package:password_manager/features/password_manager/domain/models/remote_file_selection_data.dart';
 import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
 import 'package:password_manager/features/password_manager/domain/models/remote_file.dart';
-import 'package:password_manager/features/password_manager/presentation/widgets/database/drive_picker_sheet.dart';
+import 'package:password_manager/core/widgets/kv_bottom_sheet.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/sync/remote_file_picker.dart';
 import 'package:xml/xml.dart';
 
 const _iosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
@@ -342,12 +343,12 @@ void main() {
     await tester.pump();
 
     expect(calls, 2);
-    expect(find.text('Connecting...'), findsOneWidget);
+    expect(find.text('Reconnecting...'), findsOneWidget);
     expect(find.bySemanticsLabel('Reconnect Google Drive'), findsOneWidget);
     expect(
       tester
           .widget<ElevatedButton>(
-            find.widgetWithText(ElevatedButton, 'Connecting...'),
+            find.widgetWithText(ElevatedButton, 'Reconnecting...'),
           )
           .onPressed,
       isNull,
@@ -400,10 +401,13 @@ Widget _driveSheetHost(
     theme: AppTheme.lightTheme,
     home: Builder(
       builder: (context) => TextButton(
-        onPressed: () => showDrivePickerSheet(
-          context,
-          loadPickerData: loadPickerData,
-          reconnectPickerData: reconnectPickerData,
+        onPressed: () => KvBottomSheet.show<void>(
+          context: context,
+          builder: (_) => RemoteFilePickerSheet(
+            load: loadPickerData,
+            reconnect: reconnectPickerData ?? loadPickerData,
+            switchAccount: loadPickerData,
+          ),
         ),
         child: const Text('Connect Google Drive'),
       ),

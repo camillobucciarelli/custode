@@ -1,10 +1,9 @@
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path/path.dart' as p;
+import 'package:loggy/loggy.dart';
 
 import '../../../../../core/navigation/app_navigation.dart';
 import '../../../../../core/theme/app_glyph.dart';
@@ -14,25 +13,22 @@ import '../../../../../core/theme/app_radii.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/theme/custode_colors.dart';
-import '../../../../../core/utils/mobile_file_storage.dart';
-import '../../../../../core/widgets/kv_confirm_dialog.dart';
 import '../../../../../core/widgets/kv_circle_icon_button.dart';
+import '../../../../../core/widgets/kv_confirm_dialog.dart';
 import '../../../../../core/widgets/kv_field_decoration.dart';
 import '../../../../../core/widgets/kv_icon.dart';
-import '../../../../../core/widgets/kv_list_row.dart';
 import '../../../../../core/widgets/kv_pill_button.dart';
 import '../../../../../injection_container.dart' as di;
 import '../bloc/database_unlock/database_unlock_bloc.dart';
 import '../bloc/database_unlock/database_unlock_event.dart';
 import '../bloc/database_unlock/database_unlock_state.dart';
+import '../../domain/errors/database_access_failure.dart';
 import '../coordinators/android_autofill_save_coordinator.dart';
 import '../coordinators/database_session_coordinator.dart';
 import '../coordinators/pending_passkey_adoption_coordinator.dart';
-import '../../data/datasources/biometric_data_source.dart';
-import '../widgets/managed_key_picker_gate.dart';
-import '../../domain/errors/database_access_failure.dart';
-import '../widgets/database/biometric_prompt_sheet.dart';
-import '../widgets/internal_key_file_manager_sheet.dart';
+import '../widgets/database/biometric_offer_sheet.dart';
+import '../widgets/database/source_chip.dart';
+import '../widgets/key_file_picker.dart';
 import '../utils/platform_utils.dart';
 import 'database_selection_screen.dart';
 import 'vault_screen.dart';
@@ -41,12 +37,16 @@ part 'database_unlock_widgets.part.dart';
 
 class DatabaseUnlockScreen extends StatelessWidget {
   final String databasePath;
-  final bool promptBiometricSetup;
+
+  /// Replaces the vault route after a successful unlock. `VaultScreen` needs
+  /// the whole vault DI graph, which unlock tests do not build.
+  @visibleForTesting
+  final Widget Function(String databasePath)? debugVaultBuilder;
 
   const DatabaseUnlockScreen({
     super.key,
     required this.databasePath,
-    this.promptBiometricSetup = false,
+    this.debugVaultBuilder,
   });
 
   @override
@@ -55,15 +55,15 @@ class DatabaseUnlockScreen extends StatelessWidget {
       create: (_) =>
           di.sl<DatabaseUnlockBloc>(param1: databasePath)
             ..add(const InitializeDatabaseUnlock()),
-      child: _DatabaseUnlockView(promptBiometricSetup: promptBiometricSetup),
+      child: _DatabaseUnlockView(vaultBuilder: debugVaultBuilder),
     );
   }
 }
 
 class _DatabaseUnlockView extends StatefulWidget {
-  const _DatabaseUnlockView({required this.promptBiometricSetup});
+  const _DatabaseUnlockView({this.vaultBuilder});
 
-  final bool promptBiometricSetup;
+  final Widget Function(String databasePath)? vaultBuilder;
 
   @override
   State<_DatabaseUnlockView> createState() => _DatabaseUnlockViewState();
@@ -72,7 +72,6 @@ class _DatabaseUnlockView extends StatefulWidget {
 class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
   final _passwordCtrl = TextEditingController();
   bool _passwordVisible = false;
-  bool _biometricPromptHandled = false;
 
   /// Captured in `initState`: teardown must not need the locator (golden tests
   /// run in any order).
@@ -143,60 +142,64 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
   }
 
   Future<void> _pickKeyFile() async {
-    if (isManagedStoragePlatform) {
-      final bloc = context.read<DatabaseUnlockBloc>();
-      final currentKeyFilePath = bloc.state.keyFilePath;
-      // spec 015 FR-12 (T018): managed keys list only after device auth.
-      final authorized = await authorizeManagedKeyPickerAccess(
-        di.sl<BiometricDataSource>(),
-      );
-      if (!mounted || !authorized) {
-        return;
-      }
-      final protectedPaths = await di
-          .sl<DatabaseSessionCoordinator>()
-          .getProtectedKeyFilePaths();
-      if (!mounted) {
-        return;
-      }
-      final result = await showInternalKeyFileManagerSheet(
-        context,
-        initiallySelectedPath: currentKeyFilePath,
-        protectedPaths: {...protectedPaths, ?currentKeyFilePath},
-      );
-      if (!mounted || result == null) {
-        return;
-      }
-
-      if (result.selectedPath != null) {
-        bloc.add(UpdateKeyFilePath(result.selectedPath));
-        return;
-      }
-
-      if (result.currentSelectionDeleted &&
-          currentKeyFilePath != null &&
-          currentKeyFilePath.trim().isNotEmpty) {
-        bloc.add(const UpdateKeyFilePath(null));
-      }
+    final bloc = context.read<DatabaseUnlockBloc>();
+    final current = bloc.state.keyFilePath;
+    final picked = await pickKeyFile(context, current: current);
+    if (!mounted || picked == null) {
       return;
     }
-
-    final result = await FilePicker.pickFiles(withData: false);
-    if (!mounted || result == null) {
-      return;
+    // Unlock has no bytes path: a browser never reaches a stored database.
+    if (picked.path != null) {
+      bloc.add(UpdateKeyFilePath(picked.path));
+    } else if (picked.isCleared) {
+      bloc.add(const UpdateKeyFilePath(null));
     }
+  }
 
-    final selected = result.files.single;
-    String? path = selected.path;
-    if (path == null || path.isEmpty) {
-      return;
+  /// Offer once, then continue to the vault. Neither the offer nor a keystore
+  /// failure may stop the unlock the user just completed.
+  Future<void> _finishUnlock(DatabaseUnlockState state) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final coordinator = di.sl<DatabaseSessionCoordinator>();
+    // Whatever the unlock could not save (spec 025 D10), plus the offer's own
+    // outcome below.
+    final notices = <String>[?state.notice];
+    try {
+      if (await coordinator.shouldOfferBiometricUnlock(
+        state.databasePath,
+        biometricAvailable: supportsBiometricUnlock && state.biometricAvailable,
+      )) {
+        if (!mounted) {
+          return;
+        }
+        final enable =
+            await showBiometricOfferSheet(
+              context,
+              databaseName: state.databaseLabel,
+            ) ??
+            false;
+        if (!await coordinator.answerBiometricOffer(
+              state.databasePath,
+              enable: enable,
+            ) &&
+            !notices.contains(biometricsNotEnabledNotice)) {
+          notices.add(biometricsNotEnabledNotice);
+        }
+      }
+    } catch (e, st) {
+      logWarning('Biometric offer failed after unlock.', e, st);
     }
-
     if (!mounted) {
       return;
     }
-
-    context.read<DatabaseUnlockBloc>().add(UpdateKeyFilePath(path));
+    if (notices.isNotEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(notices.join(' '))));
+    }
+    await AppNavigation.pushFadeReplacement(
+      context,
+      widget.vaultBuilder?.call(state.databasePath) ??
+          VaultScreen(databasePath: state.databasePath),
+    );
   }
 
   @override
@@ -207,22 +210,14 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
       backgroundColor: colors.ground,
       body: BlocConsumer<DatabaseUnlockBloc, DatabaseUnlockState>(
         listener: (context, state) {
-          if (widget.promptBiometricSetup &&
-              !_biometricPromptHandled &&
-              state.phase == UnlockPhase.ready) {
-            _biometricPromptHandled = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) {
-                return;
-              }
-              _showBiometricSetupPrompt();
-            });
-          }
-          if (state.unlocked) {
+          if (state.unlocked && !_unlocked) {
             _unlocked = true;
+            unawaited(_finishUnlock(state));
+          }
+          if (state.databaseRemoved) {
             AppNavigation.pushFadeReplacement(
               context,
-              VaultScreen(databasePath: state.databasePath),
+              const DatabaseSelectionScreen(),
             );
           }
         },
@@ -266,6 +261,17 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
         case UnlockPhase.decrypting:
           return _DecryptingView(basename: state.databaseLabel);
         case UnlockPhase.failure:
+          if (state.failure is DatabaseFileMissingFailure) {
+            return _UnlockMissingView(
+              state: state,
+              onLocate: _locateFile,
+              onRedownload: () => context.read<DatabaseUnlockBloc>().add(
+                const RedownloadMissingDatabase(),
+              ),
+              onRemove: _removeFromList,
+              onBack: _goToDatabaseSelection,
+            );
+          }
           return _UnlockFailureView(
             state: state,
             onBack: _goToDatabaseSelection,
@@ -291,7 +297,6 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
             onBiometricRetry: () => context.read<DatabaseUnlockBloc>().add(
               const RetryBiometricAuthentication(),
             ),
-
             onSubmit: canSubmit
                 ? () {
                     context.read<DatabaseUnlockBloc>().add(
@@ -335,37 +340,29 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
     );
   }
 
-  Future<void> _showBiometricSetupPrompt() async {
-    final basename = context.read<DatabaseUnlockBloc>().state.databaseLabel;
-    final shouldEnable = await showBiometricPromptDialog(
+  Future<void> _locateFile() async {
+    final bloc = context.read<DatabaseUnlockBloc>();
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['kdbx'],
+    );
+    final selectedPath = result?.files.single.path;
+    if (!mounted || selectedPath == null || selectedPath.trim().isEmpty) {
+      return;
+    }
+    bloc.add(LocateMissingDatabaseFile(selectedPath));
+  }
+
+  Future<void> _removeFromList() async {
+    final bloc = context.read<DatabaseUnlockBloc>();
+    final confirmed = await showKvConfirmDialog(
       context,
-      basename: basename,
+      title: 'Remove ${bloc.state.databaseLabel} from the list?',
+      body: 'The file is already missing. Nothing else is deleted.',
+      confirmLabel: 'Remove',
     );
-
-    if (shouldEnable == null || !mounted) {
-      return;
-    }
-
-    await di.sl<DatabaseSessionCoordinator>().updateBiometricProtection(
-      databasePath: context.read<DatabaseUnlockBloc>().state.databasePath,
-      enabled: shouldEnable,
-    );
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          shouldEnable
-              ? 'Biometric protection enabled for this database.'
-              : 'Biometric protection remains disabled for this database.',
-        ),
-      ),
-    );
-
-    if (shouldEnable) {
-      context.read<DatabaseUnlockBloc>().add(const InitializeDatabaseUnlock());
+    if (confirmed == true && mounted) {
+      bloc.add(const RemoveMissingDatabase());
     }
   }
 }

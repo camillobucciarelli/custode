@@ -50,6 +50,7 @@ DatabaseSecurityProfile _profileFromMap(
   // spec-011 FR-7: an absent flag is never consent to persist a secret.
   biometricProtectionEnabled:
       map['biometricProtectionEnabled'] as bool? ?? false,
+  biometricOfferAnswered: map['biometricOfferAnswered'] as bool? ?? false,
   inactivityLockTimeoutSeconds: map['inactivityLockTimeoutSeconds'] as int?,
   updatedAt: map['updatedAt'] == null
       ? null
@@ -66,6 +67,7 @@ Map<String, dynamic> _profileToMap(
     documentsRoot,
   ),
   'biometricProtectionEnabled': profile.biometricProtectionEnabled,
+  'biometricOfferAnswered': profile.biometricOfferAnswered,
   'inactivityLockTimeoutSeconds': profile.inactivityLockTimeoutSeconds,
   'updatedAt': profile.updatedAt?.toUtc().toIso8601String(),
 };

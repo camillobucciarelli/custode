@@ -40,6 +40,7 @@ specs/NNN-slug/spec.md|plan.md|tasks.md
 | 013 | [Google Drive per-file access and Picker](013-google-drive-per-file-access/spec.md) ([tasks](013-google-drive-per-file-access/tasks.md)) | **Security / release blocker** | 005; coordinates with 010, 006 |
 | 014 | [Managed storage hardening](014-managed-storage-hardening/spec.md) ([tasks](014-managed-storage-hardening/tasks.md)) | **Security** | 003; coordinates with 013, 010 |
 | 015 | [Create database credentials flow](015-create-database-credentials/spec.md) ([tasks](015-create-database-credentials/tasks.md)) | **UX / Security** | 014; coordinates with 003, 011 |
+| 025 | [Database flows redesign](025-database-flows-redesign/spec.md) ([tasks](025-database-flows-redesign/tasks.md)) | **UX redesign / cleanup** (supersedes parts of 003 and 015) | 001, 002, 011, 014, 015; coordinates with 010, 013 |
 
 Journey 03 (navigation models) resolved into spec 002; journey 14 (dark mode) is
 not a separate spec — the dark token mapping lands in 001 and every screen spec
@@ -78,6 +79,10 @@ carries dark acceptance criteria.
     wizard's generated key file uses 014's opaque naming, and 015 must not
     restate that rule. 015 also owns the unlock fallback matrix that becomes
     necessary once a key-file-only vault can be created.
+11. **025** redesigns every pre-vault flow (welcome, open, Google Drive, create,
+    unlock, databases list) and supersedes the copy and golden contracts of
+    **003** and **015** for those surfaces. It keeps the Drive file list behind
+    one seam so **013** can replace it with the Google Picker.
 
 ## Roadmap board
 

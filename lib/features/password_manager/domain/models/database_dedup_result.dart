@@ -1,6 +1,6 @@
 import '../entities/database_record.dart';
 
-enum DatabaseDuplicateMatchType { none, source, hash }
+enum DatabaseDuplicateMatchType { none, source, hash, name }
 
 enum DatabaseDuplicateResolution {
   useExisting,

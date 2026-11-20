@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 import 'package:password_manager/core/utils/redacted_value.dart';
 
 import '../../../domain/errors/database_access_failure.dart';
+import '../../../domain/models/storage_account_summary.dart';
 
 /// C-4 unlock phase. `isLoading` is gone — derive it from [phase] via the
 /// getters below.
@@ -39,6 +40,17 @@ class DatabaseUnlockState extends Equatable {
   /// spec 014 FR-3: the registry name. The file on disk is an opaque
   /// identifier on mobile, so never render the basename when this is set.
   final String? displayName;
+
+  /// Registry id, needed by the missing-file actions. Null when the path is
+  /// not registered.
+  final String? databaseId;
+
+  /// The database has a sync mapping (any provider), whatever its source type.
+  final bool isRemoteLinked;
+
+  /// Connected account label source, best-effort (spec 025 FR-U2). Null when
+  /// not connected or unknown.
+  final StorageAccountSummary? remoteAccount;
   final String? keyFilePath;
   final UnlockPhase phase;
   final bool biometricAvailable;
@@ -61,9 +73,24 @@ class DatabaseUnlockState extends Equatable {
   /// legal in `[0, 1]` and only once a real backend callback exists.
   final double? progress;
 
+  /// Something that did not stop the user: the unlock succeeded but a
+  /// credential or setting could not be saved, or a picked key file could not
+  /// be remembered. Never an error; the UI tells the user once.
+  final String? notice;
+
+  /// Biometric protection is on in this database's security profile. With
+  /// [biometricAvailable] it is what offers `Use biometrics` (spec 025 FR-U1).
+  final bool biometricEnabled;
+
+  /// The missing database was removed from the list; the screen leaves.
+  final bool databaseRemoved;
+
   const DatabaseUnlockState({
     required this.databasePath,
     this.displayName,
+    this.databaseId,
+    this.isRemoteLinked = false,
+    this.remoteAccount,
     this.keyFilePath,
     this.phase = UnlockPhase.initializing,
     this.biometricAvailable = false,
@@ -73,6 +100,9 @@ class DatabaseUnlockState extends Equatable {
     this.failure,
     this.errorMessage,
     this.progress,
+    this.notice,
+    this.biometricEnabled = false,
+    this.databaseRemoved = false,
   });
 
   factory DatabaseUnlockState.initial({required String databasePath}) {
@@ -92,6 +122,9 @@ class DatabaseUnlockState extends Equatable {
   DatabaseUnlockState copyWith({
     String? databasePath,
     String? displayName,
+    String? databaseId,
+    bool? isRemoteLinked,
+    StorageAccountSummary? remoteAccount,
     String? keyFilePath,
     UnlockPhase? phase,
     bool? biometricAvailable,
@@ -101,13 +134,22 @@ class DatabaseUnlockState extends Equatable {
     DatabaseAccessFailure? failure,
     String? errorMessage,
     double? progress,
+    String? notice,
+    bool? biometricEnabled,
+    bool? databaseRemoved,
     bool clearError = false,
     bool clearKeyFilePath = false,
     bool clearProgress = false,
+    bool clearRemoteAccount = false,
+    bool clearNotice = false,
   }) {
     return DatabaseUnlockState(
       databasePath: databasePath ?? this.databasePath,
       displayName: displayName ?? this.displayName,
+      databaseId: databaseId ?? this.databaseId,
+      isRemoteLinked: isRemoteLinked ?? this.isRemoteLinked,
+      remoteAccount:
+          remoteAccount ?? (clearRemoteAccount ? null : this.remoteAccount),
       keyFilePath: keyFilePath ?? (clearKeyFilePath ? null : this.keyFilePath),
       phase: phase ?? this.phase,
       biometricAvailable: biometricAvailable ?? this.biometricAvailable,
@@ -118,6 +160,9 @@ class DatabaseUnlockState extends Equatable {
       failure: failure ?? (clearError ? null : this.failure),
       errorMessage: errorMessage ?? (clearError ? null : this.errorMessage),
       progress: clearProgress ? null : progress ?? this.progress,
+      notice: notice ?? (clearNotice ? null : this.notice),
+      biometricEnabled: biometricEnabled ?? this.biometricEnabled,
+      databaseRemoved: databaseRemoved ?? this.databaseRemoved,
     );
   }
 
@@ -125,6 +170,9 @@ class DatabaseUnlockState extends Equatable {
   List<Object?> get props => [
     databasePath,
     displayName,
+    databaseId,
+    isRemoteLinked,
+    remoteAccount,
     RedactedValue<String?>(keyFilePath, redaction: '<redacted keyFilePath>'),
     phase,
     biometricAvailable,
@@ -134,5 +182,8 @@ class DatabaseUnlockState extends Equatable {
     failure,
     errorMessage,
     progress,
+    notice,
+    biometricEnabled,
+    databaseRemoved,
   ];
 }

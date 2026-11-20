@@ -273,19 +273,14 @@ void main() {
       },
     );
 
-    test('GAP 3: key-file manager widgets export through the domain port', () {
-      // Pre-T102 both widgets copied key files with `File.copy` directly.
-      // They now delegate to `DatabaseFileRepository.copyFile` and must not
-      // reappear as direct writers.
-      const dialog =
-          'lib/features/password_manager/presentation/widgets/'
-          'internal_key_file_manager_dialog.dart';
+    test('GAP 3: the key-file manager exports through the domain port', () {
+      // Pre-T102 the widget copied key files with `File.copy` directly. It
+      // now delegates to `DatabaseFileRepository.copyFile` and must not
+      // reappear as a direct writer.
       const sheet =
           'lib/features/password_manager/presentation/widgets/'
           'internal_key_file_manager_sheet.dart';
-      expect(discovered.keys, isNot(contains(dialog)));
       expect(discovered.keys, isNot(contains(sheet)));
-      expect(File(dialog).readAsStringSync(), contains('.copyFile('));
       expect(File(sheet).readAsStringSync(), contains('.copyFile('));
     });
 
@@ -386,9 +381,6 @@ void main() {
                 'vault_shared.part.dart':
             '.copyFile(',
         'lib/features/password_manager/presentation/widgets/'
-                'internal_key_file_manager_dialog.dart':
-            '.copyFile(',
-        'lib/features/password_manager/presentation/widgets/'
                 'internal_key_file_manager_sheet.dart':
             '.copyFile(',
       };
@@ -436,12 +428,15 @@ void main() {
           // into the safe writer. P1-4 adds 2 compensation renames: a
           // post-install failure (P2) restores the staged file or deletes
           // the just-installed target on both `commitStagedDatabase`
-          // branches.
-          'rename': 13,
+          // branches. Spec 025 S2: -4 with `_replaceManagedDatabase`, the
+          // name-based overwrite that no flow reaches any more (replace now
+          // goes through `commitStagedDatabase` on the matched record).
+          'rename': 9,
           // T109: was 8 — the install fallback's cleanup delete moved into
           // the safe writer. P1-4 adds 2 compensation deletes for the same
-          // post-install failure guard.
-          'delete': 9,
+          // post-install failure guard. Spec 025 S2: -2 with
+          // `_replaceManagedDatabase`.
+          'delete': 7,
           // T102: DatabaseFileRepository.copyFile implementation
           'copy': 1,
         },

@@ -14,6 +14,7 @@ import 'package:password_manager/features/password_manager/data/datasources/biom
 import 'package:password_manager/features/password_manager/data/services/desktop_browser_pending_generation_service.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_security_profile.dart';
+import 'package:password_manager/features/password_manager/domain/repositories/database_sync_repository.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/create_database_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/get_active_database_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/resolve_database_duplicate_usecase.dart';
@@ -51,12 +52,15 @@ class DatabaseTestHarness {
   final DatabaseSessionCoordinator coordinator;
 }
 
-DatabaseTestHarness _buildHarness() {
+DatabaseTestHarness _buildHarness({
+  FakeDatabaseSyncRepository? syncRepository,
+  bool fakeCreate = false,
+}) {
   final fileRepository = FakeDatabaseFileRepository();
   final sessionRepository = FakeDatabaseSessionRepository();
   final registryRepository = FakeDatabaseRegistryRepository();
   final securityRepository = FakeDatabaseSecurityRepository();
-  final syncRepository = FakeDatabaseSyncRepository();
+  syncRepository ??= FakeDatabaseSyncRepository();
   final unlockUseCase = FakeUnlockDatabaseUseCase();
   final coordinator = DatabaseSessionCoordinator(
     sessionSecretHolder: SessionSecretHolder(),
@@ -69,14 +73,18 @@ DatabaseTestHarness _buildHarness() {
     getActiveDatabaseUseCase: GetActiveDatabaseUseCase(registryRepository),
     resolveDatabaseDuplicateUseCase: ResolveDatabaseDuplicateUseCase(
       registryRepository,
+      syncRepository,
     ),
     unlockDatabaseUseCase: unlockUseCase,
-    createDatabaseUseCase: CreateDatabaseUseCase(
-      databaseFileRepository: fileRepository,
-    ),
+    createDatabaseUseCase: fakeCreate
+        ? FakeCreateDatabaseUseCase(databaseFileRepository: fileRepository)
+        : CreateDatabaseUseCase(databaseFileRepository: fileRepository),
   );
 
   di.sl.registerLazySingleton<DatabaseSessionCoordinator>(() => coordinator);
+  // The remote file picker (spec 025 FR-O3) reads existing mappings for its
+  // `Already added` tag straight from the sync repository.
+  di.sl.registerLazySingleton<DatabaseSyncRepository>(() => syncRepository!);
   // `DatabaseUnlockScreen` navigates to `VaultScreen` on a successful
   // unlock (`state.unlocked`), and `VaultScreen`'s shell resolves
   // `OtpAuthDeepLinkCoordinator` via `di.sl` in `initState` (matches
@@ -122,9 +130,24 @@ Future<({Widget widget, DatabaseTestHarness harness})> pumpableSelectionScreen({
   Map<String, DatabaseSecurityProfile> securityProfiles = const {},
   Set<String> existingPaths = const {},
   ThemeMode themeMode = ThemeMode.light,
+  FakeDatabaseSyncRepository? syncRepository,
+  bool biometricAvailable = false,
+  // Skips the real KDBX build (off the test clock) behind the Create wizard.
+  bool fakeCreate = false,
+  // The registry's active database: its row renders as the current one.
+  String? activeDatabaseId,
 }) async {
-  final harness = _buildHarness();
-  harness.registryRepository.records = records;
+  final harness = _buildHarness(
+    syncRepository: syncRepository,
+    fakeCreate: fakeCreate,
+  );
+  // The Create wizard (pushed from here) asks the device about biometrics.
+  di.sl.registerLazySingleton<BiometricDataSource>(
+    () => _FakeBiometricDataSource(available: biometricAvailable),
+  );
+  harness.registryRepository
+    ..records = records
+    ..activeId = activeDatabaseId;
   harness.securityRepository.profiles.addAll(securityProfiles);
   harness.fileRepository.existingPaths.addAll(existingPaths);
 
@@ -145,7 +168,11 @@ Future<({Widget widget, DatabaseTestHarness harness})> pumpableSelectionScreen({
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      home: const DatabaseSelectionScreen(),
+      // `VaultScreen` needs the whole vault DI graph; a stub keeps a direct
+      // entry after create (spec 025 FR-C6) observable without it.
+      home: DatabaseSelectionScreen(
+        debugVaultBuilder: (path) => Scaffold(body: Text('vault:$path')),
+      ),
     ),
   );
 
@@ -167,6 +194,7 @@ Future<({Widget widget, DatabaseTestHarness harness})> pumpableUnlockScreen({
   bool biometricAuthenticateResult = true,
   bool hangBiometricAuthenticate = false,
   ThemeMode themeMode = ThemeMode.light,
+  Widget Function(String databasePath)? vaultBuilder,
 }) async {
   final harness = _buildHarness();
   harness.registryRepository.records = records;
@@ -197,7 +225,13 @@ Future<({Widget widget, DatabaseTestHarness harness})> pumpableUnlockScreen({
     theme: AppTheme.lightTheme,
     darkTheme: AppTheme.darkTheme,
     themeMode: themeMode,
-    home: DatabaseUnlockScreen(databasePath: databasePath),
+    // `VaultScreen` needs the whole vault DI graph; a stub keeps successful
+    // unlocks observable without it.
+    home: DatabaseUnlockScreen(
+      databasePath: databasePath,
+      debugVaultBuilder:
+          vaultBuilder ?? (path) => Scaffold(body: Text('vault:$path')),
+    ),
   );
 
   return (widget: widget, harness: harness);
@@ -209,9 +243,13 @@ Future<({Widget widget, DatabaseTestHarness harness})> pumpableUnlockScreen({
 Future<({Widget widget, DatabaseTestHarness harness})>
 pumpableCreateDatabaseScreen({
   ThemeMode themeMode = ThemeMode.light,
-  bool webMode = false,
+  bool biometricAvailable = false,
+  FakeDatabaseSyncRepository? syncRepository,
 }) async {
-  final harness = _buildHarness();
+  final harness = _buildHarness(syncRepository: syncRepository);
+  di.sl.registerLazySingleton<BiometricDataSource>(
+    () => _FakeBiometricDataSource(available: biometricAvailable),
+  );
   final bloc = DatabaseSelectionBloc(
     databaseSessionCoordinator: harness.coordinator,
   );
@@ -224,7 +262,7 @@ pumpableCreateDatabaseScreen({
     themeMode: themeMode,
     home: BlocProvider<DatabaseSelectionBloc>.value(
       value: bloc,
-      child: CreateDatabaseScreen(debugWebMode: webMode ? true : null),
+      child: const CreateDatabaseScreen(),
     ),
   );
 

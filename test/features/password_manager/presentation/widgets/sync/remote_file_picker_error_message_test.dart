@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/features/password_manager/domain/models/cloud_storage_error.dart';
-import 'package:password_manager/features/password_manager/presentation/widgets/database/drive_picker_sheet.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/sync/remote_file_picker.dart';
 
 void main() {
   group('driveOpenErrorMessage', () {

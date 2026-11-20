@@ -20,20 +20,17 @@ class SelectExistingDatabase extends DatabaseSelectionEvent {
     required this.fileName,
     this.selectedPath,
     this.selectedBytes,
-    this.overwriteExisting = false,
   });
 
   final String fileName;
   final String? selectedPath;
   final List<int>? selectedBytes;
-  final bool overwriteExisting;
 
   @override
   List<Object> get props => [
     fileName,
     selectedPath ?? '',
     selectedBytes?.length ?? -1,
-    overwriteExisting,
   ];
 }
 
@@ -54,6 +51,9 @@ class CreateNewDatabase extends DatabaseSelectionEvent {
   final bool generateKeyFile;
   final String? generatedKeyFilePath;
 
+  /// Spec 025 FR-C5: also create the file on Google Drive. Non-secret.
+  final bool createOnRemote;
+
   const CreateNewDatabase({
     required this.databaseFileName,
     required this.password,
@@ -61,6 +61,7 @@ class CreateNewDatabase extends DatabaseSelectionEvent {
     this.biometricProtectionEnabled = false,
     this.generateKeyFile = false,
     this.generatedKeyFilePath,
+    this.createOnRemote = false,
   });
 
   @override
@@ -77,25 +78,27 @@ class CreateNewDatabase extends DatabaseSelectionEvent {
       generatedKeyFilePath ?? '',
       redaction: '<redacted generatedKeyFilePath>',
     ),
+    createOnRemote,
   ];
 }
 
 class SelectDriveDatabase extends DatabaseSelectionEvent {
   const SelectDriveDatabase({
+    required this.remoteProviderId,
     required this.remoteFileId,
     required this.remoteFileName,
-    required this.overwriteExisting,
   });
 
+  /// Remote identity is the `(providerId, remoteFileId)` tuple (spec 010).
+  final String remoteProviderId;
   final String remoteFileId;
   final String remoteFileName;
-  final bool overwriteExisting;
 
   @override
   List<Object> get props => [
+    remoteProviderId,
     RedactedValue<String>(remoteFileId, redaction: '<redacted remoteFileId>'),
     remoteFileName,
-    overwriteExisting,
   ];
 }
 
