@@ -269,6 +269,15 @@ class _FakeAppleAutofillV2Client implements AppleAutofillV2Client {
   Future<bool?> getExtensionEnabled() async => null;
 
   @override
+  Future<bool> getAutofillServiceEnabled() async => false;
+
+  @override
+  Future<bool> openAutofillSettings() async => false;
+
+  @override
+  Future<bool> openPasskeyProviderSettings() async => false;
+
+  @override
   Future<AndroidPasskeyProviderAvailability>
   getPasskeyProviderAvailability() async =>
       const AndroidPasskeyProviderAvailability.unsupported();

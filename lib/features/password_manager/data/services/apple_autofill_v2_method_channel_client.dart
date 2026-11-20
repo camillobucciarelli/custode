@@ -167,6 +167,28 @@ class AppleAutofillV2MethodChannelClient
     return _channel.invokeMethod<bool>('getExtensionEnabled');
   }
 
+  Future<bool> _androidBool(String method) async {
+    if (!isSupported || defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+    try {
+      return await _channel.invokeMethod<bool>(method) ?? false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> getAutofillServiceEnabled() =>
+      _androidBool('getAutofillServiceEnabled');
+
+  @override
+  Future<bool> openAutofillSettings() => _androidBool('openAutofillSettings');
+
+  @override
+  Future<bool> openPasskeyProviderSettings() =>
+      _androidBool('openPasskeyProviderSettings');
+
   @override
   Future<AndroidPasskeyProviderAvailability>
   getPasskeyProviderAvailability() async {

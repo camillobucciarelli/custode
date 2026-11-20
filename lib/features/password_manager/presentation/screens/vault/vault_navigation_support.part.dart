@@ -58,16 +58,6 @@ class _LinkAutofillCredentialDialog extends StatelessWidget {
   }
 }
 
-Future<void> _openAndroidAutofillSettings(BuildContext context) async {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text(
-        'Android Autofill v2 is being rebuilt and is not available yet.',
-      ),
-    ),
-  );
-}
-
 Future<void> _openBrowserAutofillSettings(BuildContext context) async {
   await Navigator.of(
     context,

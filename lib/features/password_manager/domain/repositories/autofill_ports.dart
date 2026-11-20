@@ -56,6 +56,18 @@ abstract interface class AppleAutofillV2Client {
   /// `null` where the question does not apply (Android, unsupported).
   Future<bool?> getExtensionEnabled();
 
+  /// Android only: whether Custode is the selected autofill service. `false`
+  /// elsewhere.
+  Future<bool> getAutofillServiceEnabled();
+
+  /// Android only: opens the system screen that selects the autofill service.
+  /// Returns whether anything was launched; `false` elsewhere.
+  Future<bool> openAutofillSettings();
+
+  /// Android 14+ only: opens the system credential provider screen. Returns
+  /// whether anything was launched; `false` below API 34 and elsewhere.
+  Future<bool> openPasskeyProviderSettings();
+
   /// spec 023 T405 — Android only: whether this device can act as a passkey
   /// provider (API 34+). Reports unsupported everywhere else, which is what
   /// the settings row shows.
