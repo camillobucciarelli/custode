@@ -1354,8 +1354,10 @@ class _FakeSyncRepo implements DatabaseSyncRepository {
   }
 
   @override
-  Future<Uint8List> downloadRemoteFile(String id) async =>
-      throw UnimplementedError();
+  Future<Uint8List> downloadRemoteFile(
+    String id, {
+    required String providerId,
+  }) async => throw UnimplementedError();
 
   /// When set, `linkDatabaseToRemote` throws this instead of succeeding.
   Object? linkError;

@@ -4,15 +4,6 @@
 **Depends on**: 014 (prerequisite — it must land first)  
 **Coordinates with**: 003 (creation journey), 011 (session secret and keystore)
 
-> **Partly superseded by [spec 025](../025-database-flows-redesign/spec.md)**
-> (database flows redesign). Superseded: FR-1 wording of the step contents
-> (still two steps), FR-4 presentation only (the three mutually exclusive key
-> modes remain), the continuation on the selection/unlock screen after a
-> successful create implied by FR-10 (creation now opens the vault directly;
-> the failure behaviour is kept), and "Golden inventory" under Tests. Still
-> normative: FR-2, FR-3, FR-5 to FR-9, FR-11 to FR-15 and every acceptance
-> criterion.
-
 ## Summary
 
 Rebuild the create-database wizard around one credentials step where the master
@@ -219,8 +210,6 @@ databases.
   gate.
 
 ### Golden inventory
-
-> Superseded by spec 025 "Golden inventory".
 
 Constitution principle IV. Collapsing three steps to two retires one golden and
 re-shoots the other two:

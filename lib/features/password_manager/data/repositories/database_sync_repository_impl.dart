@@ -88,8 +88,14 @@ class DatabaseSyncRepositoryImpl implements DatabaseSyncRepository {
   }
 
   @override
-  Future<Uint8List> downloadRemoteFile(String fileId) {
-    return _databaseSyncOrchestrator.downloadRemoteFile(fileId);
+  Future<Uint8List> downloadRemoteFile(
+    String fileId, {
+    required String providerId,
+  }) {
+    return _databaseSyncOrchestrator.downloadRemoteFile(
+      fileId,
+      providerId: providerId,
+    );
   }
 
   @override

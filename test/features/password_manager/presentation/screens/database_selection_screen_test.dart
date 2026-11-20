@@ -808,5 +808,8 @@ class _HangingDownloadSyncRepository extends FakeDatabaseSyncRepository {
   final Future<Uint8List> _download;
 
   @override
-  Future<Uint8List> downloadRemoteFile(String fileId) => _download;
+  Future<Uint8List> downloadRemoteFile(
+    String fileId, {
+    required String providerId,
+  }) => _download;
 }

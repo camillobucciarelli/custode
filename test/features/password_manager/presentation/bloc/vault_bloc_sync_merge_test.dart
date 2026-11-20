@@ -405,7 +405,10 @@ class _FakeSyncRepo implements DatabaseSyncRepository {
   Future<List<RemoteFile>> listRemoteFiles({String? query}) async => [];
 
   @override
-  Future<Uint8List> downloadRemoteFile(String id) async => Uint8List(0);
+  Future<Uint8List> downloadRemoteFile(
+    String id, {
+    required String providerId,
+  }) async => Uint8List(0);
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

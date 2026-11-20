@@ -415,6 +415,7 @@ class DatabaseSessionCoordinator {
 
     final bytes = await databaseSyncRepository.downloadRemoteFile(
       mapping.remoteFileId,
+      providerId: mapping.providerId,
     );
     final staged = await databaseFileRepository.stageDriveDownload(
       fileName: mapping.remoteFileName,
@@ -584,7 +585,10 @@ class DatabaseSessionCoordinator {
     required String remoteFileId,
     required String remoteFileName,
   }) async {
-    final bytes = await databaseSyncRepository.downloadRemoteFile(remoteFileId);
+    final bytes = await databaseSyncRepository.downloadRemoteFile(
+      remoteFileId,
+      providerId: remoteProviderId,
+    );
     final staged = await databaseFileRepository.stageDriveDownload(
       fileName: remoteFileName,
       bytes: bytes,
@@ -614,10 +618,11 @@ class DatabaseSessionCoordinator {
     if (dedup.hasDuplicate) {
       // Spec 025 D11: a name-only match is a different database. Replacing a
       // remote-linked one would leave its mapping pointing at the old remote
-      // file and sync the new content into it.
+      // file and sync the new content into it. Fails closed: a linkage that
+      // cannot be read is treated as linked, so no best-effort lookup here.
       final canReplaceExisting =
           dedup.matchType != DatabaseDuplicateMatchType.name ||
-          await _mappingOrNull(dedup.existingRecord!.canonicalPath) == null;
+          await _isKnownUnlinked(dedup.existingRecord!.canonicalPath);
       return DatabaseSelectionSessionResult(
         status: DatabaseSessionStatus.duplicateDecisionRequired,
         message: 'This database is already here. Choose how to continue.',
@@ -1141,6 +1146,14 @@ class DatabaseSessionCoordinator {
     );
   }
 
+  Future<bool> _isKnownUnlinked(String databasePath) async {
+    try {
+      return await databaseSyncRepository.getMapping(databasePath) == null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Sync metadata is best-effort for display: a failure degrades to local.
   Future<DatabaseSyncMapping?> _mappingOrNull(String databasePath) async {
     try {
@@ -1376,7 +1389,9 @@ class DatabaseSessionCoordinator {
       sessionSecretHolder.clear();
       rethrow;
     }
-    sessionSecretHolder.set(password);
+    sessionSecretHolder
+      ..set(password)
+      ..keyFileOverride = null;
     // The database is open. Nothing below may turn that into a failed unlock.
     final notices = <String>[];
     try {
@@ -1401,6 +1416,9 @@ class DatabaseSessionCoordinator {
         st,
       );
       notices.add(unlockSettingsNotSavedNotice);
+      // The profile may still hold the old key file (or none): the vault must
+      // open with the one that just decrypted it.
+      sessionSecretHolder.keyFileOverride = (path: persistedKeyFilePath);
     }
     return notices.isEmpty ? null : notices.join(' ');
   }
@@ -1437,7 +1455,9 @@ class DatabaseSessionCoordinator {
       sessionSecretHolder.clear();
       rethrow;
     }
-    sessionSecretHolder.set(effectivePassword);
+    sessionSecretHolder
+      ..set(effectivePassword)
+      ..keyFileOverride = null;
   }
 
   Future<bool> hasStoredMasterPassword({required String databasePath}) async {

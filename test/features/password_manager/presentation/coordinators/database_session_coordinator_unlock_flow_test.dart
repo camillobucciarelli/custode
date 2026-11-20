@@ -275,6 +275,8 @@ void main() {
 
       final result = await coordinator.redownloadMissingDatabase('db-1');
 
+      expect(sync.downloadProviderIds, ['google_drive']);
+
       expect(result.status, DatabaseSessionStatus.success);
       expect(result.path, path);
       expect(files.commitTargets, [path]);
@@ -551,6 +553,31 @@ void main() {
       expect(await keyFileTheVaultReads(), '/keys/a.key');
     });
 
+    test('a newly picked key file whose profile write fails is still the '
+        'one the vault reads', () async {
+      files.existingPaths.add('/keys/new.key');
+      security.saveError = StateError('metadata store unavailable');
+
+      final notice = await coordinator.unlockWithManualCredentials(
+        databasePath: b,
+        password: kFixtureSecretB,
+        keyFilePath: '/keys/new.key',
+      );
+
+      expect(notice, unlockSettingsNotSavedNotice);
+      expect(security.profiles['db-b']!.keyFilePath, '/keys/b.key');
+      expect(await keyFileTheVaultReads(), '/keys/new.key');
+
+      // A later unlock that does persist goes back to the profile.
+      security.saveError = null;
+      await coordinator.unlockWithManualCredentials(
+        databasePath: b,
+        password: kFixtureSecretB,
+        keyFilePath: '/keys/b.key',
+      );
+      expect(await keyFileTheVaultReads(), '/keys/b.key');
+    });
+
     test('unlocking the database that is already active writes nothing to '
         'the registry', () async {
       final counting = _CountingRegistry()
@@ -749,6 +776,24 @@ void main() {
       expect(files.discarded, hasLength(1));
       expect(registry.records.single.fileHash, 'old-hash');
       expect(sync.mappings[existingPath]!.remoteFileId, 'remote-1');
+    });
+
+    test('a name-only match whose linkage cannot be read cannot be '
+        'replaced', () async {
+      sync.mappings[existingPath] = mapping(existingPath);
+      sync.mappingError = Exception('mapping store unreadable');
+      files.stageResult = staged(sourceType: DatabaseSourceType.local);
+
+      final result = await coordinator.selectExistingDatabase(
+        fileName: 'Vault db-a',
+        selectedPath: '/downloads/other.kdbx',
+      );
+
+      expect(
+        result.duplicatePrompt!.matchType,
+        DatabaseDuplicateMatchType.name,
+      );
+      expect(result.duplicatePrompt!.canReplaceExisting, isFalse);
     });
 
     test('F6: a name-only match on a local database can still be '

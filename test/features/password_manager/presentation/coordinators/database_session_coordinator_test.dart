@@ -2525,7 +2525,10 @@ class _FakeSyncRepository implements DatabaseSyncRepository {
   }
 
   @override
-  Future<Uint8List> downloadRemoteFile(String fileId) async {
+  Future<Uint8List> downloadRemoteFile(
+    String fileId, {
+    required String providerId,
+  }) async {
     return downloadBytes;
   }
 

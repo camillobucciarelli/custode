@@ -102,7 +102,14 @@ class VaultSessionCoordinator {
       return null;
     }
     final profile = await databaseSecurityRepository.getProfile(activeId);
-    return profile?.keyFilePath;
+    return _sessionKeyFilePath(profile?.keyFilePath);
+  }
+
+  /// The key file this session was unlocked with wins over a profile the
+  /// unlock could not update (see `SessionSecretHolder.keyFileOverride`).
+  String? _sessionKeyFilePath(String? profileKeyFilePath) {
+    final override = sessionSecretHolder.keyFileOverride;
+    return override == null ? profileKeyFilePath : override.path;
   }
 
   Future<String?> getPersistedKeyFilePath(String databasePath) async {
@@ -113,7 +120,7 @@ class VaultSessionCoordinator {
     final profile = await databaseSecurityRepository.getProfile(
       record.databaseId,
     );
-    return profile?.keyFilePath;
+    return _sessionKeyFilePath(profile?.keyFilePath);
   }
 
   /// spec-011 Slice 2: switching database drops only session-scoped state.
@@ -218,7 +225,7 @@ class VaultSessionCoordinator {
       record.databaseId,
     );
     final currentKeyFilePath = _normalizeKeyFilePath(
-      existingProfile?.keyFilePath,
+      _sessionKeyFilePath(existingProfile?.keyFilePath),
     );
     final keyFileChanged = !_samePath(currentKeyFilePath, persistedKeyFilePath);
 
@@ -329,6 +336,7 @@ class VaultSessionCoordinator {
         ),
       );
       await databaseSecurityRepository.saveProfile(profile);
+      sessionSecretHolder.keyFileOverride = null;
 
       if (credentialChange != null) {
         try {

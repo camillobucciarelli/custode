@@ -1047,7 +1047,10 @@ class _FakeSyncRepository implements DatabaseSyncRepository {
   Future<void> disconnect() async {}
 
   @override
-  Future<Uint8List> downloadRemoteFile(String fileId) async {
+  Future<Uint8List> downloadRemoteFile(
+    String fileId, {
+    required String providerId,
+  }) async {
     throw UnimplementedError();
   }
 

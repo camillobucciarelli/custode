@@ -44,7 +44,13 @@ void main() {
 
   test('listing and download route through the orchestrator', () async {
     expect(await repository.listRemoteFiles(query: 'q'), [provider.file]);
-    expect(await repository.downloadRemoteFile('r1'), Uint8List.fromList([7]));
+    expect(
+      await repository.downloadRemoteFile(
+        'r1',
+        providerId: provider.providerId,
+      ),
+      Uint8List.fromList([7]),
+    );
     expect(provider.calls, ['list:q', 'download:r1']);
   });
 
