@@ -206,7 +206,7 @@ Password and key-file states superseded by Unlock (15), spec 025. The biometric
 gate and the decrypting view are not redesigned and stay as measured here.
 
 ### Database flows (15), shared
-Record `15 Database flows.dc.html`, contract `specs/025-database-flows-redesign/spec.md`.
+Record `15 Database flows.dc.html`, contract spec 025 (issue #275).
 Phone 390 x 844 light only; tablet/desktop and dark are not in the approved
 mockups (open, see the spec 025 golden inventory).
 Icon buttons on these screens are 44 (back, add, reveal, overflow), not the 36

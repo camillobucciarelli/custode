@@ -1,6 +1,6 @@
 # Decisions: database flows before the vault (welcome, open, create, unlock, list)
 
-decided: 2026-11-19 · implemented by `specs/025-database-flows-redesign`
+decided: 2026-11-19 · implemented by spec 025 (issue #275)
 drawn in: `15 Database flows.dc.html` (turn **8**, groups 01 to 04) · supersedes the database and unlock screens of `01-02 Database & Unlock.dc.html`
 
 ## The principle: one hierarchy

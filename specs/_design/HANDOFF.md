@@ -136,7 +136,7 @@ picked over search-first and "evolved strip") is:
 ### `01-02 Database & Unlock.dc.html`
 
 > Superseded for the database and unlock screens by `15 Database flows.dc.html`
-> and `specs/025-database-flows-redesign/spec.md` (2026-11-19). Kept as the
+> and spec 025 (issue #275) (2026-11-19). Kept as the
 > historical record; still current for the invalid-file sheet, the key file
 > manager, the decrypting view and the biometric gate. The "Use Face ID for
 > Work.kdbx?" prompt after a Drive import described below was removed.
@@ -294,7 +294,7 @@ values), and the extension popup — all on the dark token mapping above.
 
 Current reference for every flow before the vault opens. It supersedes the
 database and unlock screens of `01-02 Database & Unlock.dc.html`; the behaviour
-and copy contract is `specs/025-database-flows-redesign/spec.md`, the flow rules
+and copy contract is spec 025 (issue #275), the flow rules
 are in `specs/_design/decisions-database-flows.md`. One data hierarchy on every
 screen: source/account, then database file, then credentials.
 
