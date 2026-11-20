@@ -115,9 +115,6 @@ class _ThrowingVaultSessionCoordinator implements VaultSessionCoordinator {
   Future<String?> getSelectedKeyFilePath() async => null;
 
   @override
-  Future<Set<String>> getProtectedKeyFilePaths() async => const {};
-
-  @override
   Future<void> changeDatabase({required String currentDatabasePath}) async {}
 
   @override
@@ -154,9 +151,6 @@ class _SpyVaultSessionCoordinator implements VaultSessionCoordinator {
 
   @override
   Future<String?> getSelectedKeyFilePath() async => null;
-
-  @override
-  Future<Set<String>> getProtectedKeyFilePaths() async => const {};
 
   @override
   Future<void> changeDatabase({required String currentDatabasePath}) async {}

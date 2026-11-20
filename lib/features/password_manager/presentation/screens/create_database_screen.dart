@@ -1,56 +1,78 @@
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 
-import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_glyph.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/custode_colors.dart';
+import '../../../../core/widgets/kv_bottom_sheet.dart';
+import '../../../../core/widgets/kv_circle_icon_button.dart';
+import '../../../../core/widgets/kv_field_decoration.dart';
+import '../../../../core/widgets/kv_icon.dart';
+import '../../../../core/widgets/kv_list_row.dart';
 import '../../../../core/widgets/kv_pill_button.dart';
+import '../../../../core/widgets/kv_switch.dart';
+import '../../../../injection_container.dart' as di;
+import '../../data/datasources/biometric_data_source.dart';
 import '../../domain/models/create_database_step.dart';
+import '../../domain/models/storage_account_summary.dart';
 import '../../domain/usecases/create_database_download_usecase.dart';
+import '../../domain/utils/password_strength.dart';
 import '../bloc/database_selection/database_selection_bloc.dart';
 import '../bloc/database_selection/database_selection_event.dart';
 import '../bloc/database_selection/database_selection_state.dart';
+import '../coordinators/database_session_coordinator.dart';
+import '../utils/platform_utils.dart';
+import '../widgets/database/database_source_sheet.dart';
+import '../widgets/database/source_chip.dart';
+import '../widgets/database/source_option_card.dart';
+import '../widgets/entry/strength_strip.dart';
+import '../widgets/key_file_picker.dart';
 
-/// spec 015 FR-1/FR-10 create-database wizard, two steps (C-5/C-6): the
-/// screen owns ephemeral `TextEditingController`s (including password — it
-/// never enters BLoC state); step position/advance policy is
-/// coordinator-owned via `DatabaseSelectionBloc`.
+/// Spec 025 FR-C1..C8 create-database wizard, two steps: "Name and place" then
+/// "Protect it". The screen owns ephemeral `TextEditingController`s (including
+/// password: it never enters BLoC state) and the chosen source; step
+/// position/advance policy is coordinator-owned via `DatabaseSelectionBloc`.
 ///
 /// The wizard stays mounted across submission: it dispatches
-/// `CreateNewDatabase` itself, disables its controls while creation runs,
-/// keeps the draft intact on failure, and pops only when the flow leaves the
-/// create state (success, duplicate decision, cancel).
+/// `CreateNewDatabase` itself, disables its controls while creation runs and
+/// keeps the draft intact on failure. It pops itself when the flow is
+/// cancelled or ends in a decision; on success the selection screen replaces
+/// it with the vault, so there is a single navigation.
 class CreateDatabaseScreen extends StatefulWidget {
-  const CreateDatabaseScreen({super.key, this.debugWebMode});
-
-  /// Overrides `kIsWeb` in tests so the FR-14 download-only flow can be
-  /// exercised without a real browser (T022).
-  @visibleForTesting
-  final bool? debugWebMode;
+  const CreateDatabaseScreen({super.key});
 
   @override
   State<CreateDatabaseScreen> createState() => _CreateDatabaseScreenState();
 }
 
-/// spec 015 FR-4: the three-way exclusive key control.
+/// spec 015 FR-4: the three exclusive key-file modes, presented as one row
+/// plus a sheet.
 enum KeyFileMode { none, select, generate }
 
+const _generatedKeyLabel = 'New key file, created with the database';
+
 class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
-  final _databaseNameCtrl = TextEditingController(text: 'new_database.kdbx');
+  final _databaseNameCtrl = TextEditingController(text: 'new_database');
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  late final DatabaseSessionCoordinator _coordinator;
 
   bool _passwordVisible = false;
   bool _confirmVisible = false;
   bool _biometricProtectionEnabled = false;
+  bool _biometricAvailable = false;
   KeyFileMode _keyFileMode = KeyFileMode.none;
   String? _keyFilePath;
   String? _keyFileName;
+
+  // Step 1: where the database lives. Ephemeral, never in BLoC state.
+  DatabaseSource _source = DatabaseSource.device;
+  StorageAccountSummary? _account;
+  bool _connecting = false;
+  String? _connectError;
 
   // spec 015 FR-14 — web download-only state. The key/database bytes are
   // produced ONCE and retained so a retry after a failed download reuses
@@ -61,12 +83,21 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
   bool _webBuilding = false;
   String? _webErrorMessage;
 
-  bool get _isWeb => widget.debugWebMode ?? kIsWeb;
-
   @override
   void initState() {
     super.initState();
+    _coordinator = di.sl<DatabaseSessionCoordinator>();
     context.read<DatabaseSelectionBloc>().add(const StartCreateDatabaseFlow());
+    if (supportsRemoteSource) {
+      _coordinator.connectedAccountOrNull().then((account) {
+        if (mounted) setState(() => _account = account);
+      });
+    }
+    if (supportsBiometricUnlock) {
+      di.sl<BiometricDataSource>().isBiometricAvailable().then((available) {
+        if (mounted) setState(() => _biometricAvailable = available);
+      });
+    }
   }
 
   @override
@@ -77,53 +108,92 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
     super.dispose();
   }
 
-  Future<void> _pickKeyFile() async {
-    // FR-14: web has no durable path — the key is read as bytes.
-    final result = await FilePicker.pickFiles(
-      dialogTitle: 'Select a Key File',
-      withData: _isWeb,
+  Future<void> _connect() async {
+    setState(() {
+      _connecting = true;
+      _connectError = null;
+    });
+    final account = await _coordinator.connectRemoteAccount();
+    if (!mounted) return;
+    setState(() {
+      _connecting = false;
+      _account = account;
+      if (account == null) {
+        _connectError = 'Could not connect to Google Drive.';
+      } else {
+        _source = DatabaseSource.remote;
+      }
+    });
+  }
+
+  /// The empty row offers both ways to get a key; a filled row reopens the
+  /// same sheet to change it.
+  Future<void> _chooseKeyFile() async {
+    final choice = await KvBottomSheet.show<KeyFileMode>(
+      context: context,
+      builder: (sheetContext) => const _KeyChoiceSheet(),
     );
-    if (!mounted || result == null) return;
-    final file = result.files.single;
-    if (_isWeb ? file.bytes == null : file.path == null) return;
+    if (!mounted || choice == null) return;
+    if (choice == KeyFileMode.generate) {
+      setState(() {
+        _keyFileMode = KeyFileMode.generate;
+        _keyFilePath = null;
+        _keyFileName = _generatedKeyLabel;
+        _webSelectedKeyBytes = null;
+        _webDownload = null;
+        _webKeyDownloadRequested = false;
+      });
+      return;
+    }
+    final picked = await pickKeyFile(context, current: _keyFilePath);
+    if (!mounted || picked == null) return;
+    if (picked.isCleared) {
+      _clearKeyFile();
+      return;
+    }
     setState(() {
       _keyFileMode = KeyFileMode.select;
-      _keyFilePath = file.path;
-      _keyFileName = file.name;
-      _webSelectedKeyBytes = _isWeb ? file.bytes : null;
+      _keyFilePath = picked.path;
+      _keyFileName = picked.name;
+      _webSelectedKeyBytes = picked.bytes;
       _webDownload = null;
       _webKeyDownloadRequested = false;
     });
   }
 
-  PasswordStrengthCategory _strengthCategory(String password) {
-    if (password.isEmpty) return PasswordStrengthCategory.weak;
-    var charsetSize = 0;
-    if (RegExp(r'[a-z]').hasMatch(password)) charsetSize += 26;
-    if (RegExp(r'[A-Z]').hasMatch(password)) charsetSize += 26;
-    if (RegExp(r'[0-9]').hasMatch(password)) charsetSize += 10;
-    if (RegExp(r'[^a-zA-Z0-9]').hasMatch(password)) charsetSize += 32;
-    if (charsetSize == 0) return PasswordStrengthCategory.weak;
-    final bits = password.length * (log(charsetSize) / log(2));
-    if (bits < 40) return PasswordStrengthCategory.weak;
-    if (bits < 60) return PasswordStrengthCategory.fair;
-    if (bits < 80) return PasswordStrengthCategory.good;
-    return PasswordStrengthCategory.strong;
-  }
+  void _clearKeyFile() => setState(() {
+    _keyFileMode = KeyFileMode.none;
+    _keyFilePath = null;
+    _keyFileName = null;
+    _webSelectedKeyBytes = null;
+    _webDownload = null;
+    _webKeyDownloadRequested = false;
+  });
 
   /// spec 015 FR-8: an invalid character blocks advancing out of step 1 —
   /// no silent sanitisation.
-  bool get _nameValid {
+  String? get _nameError {
     final trimmed = _databaseNameCtrl.text.trim();
-    return trimmed.isNotEmpty && !trimmed.contains(RegExp(r'[\\/:*?"<>|]'));
+    if (trimmed.isEmpty) return 'Enter a database name.';
+    if (trimmed.contains(RegExp(r'[\\/:*?"<>|]'))) {
+      return 'Invalid characters in the name.';
+    }
+    return null;
+  }
+
+  bool get _nameValid => _nameError == null;
+
+  /// `Personal` and `Personal.kdbx` both mean the file `Personal.kdbx`.
+  String get _fileName {
+    final trimmed = _databaseNameCtrl.text.trim();
+    return trimmed.toLowerCase().endsWith('.kdbx') ? trimmed : '$trimmed.kdbx';
   }
 
   bool get _hasPassword => _passwordCtrl.text.isNotEmpty;
 
   bool get _hasKeyFactor => switch (_keyFileMode) {
     KeyFileMode.none => false,
-    KeyFileMode.select =>
-      _isWeb ? _webSelectedKeyBytes != null : _keyFilePath != null,
+    KeyFileMode.select => _keyFilePath != null || _webSelectedKeyBytes != null,
     KeyFileMode.generate => true,
   };
 
@@ -173,28 +243,23 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
 
   void _submit() {
     if (_submitBlockReason != null) return;
-    if (_isWeb) {
+    if (!persistsDatabases) {
       _buildWebDownload();
       return;
     }
     context.read<DatabaseSelectionBloc>().add(
       CreateNewDatabase(
-        databaseFileName: _databaseNameCtrl.text.trim(),
+        databaseFileName: _fileName,
         password: _passwordCtrl.text,
         keyFilePath: _keyFileMode == KeyFileMode.select ? _keyFilePath : null,
         biometricProtectionEnabled: _biometricProtectionEnabled,
         generateKeyFile: _keyFileMode == KeyFileMode.generate,
+        createOnRemote: _source == DatabaseSource.remote && _account != null,
       ),
     );
   }
 
-  String get _webBaseName {
-    final trimmed = _databaseNameCtrl.text.trim();
-    final base = trimmed.isEmpty ? 'new_database' : trimmed;
-    return base.toLowerCase().endsWith('.kdbx')
-        ? base.substring(0, base.length - 5)
-        : base;
-  }
+  String get _webBaseName => _fileName.substring(0, _fileName.length - 5);
 
   /// FR-14: both artefacts are produced once, in memory; a retry reuses the
   /// same generated key.
@@ -272,10 +337,12 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
     return BlocConsumer<DatabaseSelectionBloc, DatabaseSelectionState>(
       listenWhen: (previous, current) =>
           previous is DatabaseSelectionCreateStep &&
-          current is! DatabaseSelectionCreateStep,
+          current is! DatabaseSelectionCreateStep &&
+          // Success is the selection screen's navigation (vault or unlock).
+          current is! DatabaseSelectionSuccess,
       listener: (context, state) {
-        // Creation finished (success, duplicate decision, info): the flow
-        // continues on the selection screen underneath.
+        // Cancelled or ended in a decision: the flow continues on the
+        // selection screen underneath.
         if (Navigator.of(context).canPop()) {
           Navigator.of(context).pop();
         }
@@ -286,6 +353,13 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
         final step = createState?.step ?? CreateDatabaseStep.nameAndStorage;
         final submitting = createState?.submitting ?? false;
         final errorMessage = createState?.errorMessage;
+        final showingDownloads =
+            !persistsDatabases &&
+            _webDownload != null &&
+            step == CreateDatabaseStep.credentials;
+        final blockReason = step == CreateDatabaseStep.credentials
+            ? _submitBlockReason
+            : null;
 
         return PopScope(
           canPop: false,
@@ -300,106 +374,133 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
           child: Scaffold(
             backgroundColor: colors.ground,
             body: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _CreateHeader(
-                      step: step,
-                      onBack: submitting
-                          ? null
-                          : () => _back(step, submitting: submitting),
-                    ),
-                    const SizedBox(height: 18),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: switch (step) {
-                          CreateDatabaseStep.nameAndStorage => _NameStep(
-                            controller: _databaseNameCtrl,
-                            enabled: !submitting,
-                            onChanged: () => setState(() {}),
-                          ),
-                          CreateDatabaseStep.credentials
-                              when _isWeb && _webDownload != null =>
-                            _WebDownloadStep(
-                              hasKeyFile: _webDownload!.keyFileBytes != null,
-                              keyDownloadRequested: _webKeyDownloadRequested,
-                              onDownloadKeyFile: _downloadWebKeyFile,
-                              onDownloadDatabase: _downloadWebDatabase,
-                              onEditCredentials: () => setState(() {
-                                _webDownload = null;
-                                _webKeyDownloadRequested = false;
-                              }),
-                            ),
-                          CreateDatabaseStep.credentials => _CredentialsStep(
-                            passwordCtrl: _passwordCtrl,
-                            confirmCtrl: _confirmCtrl,
-                            passwordVisible: _passwordVisible,
-                            confirmVisible: _confirmVisible,
-                            enabled: !submitting,
-                            onTogglePassword: () => setState(
-                              () => _passwordVisible = !_passwordVisible,
-                            ),
-                            onToggleConfirm: () => setState(
-                              () => _confirmVisible = !_confirmVisible,
-                            ),
-                            onChanged: () => setState(() {}),
-                            strengthCategoryOf: _strengthCategory,
-                            keyFileMode: _keyFileMode,
-                            keyFileName: _keyFileName,
-                            onKeyFileModeChanged: (mode) {
-                              if (mode == KeyFileMode.select) {
-                                _pickKeyFile();
-                                return;
-                              }
-                              setState(() {
-                                _keyFileMode = mode;
-                                _keyFilePath = null;
-                                _keyFileName = null;
-                              });
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _CreateHeader(
+                          step: step,
+                          onBack: submitting
+                              ? null
+                              : () => _back(step, submitting: submitting),
+                        ),
+                        const SizedBox(height: 18),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: switch (step) {
+                              CreateDatabaseStep.nameAndStorage => _NameStep(
+                                controller: _databaseNameCtrl,
+                                enabled: !submitting,
+                                error: _nameError,
+                                fileName: _fileName,
+                                source: _source,
+                                account: _account,
+                                connecting: _connecting,
+                                connectError: _connectError,
+                                onSelectDevice: () => setState(
+                                  () => _source = DatabaseSource.device,
+                                ),
+                                onSelectRemote: _account == null
+                                    ? _connect
+                                    : () => setState(
+                                        () => _source = DatabaseSource.remote,
+                                      ),
+                                onChanged: () => setState(() {}),
+                              ),
+                              CreateDatabaseStep.credentials
+                                  when showingDownloads =>
+                                _WebDownloadStep(
+                                  hasKeyFile:
+                                      _webDownload!.keyFileBytes != null,
+                                  keyDownloadRequested:
+                                      _webKeyDownloadRequested,
+                                  onDownloadKeyFile: _downloadWebKeyFile,
+                                  onDownloadDatabase: _downloadWebDatabase,
+                                  onEditCredentials: () => setState(() {
+                                    _webDownload = null;
+                                    _webKeyDownloadRequested = false;
+                                  }),
+                                ),
+                              CreateDatabaseStep.credentials =>
+                                _CredentialsStep(
+                                  passwordCtrl: _passwordCtrl,
+                                  confirmCtrl: _confirmCtrl,
+                                  passwordVisible: _passwordVisible,
+                                  confirmVisible: _confirmVisible,
+                                  enabled: !submitting,
+                                  onTogglePassword: () => setState(
+                                    () => _passwordVisible = !_passwordVisible,
+                                  ),
+                                  onToggleConfirm: () => setState(
+                                    () => _confirmVisible = !_confirmVisible,
+                                  ),
+                                  onChanged: () => setState(() {}),
+                                  keyFileMode: _keyFileMode,
+                                  keyFilePath: _keyFilePath,
+                                  keyFileName: _keyFileName,
+                                  onChooseKeyFile: _chooseKeyFile,
+                                  onClearKeyFile: _clearKeyFile,
+                                  biometricEnabled: _biometricProtectionEnabled,
+                                  biometricUnavailable:
+                                      !supportsBiometricUnlock ||
+                                      !_biometricAvailable,
+                                  onBiometricChanged: (value) => setState(
+                                    () => _biometricProtectionEnabled = value,
+                                  ),
+                                  errorMessage:
+                                      errorMessage ?? _webErrorMessage,
+                                ),
                             },
-                            onChangeKeyFile: _pickKeyFile,
-                            onRemoveKeyFile: () => setState(() {
-                              _keyFileMode = KeyFileMode.none;
-                              _keyFilePath = null;
-                              _keyFileName = null;
-                            }),
-                            biometricProtectionEnabled:
-                                _biometricProtectionEnabled,
-                            onBiometricChanged: (value) => setState(
-                              () => _biometricProtectionEnabled = value,
-                            ),
-                            // FR-14: no biometric step on web, plus the
-                            // inline keeps-nothing notice.
-                            isWeb: _isWeb,
-                            errorMessage: errorMessage ?? _webErrorMessage,
-                            submitBlockReason: _submitBlockReason,
                           ),
-                        },
-                      ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (!showingDownloads) ...[
+                          KvPillButton(
+                            label: submitting
+                                ? 'Creating $_fileName…'
+                                : step == CreateDatabaseStep.credentials
+                                ? (persistsDatabases
+                                      ? 'Create database'
+                                      : 'Prepare downloads')
+                                : 'Continue',
+                            onPressed:
+                                submitting ||
+                                    _webBuilding ||
+                                    blockReason != null ||
+                                    (step ==
+                                            CreateDatabaseStep.nameAndStorage &&
+                                        !_nameValid)
+                                ? null
+                                : () => _advance(step, submitting: submitting),
+                          ),
+                          if (step == CreateDatabaseStep.credentials) ...[
+                            const SizedBox(height: 10),
+                            // Disabled-button reason, announced when it
+                            // changes; otherwise the outcome caption.
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                blockReason ??
+                                    (persistsDatabases
+                                        ? 'Opens right away, no need to type '
+                                              'the password again.'
+                                        : 'Downloads the database. The '
+                                              'browser keeps nothing.'),
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.secondary.copyWith(
+                                  color: colors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    if (!(_isWeb &&
-                        _webDownload != null &&
-                        step == CreateDatabaseStep.credentials))
-                      KvPillButton(
-                        label: submitting
-                            ? 'Creating…'
-                            : step == CreateDatabaseStep.credentials
-                            ? (_isWeb ? 'Prepare downloads' : 'Create')
-                            : 'Continue',
-                        onPressed:
-                            submitting ||
-                                _webBuilding ||
-                                (step == CreateDatabaseStep.credentials &&
-                                    _submitBlockReason != null) ||
-                                (step == CreateDatabaseStep.nameAndStorage &&
-                                    !_nameValid)
-                            ? null
-                            : () => _advance(step, submitting: submitting),
-                      ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -416,135 +517,188 @@ class _CreateHeader extends StatelessWidget {
   final CreateDatabaseStep step;
   final VoidCallback? onBack;
 
-  static const _stepLabels = {
-    CreateDatabaseStep.nameAndStorage: 'Step 1 of 2',
-    CreateDatabaseStep.credentials: 'Step 2 of 2',
-  };
-
   static const _stepTitles = {
-    CreateDatabaseStep.nameAndStorage: 'Name your database',
-    CreateDatabaseStep.credentials: 'Choose your credentials',
+    CreateDatabaseStep.nameAndStorage: 'Name and place',
+    CreateDatabaseStep.credentials: 'Protect it',
   };
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<CustodeColors>()!;
     final index = CreateDatabaseStep.values.indexOf(step);
+    final label = 'Step ${index + 1} of 2';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: IconButton(
-                onPressed: onBack,
-                icon: const Icon(AppIcons.back),
-                padding: EdgeInsets.zero,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Row(
-                children: List.generate(2, (i) {
-                  final done = i <= index;
-                  return Expanded(
-                    child: Container(
-                      height: 4,
-                      margin: EdgeInsets.only(right: i == 1 ? 0 : 6),
-                      decoration: BoxDecoration(
-                        color: done ? colors.actionEmphasis : colors.canvas,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ],
+        Align(
+          alignment: Alignment.centerLeft,
+          child: KvCircleIconButton(
+            glyph: AppGlyph.back,
+            tooltip: 'Back',
+            size: 44,
+            iconSize: 18,
+            onPressed: onBack,
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
+        Semantics(
+          container: true,
+          label: label,
+          excludeSemantics: true,
+          child: Row(
+            children: List.generate(2, (i) {
+              return Expanded(
+                child: Container(
+                  height: 5,
+                  margin: EdgeInsets.only(right: i == 1 ? 0 : 6),
+                  decoration: BoxDecoration(
+                    color: i <= index ? colors.actionEmphasis : colors.divider,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 14),
         Text(
-          _stepLabels[step]!,
-          style: AppTextStyles.labelUpper.copyWith(color: colors.textSecondary),
+          label,
+          style: AppTextStyles.secondary.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: 6),
-        Text(
-          _stepTitles[step]!,
-          style: AppTextStyles.screenTitle.copyWith(color: colors.textPrimary),
+        Semantics(
+          header: true,
+          child: Text(
+            _stepTitles[step]!,
+            style: AppTextStyles.screenTitle.copyWith(
+              color: colors.textPrimary,
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-class _NameStep extends StatefulWidget {
+/// spec 025 FR-C2: where the database lives, then its name.
+class _NameStep extends StatelessWidget {
   const _NameStep({
     required this.controller,
     required this.enabled,
+    required this.error,
+    required this.fileName,
+    required this.source,
+    required this.account,
+    required this.connecting,
+    required this.connectError,
+    required this.onSelectDevice,
+    required this.onSelectRemote,
     required this.onChanged,
   });
 
   final TextEditingController controller;
   final bool enabled;
+  final String? error;
+  final String fileName;
+  final DatabaseSource source;
+  final StorageAccountSummary? account;
+  final bool connecting;
+  final String? connectError;
+  final VoidCallback onSelectDevice;
+  final VoidCallback onSelectRemote;
   final VoidCallback onChanged;
-
-  @override
-  State<_NameStep> createState() => _NameStepState();
-}
-
-class _NameStepState extends State<_NameStep> {
-  String? _error;
-
-  String? _validate(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) {
-      return 'Enter a database file name.';
-    }
-    if (trimmed.contains(RegExp(r'[\\/:*?"<>|]'))) {
-      return 'Invalid characters in file name.';
-    }
-    return null;
-  }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<CustodeColors>()!;
+    final selectable = enabled && !connecting;
+    final remoteSubtitle = !supportsRemoteSource
+        ? 'Not available in the browser'
+        : connecting
+        ? 'Connecting…'
+        : account == null
+        ? 'Not connected'
+        : account!.email ?? account!.displayLabel;
+    final showConnect = supportsRemoteSource && account == null;
+    final check = KvIcon(
+      glyph: AppGlyph.check,
+      size: 18,
+      color: colors.attentionText,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        kvFieldLabel('Where it lives', colors),
+        SourceOptionCard(
+          onSheet: false,
+          glyph: databaseSourceGlyph(remote: false),
+          title: 'This device',
+          subtitle: persistsDatabases
+              ? "Stays in Custode's storage"
+              : 'Downloaded to your device',
+          selected: source == DatabaseSource.device,
+          trailing: source == DatabaseSource.device ? check : const SizedBox(),
+          onTap: selectable ? onSelectDevice : null,
+        ),
+        const SizedBox(height: 8),
+        SourceOptionCard(
+          onSheet: false,
+          glyph: databaseSourceGlyph(remote: true),
+          title: 'Google Drive',
+          subtitle: remoteSubtitle,
+          selected: source == DatabaseSource.remote,
+          actionLabel: showConnect ? 'Connect' : null,
+          trailing: showConnect
+              ? null
+              : source == DatabaseSource.remote
+              ? check
+              : const SizedBox(),
+          onTap: supportsRemoteSource && selectable ? onSelectRemote : null,
+        ),
+        if (connectError != null) ...[
+          const SizedBox(height: 8),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              connectError!,
+              style: AppTextStyles.secondary.copyWith(
+                color: colors.attentionText,
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 22),
+        kvFieldLabel('Database name', colors),
         TextFormField(
-          controller: widget.controller,
-          enabled: widget.enabled,
-          onChanged: (value) {
-            setState(() => _error = _validate(value));
-            widget.onChanged();
-          },
-          decoration: InputDecoration(
-            labelText: 'Database file name',
-            prefixIcon: const Icon(AppIcons.file),
-            errorText: _error,
+          controller: controller,
+          enabled: enabled,
+          autocorrect: false,
+          onChanged: (_) => onChanged(),
+          style: AppTextStyles.fieldValue.copyWith(color: colors.textPrimary),
+          decoration: kvFieldDecoration(
+            colors,
+            hint: 'Database name',
+            errorText: error,
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
-          'Custode app storage',
-          style: AppTextStyles.secondary.copyWith(color: colors.textSecondary),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Choose the database file name and security options. On native platforms, the database and generated key file are saved in app internal storage, so export manual backups regularly.',
-          style: AppTextStyles.body.copyWith(color: colors.textSecondary),
-        ),
+        if (error == null) ...[
+          const SizedBox(height: 7),
+          Text(
+            'Saved as $fileName',
+            style: AppTextStyles.secondary.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+        ],
       ],
     );
   }
 }
 
-/// spec 015 FR-1: the single credentials step — optional password (FR-3),
-/// three-way key control (FR-4), biometric activation at the bottom.
+/// spec 025 FR-C3: the single credentials step — optional password (015
+/// FR-3), the key-file row (015 FR-4 as row plus sheet), biometrics.
 class _CredentialsStep extends StatelessWidget {
   const _CredentialsStep({
     required this.passwordCtrl,
@@ -555,17 +709,15 @@ class _CredentialsStep extends StatelessWidget {
     required this.onTogglePassword,
     required this.onToggleConfirm,
     required this.onChanged,
-    required this.strengthCategoryOf,
     required this.keyFileMode,
+    required this.keyFilePath,
     required this.keyFileName,
-    required this.onKeyFileModeChanged,
-    required this.onChangeKeyFile,
-    required this.onRemoveKeyFile,
-    required this.biometricProtectionEnabled,
+    required this.onChooseKeyFile,
+    required this.onClearKeyFile,
+    required this.biometricEnabled,
+    required this.biometricUnavailable,
     required this.onBiometricChanged,
-    required this.isWeb,
     required this.errorMessage,
-    required this.submitBlockReason,
   });
 
   final TextEditingController passwordCtrl;
@@ -576,38 +728,56 @@ class _CredentialsStep extends StatelessWidget {
   final VoidCallback onTogglePassword;
   final VoidCallback onToggleConfirm;
   final VoidCallback onChanged;
-  final PasswordStrengthCategory Function(String) strengthCategoryOf;
   final KeyFileMode keyFileMode;
+  final String? keyFilePath;
   final String? keyFileName;
-  final ValueChanged<KeyFileMode> onKeyFileModeChanged;
-  final VoidCallback onChangeKeyFile;
-  final VoidCallback onRemoveKeyFile;
-  final bool biometricProtectionEnabled;
+  final VoidCallback onChooseKeyFile;
+  final VoidCallback onClearKeyFile;
+  final bool biometricEnabled;
+  final bool biometricUnavailable;
   final ValueChanged<bool> onBiometricChanged;
-  final bool isWeb;
   final String? errorMessage;
-  final String? submitBlockReason;
+
+  Widget _visibilityToggle(bool visible, VoidCallback onPressed, String what) =>
+      KvCircleIconButton(
+        glyph: visible ? AppGlyph.eyeOff : AppGlyph.eye,
+        tooltip: visible ? 'Hide $what' : 'Show $what',
+        nested: true,
+        size: 44,
+        iconSize: 18,
+        onPressed: enabled ? onPressed : null,
+      );
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<CustodeColors>()!;
     final hasPassword = passwordCtrl.text.isNotEmpty;
-    final category = strengthCategoryOf(passwordCtrl.text);
+    final mismatch =
+        confirmCtrl.text.isNotEmpty && confirmCtrl.text != passwordCtrl.text;
+    final biometricOn = biometricEnabled && !biometricUnavailable;
+    final biometricTap = enabled && !biometricUnavailable
+        ? () => onBiometricChanged(!biometricOn)
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        kvFieldLabel('Master password', colors),
         TextFormField(
           controller: passwordCtrl,
           enabled: enabled,
           obscureText: !passwordVisible,
+          autocorrect: false,
+          enableSuggestions: false,
+          style: AppTextStyles.secret.copyWith(color: colors.textPrimary),
           onChanged: (_) => onChanged(),
-          decoration: InputDecoration(
-            labelText: 'Master Password (optional)',
-            prefixIcon: const Icon(AppIcons.lock),
-            suffixIcon: IconButton(
-              icon: Icon(passwordVisible ? AppIcons.eyeOff : AppIcons.eye),
-              onPressed: enabled ? onTogglePassword : null,
+          decoration: kvFieldDecoration(
+            colors,
+            hint: 'Master password',
+            suffixIcon: _visibilityToggle(
+              passwordVisible,
+              onTogglePassword,
+              'password',
             ),
           ),
         ),
@@ -615,124 +785,103 @@ class _CredentialsStep extends StatelessWidget {
         // non-empty password.
         if (hasPassword) ...[
           const SizedBox(height: 10),
-          _StrengthMeter(category: category),
-          const SizedBox(height: 8),
+          StrengthBar(assessment: evaluatePasswordStrength(passwordCtrl.text)),
+          const SizedBox(height: 18),
+          kvFieldLabel('Confirm password', colors),
           TextFormField(
             controller: confirmCtrl,
             enabled: enabled,
             obscureText: !confirmVisible,
+            autocorrect: false,
+            enableSuggestions: false,
+            style: AppTextStyles.secret.copyWith(color: colors.textPrimary),
             onChanged: (_) => onChanged(),
-            decoration: InputDecoration(
-              labelText: 'Confirm Password',
-              prefixIcon: const Icon(AppIcons.lock),
-              suffixIcon: IconButton(
-                icon: Icon(confirmVisible ? AppIcons.eyeOff : AppIcons.eye),
-                onPressed: enabled ? onToggleConfirm : null,
+            decoration: kvFieldDecoration(
+              colors,
+              hint: 'Confirm password',
+              errorText: mismatch ? 'Passwords do not match.' : null,
+              suffixIcon: _visibilityToggle(
+                confirmVisible,
+                onToggleConfirm,
+                'confirmation',
               ),
-              errorText:
-                  confirmCtrl.text.isNotEmpty &&
-                      confirmCtrl.text != passwordCtrl.text
-                  ? 'Passwords do not match.'
-                  : null,
             ),
           ),
         ],
-        const SizedBox(height: 20),
-        Text('Key File', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 4),
-        RadioGroup<KeyFileMode>(
-          groupValue: keyFileMode,
-          onChanged: enabled
-              ? (mode) {
-                  if (mode != null) onKeyFileModeChanged(mode);
-                }
-              : (_) {},
-          child: Column(
-            children: [
-              RadioListTile<KeyFileMode>(
-                contentPadding: EdgeInsets.zero,
-                value: KeyFileMode.none,
-                enabled: enabled,
-                title: const Text('No key file'),
-              ),
-              RadioListTile<KeyFileMode>(
-                contentPadding: EdgeInsets.zero,
-                value: KeyFileMode.select,
-                enabled: enabled,
-                title: const Text('Select an existing file'),
-                subtitle:
-                    keyFileMode == KeyFileMode.select && keyFileName != null
-                    ? Text(keyFileName!, overflow: TextOverflow.ellipsis)
-                    : null,
-                secondary:
-                    keyFileMode == KeyFileMode.select && keyFileName != null
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Tooltip(
-                            message: 'Change key file',
-                            child: IconButton(
-                              icon: const Icon(AppIcons.edit),
-                              onPressed: enabled ? onChangeKeyFile : null,
-                            ),
-                          ),
-                          Tooltip(
-                            message: 'Remove key file',
-                            child: IconButton(
-                              icon: const Icon(AppIcons.close),
-                              onPressed: enabled ? onRemoveKeyFile : null,
-                            ),
-                          ),
-                        ],
-                      )
-                    : null,
-              ),
-              RadioListTile<KeyFileMode>(
-                contentPadding: EdgeInsets.zero,
-                value: KeyFileMode.generate,
-                enabled: enabled,
-                title: const Text('Generate automatically'),
-                subtitle: keyFileMode == KeyFileMode.generate
-                    // spec 015 FR-13: permanent inline backup warning on the
-                    // generated-key option. No modal, no checkbox.
-                    ? const Text(
-                        'Back up the generated key file: losing it makes '
-                        'the database inaccessible.',
-                      )
-                    : null,
-              ),
-            ],
-          ),
+        const SizedBox(height: 18),
+        KeyFileRow(
+          path: keyFilePath,
+          name: keyFileName,
+          emptySubtitle: 'Optional second factor',
+          onPick: enabled ? onChooseKeyFile : () {},
+          onClear: enabled ? onClearKeyFile : () {},
         ),
-        const SizedBox(height: 12),
-        if (!isWeb)
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Enable biometric protection'),
-            subtitle: const Text(
-              'If enabled, unlock requires biometric authentication when available.',
-            ),
-            value: biometricProtectionEnabled,
-            onChanged: enabled ? onBiometricChanged : null,
-          )
-        else
-          Builder(
-            builder: (context) {
-              final colors = Theme.of(context).extension<CustodeColors>()!;
-              return Text(
-                'The web app keeps nothing: the database and key file are '
-                'only downloaded to your device. Reloading the page loses '
-                'this draft and the key.',
-                style: AppTextStyles.secondary.copyWith(
-                  color: colors.textSecondary,
-                ),
-              );
-            },
-          ),
-        if (submitBlockReason != null) ...[
+        if (keyFileMode == KeyFileMode.generate) ...[
           const SizedBox(height: 8),
+          // spec 015 FR-13: permanent inline backup warning on the generated
+          // key. No modal, no checkbox.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: colors.attentionTint,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KvIcon(
+                  glyph: AppGlyph.warning,
+                  size: 17,
+                  color: colors.attentionText,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Back up the generated key file: losing it makes the '
+                    'database inaccessible.',
+                    style: AppTextStyles.secondary.copyWith(
+                      color: colors.attentionText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 8),
+        KvListRow(
+          title: 'Unlock with biometrics',
+          subtitle: biometricUnavailable
+              ? 'Not available on this device'
+              : null,
+          radius: 22,
+          leading: Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colors.ground,
+              shape: BoxShape.circle,
+            ),
+            child: KvIcon(
+              glyph: AppGlyph.fingerprint,
+              size: 18,
+              color: colors.textSecondary,
+            ),
+          ),
+          trailing: KvSwitch(
+            value: biometricOn,
+            semanticLabel: 'Unlock with biometrics',
+            onChanged: biometricTap == null ? null : onBiometricChanged,
+          ),
+          onTap: biometricTap,
+        ),
+        if (!persistsDatabases) ...[
+          const SizedBox(height: 12),
           Text(
-            submitBlockReason!,
+            'The web app keeps nothing: the database and key file are '
+            'only downloaded to your device. Reloading the page loses '
+            'this draft and the key.',
             style: AppTextStyles.secondary.copyWith(
               color: colors.textSecondary,
             ),
@@ -740,14 +889,59 @@ class _CredentialsStep extends StatelessWidget {
         ],
         if (errorMessage != null) ...[
           const SizedBox(height: 8),
-          Text(
-            errorMessage!,
-            style: AppTextStyles.secondary.copyWith(
-              color: colors.attentionText,
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              errorMessage!,
+              style: AppTextStyles.secondary.copyWith(
+                color: colors.attentionText,
+              ),
             ),
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The two ways to get a key file (spec 025 FR-C3).
+class _KeyChoiceSheet extends StatelessWidget {
+  const _KeyChoiceSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<CustodeColors>()!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text(
+              'Add a key file',
+              style: AppTextStyles.sheetTitle.copyWith(
+                color: colors.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          SourceOptionCard(
+            glyph: AppGlyph.folderOpen,
+            title: 'Choose a file',
+            subtitle: 'Use a key file you already have',
+            onTap: () => Navigator.of(context).pop(KeyFileMode.select),
+          ),
+          const SizedBox(height: 8),
+          SourceOptionCard(
+            glyph: AppGlyph.magic,
+            title: 'Generate a new key file',
+            subtitle: 'Created with the database',
+            onTap: () => Navigator.of(context).pop(KeyFileMode.generate),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -784,14 +978,11 @@ class _WebDownloadStep extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (hasKeyFile) ...[
-          OutlinedButton.icon(
+          KvSecondaryPillButton(
             onPressed: onDownloadKeyFile,
-            icon: const Icon(AppIcons.save),
-            label: Text(
-              keyDownloadRequested
-                  ? 'Download key file again'
-                  : 'Download key file',
-            ),
+            label: keyDownloadRequested
+                ? 'Download key file again'
+                : 'Download key file',
           ),
           const SizedBox(height: 8),
           if (!keyDownloadRequested)
@@ -804,55 +995,14 @@ class _WebDownloadStep extends StatelessWidget {
             ),
           const SizedBox(height: 8),
         ],
-        OutlinedButton.icon(
+        KvSecondaryPillButton(
           onPressed: databaseEnabled ? onDownloadDatabase : null,
-          icon: const Icon(AppIcons.save),
-          label: const Text('Download database'),
+          label: 'Download database',
         ),
         const SizedBox(height: 16),
         TextButton(
           onPressed: onEditCredentials,
           child: const Text('Edit credentials'),
-        ),
-      ],
-    );
-  }
-}
-
-class _StrengthMeter extends StatelessWidget {
-  const _StrengthMeter({required this.category});
-
-  final PasswordStrengthCategory category;
-
-  static const _labels = {
-    PasswordStrengthCategory.weak: 'Weak',
-    PasswordStrengthCategory.fair: 'Fair',
-    PasswordStrengthCategory.good: 'Good',
-    PasswordStrengthCategory.strong: 'Strong',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<CustodeColors>()!;
-    final activeCount = PasswordStrengthCategory.values.indexOf(category) + 1;
-    return Row(
-      children: [
-        ...List.generate(4, (i) {
-          final active = i < activeCount;
-          return Expanded(
-            child: Container(
-              height: 6,
-              margin: EdgeInsets.only(right: i == 3 ? 8 : 8),
-              decoration: BoxDecoration(
-                color: active ? colors.actionEmphasis : colors.canvas,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          );
-        }),
-        Text(
-          _labels[category]!,
-          style: AppTextStyles.secondary.copyWith(color: colors.textSecondary),
         ),
       ],
     );

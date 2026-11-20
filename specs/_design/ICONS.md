@@ -158,7 +158,7 @@ Tap targets stay ≥ 44 px even when the glyph is 17 px: the icon button is a
 | `fingerprint` | `fingerprint` | Biometric gate, Face ID rows |
 | `key` | `key-round` | Key file |
 | `eye` / `eyeOff` | `eye` / `eye-off` | Reveal toggles |
-| `folder` / `folderOpen` | `folder` | Groups |
+| `folder` / `folderOpen` | `folder` | Groups; the `This device` database source (spec 025 D16) |
 | `folderAdd` | `folder-plus` | New folder |
 | `cloud` | `cloud` | Drive, not linked |
 | `cloudOff` | `cloud-off` | Offline, disconnected |

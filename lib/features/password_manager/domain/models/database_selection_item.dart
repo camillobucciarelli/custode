@@ -20,6 +20,7 @@ class DatabaseSelectionItem extends Equatable {
     this.isMissing = false,
     this.biometricProtectionEnabled = false,
     this.keyFileConfigured = false,
+    this.remoteProviderId,
     this.lastOpenedAt,
     this.lastSyncAt,
     this.lastSyncError,
@@ -34,6 +35,10 @@ class DatabaseSelectionItem extends Equatable {
   final bool isMissing;
   final bool biometricProtectionEnabled;
   final bool keyFileConfigured;
+
+  /// Provider id of the sync mapping, for any record (a vault linked later
+  /// from Sync is remote too). Null means the database is only on this device.
+  final String? remoteProviderId;
   final DateTime? lastOpenedAt;
   final DateTime? lastSyncAt;
   final String? lastSyncError;
@@ -60,6 +65,7 @@ class DatabaseSelectionItem extends Equatable {
       biometricProtectionEnabled:
           biometricProtectionEnabled ?? this.biometricProtectionEnabled,
       keyFileConfigured: keyFileConfigured ?? this.keyFileConfigured,
+      remoteProviderId: remoteProviderId,
       lastOpenedAt: lastOpenedAt ?? this.lastOpenedAt,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       lastSyncError: lastSyncError ?? this.lastSyncError,
@@ -77,6 +83,7 @@ class DatabaseSelectionItem extends Equatable {
     isMissing,
     biometricProtectionEnabled,
     keyFileConfigured,
+    remoteProviderId,
     lastOpenedAt,
     lastSyncAt,
     lastSyncError,

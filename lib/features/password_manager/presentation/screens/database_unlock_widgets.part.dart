@@ -175,7 +175,11 @@ class _UnlockFailureView extends StatelessWidget {
                 color: colors.attentionTint,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: Icon(AppIcons.warning, color: colors.attentionText),
+              child: KvIcon(
+                glyph: AppGlyph.warning,
+                size: 24,
+                color: colors.attentionText,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
@@ -194,13 +198,12 @@ class _UnlockFailureView extends StatelessWidget {
   }
 }
 
-/// FR-5 ready state: feature square 66/radius24, title 32, the shared
-/// `kvFieldDecoration` password field, primary pill. One layout on every
-/// width (2026-09-05, user-directed: no per-width variants outside the vault
-/// shell): top-aligned, circular back icon, content capped at 480 px and
-/// centred horizontally on wide windows. A selected key file is one
-/// `KvListRow` under the field; the "Use a key file" / "Biometric unlock"
-/// inline links (1×14 divider) offer whatever is not yet on screen.
+/// The `Unlock` mockup: back, source chip, lock square, name, then the
+/// credential group (password field, key-file row) and the primary pill. One
+/// layout on every width (no per-width variants outside the vault shell):
+/// top-aligned, content capped at 480 px and centred on wide windows. Every
+/// error the bloc leaves in the ready phase renders inside the credential
+/// group, next to the field it concerns.
 class _UnlockReadyForm extends StatelessWidget {
   const _UnlockReadyForm({
     required this.state,
@@ -223,31 +226,25 @@ class _UnlockReadyForm extends StatelessWidget {
   final Future<void> Function() onPickKeyFile;
   final VoidCallback onClearKeyFile;
 
-  /// Null disables the primary pill (C-5-adjacent: no credential entered).
+  /// Null disables the primary pill (no credential entered).
   final VoidCallback? onSubmit;
   final VoidCallback onBack;
 
-  /// "Biometric unlock" link: on-demand biometric attempt from the ready
-  /// state. Reuses `RetryBiometricAuthentication` — the same gate path the
-  /// bootstrap flow already drives — instead of a new biometric entry point.
+  /// "Use biometrics" link: on-demand biometric attempt from the ready state.
+  /// Reuses `RetryBiometricAuthentication`, the same gate path the bootstrap
+  /// flow already drives, instead of a new biometric entry point.
   final VoidCallback onBiometricRetry;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<CustodeColors>()!;
-    final basename = state.databaseLabel;
-    final hasKeyFile =
-        state.keyFilePath != null && state.keyFilePath!.trim().isNotEmpty;
 
-    final credentialError =
-        state.failure != null &&
-            (state.failure is InvalidCredentialsFailure ||
-                state.failure is KeyFileMissingFailure)
+    // The field's errorText is announced by InputDecorator as a live region.
+    final credentialError = (state.errorMessage?.isNotEmpty ?? false)
         ? state.errorMessage
         : null;
+    final notice = state.notice;
 
-    // Top-aligned like every other screen, the outer 20 px gutter is the
-    // only lateral padding; wide windows only cap the width.
     final content = SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 20),
       child: Align(
@@ -264,106 +261,104 @@ class _UnlockReadyForm extends StatelessWidget {
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(
-                  child: Container(
-                    width: 66,
-                    height: 66,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: colors.attentionTint,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Icon(AppIcons.lock, color: colors.attentionText),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  basename,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.screenTitleLarge.copyWith(
-                    fontSize: 32,
-                    color: colors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Enter your master password or select a key file to '
-                  'unlock this vault.',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.body.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // The same field recipe as the entry editor: label above,
-                // hint inside, circle action on the right. Its helper reads
-                // "Optional while a key file is selected." / "Required if no
-                // key file is selected." under the field.
-                kvFieldLabel('Master password', colors),
-                TextFormField(
-                  controller: passwordCtrl,
-                  obscureText: !passwordVisible,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  style: AppTextStyles.secret.copyWith(
-                    color: colors.textPrimary,
-                  ),
-                  onChanged: (_) => onPasswordChanged(),
-                  onFieldSubmitted: (_) => onSubmit?.call(),
-                  decoration: kvFieldDecoration(
-                    colors,
-                    hint: 'Master password',
-                    errorText: credentialError,
-                    suffixIcon: KvCircleIconButton(
-                      glyph: passwordVisible ? AppGlyph.eyeOff : AppGlyph.eye,
-                      tooltip: passwordVisible
-                          ? 'Hide password'
-                          : 'Show password',
-                      nested: true,
-                      onPressed: onTogglePasswordVisible,
-                    ),
-                  ),
-                ),
-                if (credentialError == null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    hasKeyFile
-                        ? 'Optional while a key file is selected.'
-                        : 'Required if no key file is selected.',
-                    style: AppTextStyles.secondary.copyWith(
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                ],
-                if (hasKeyFile) ...[
-                  const SizedBox(height: 16),
-                  _KeyFileSelector(
-                    keyFilePath: state.keyFilePath!,
-                    onPickKeyFile: onPickKeyFile,
-                    onClearKeyFile: onClearKeyFile,
-                  ),
-                ],
-                const SizedBox(height: 20),
-                KvPillButton(
-                  label: hasKeyFile ? 'Unlock with key file' : 'Unlock vault',
-                  onPressed: onSubmit,
+                SourceChip(
+                  remote: state.isRemoteLinked,
+                  account: state.remoteAccount,
                 ),
                 const SizedBox(height: 14),
-                _UnlockLinkRow(
-                  // The row above owns changing the key file once one is
-                  // selected; this only offers what is not yet on screen.
-                  onPickKeyFile: hasKeyFile ? null : () => onPickKeyFile(),
-                  // Only after the user left the biometric gate through "Use
-                  // master password instead": that is the one case where a
-                  // stored credential exists and a second attempt can unlock.
-                  // Sensor presence alone used to show it, and then it did
-                  // nothing useful.
-                  biometricAvailable:
-                      state.manualFallbackRequested && !state.biometricVerified,
-                  onBiometricRetry: onBiometricRetry,
+                _UnlockHeaderSquare(
+                  glyph: AppGlyph.lock,
+                  background: colors.surface,
+                  foreground: colors.textPrimary,
                 ),
+                const SizedBox(height: 14),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    state.databaseLabel,
+                    style: AppTextStyles.screenTitleLarge.copyWith(
+                      fontSize: 32,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Column(
+                  key: const ValueKey('unlock-credentials'),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    kvFieldLabel('Master password', colors),
+                    TextFormField(
+                      controller: passwordCtrl,
+                      obscureText: !passwordVisible,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      style: AppTextStyles.secret.copyWith(
+                        color: colors.textPrimary,
+                      ),
+                      onChanged: (_) => onPasswordChanged(),
+                      onFieldSubmitted: (_) => onSubmit?.call(),
+                      decoration: kvFieldDecoration(
+                        colors,
+                        hint: 'Master password',
+                        errorText: credentialError,
+                        suffixIcon: KvCircleIconButton(
+                          glyph: passwordVisible
+                              ? AppGlyph.eyeOff
+                              : AppGlyph.eye,
+                          tooltip: passwordVisible
+                              ? 'Hide password'
+                              : 'Show password',
+                          nested: true,
+                          size: 44,
+                          iconSize: 18,
+                          onPressed: onTogglePasswordVisible,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    KeyFileRow(
+                      path: state.keyFilePath,
+                      onPick: () => onPickKeyFile(),
+                      onClear: onClearKeyFile,
+                    ),
+                    // Not an error: the key above is usable, only the choice
+                    // was not saved. Announced, never blocking.
+                    if (notice != null) ...[
+                      const SizedBox(height: 8),
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          notice,
+                          style: AppTextStyles.secondary.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 26),
+                KvPillButton(label: 'Unlock', onPressed: onSubmit),
+                // FR-U1: offered whenever biometric protection is on for this
+                // database and the device can do it. It never unlocks by
+                // itself: it re-enters the biometric gate, and only a passed
+                // gate reads the stored credential.
+                if (state.biometricEnabled && state.biometricAvailable)
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: onBiometricRetry,
+                      style: TextButton.styleFrom(
+                        foregroundColor: colors.linkText,
+                        minimumSize: const Size(44, 44),
+                        textStyle: AppTextStyles.rowTitle,
+                      ),
+                      icon: KvIcon(glyph: AppGlyph.fingerprint, size: 18),
+                      label: const Text('Use biometrics'),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -371,9 +366,6 @@ class _UnlockReadyForm extends StatelessWidget {
       ),
     );
 
-    // Circular back icon replaces the old "Back to database list" text link
-    // (mock 02 "Unlock" default) — same pattern as `_CreateHeader` in
-    // create_database_screen.dart.
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -381,20 +373,189 @@ class _UnlockReadyForm extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: IconButton(
-                    onPressed: onBack,
-                    icon: const Icon(AppIcons.back),
-                    padding: EdgeInsets.zero,
+            _UnlockBackButton(onBack: onBack),
+            Expanded(child: content),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UnlockBackButton extends StatelessWidget {
+  const _UnlockBackButton({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: KvCircleIconButton(
+        glyph: AppGlyph.back,
+        tooltip: 'Back to databases',
+        size: 44,
+        iconSize: 18,
+        onPressed: onBack,
+      ),
+    );
+  }
+}
+
+/// The 66 px rounded square above the database name, shared by the ready and
+/// missing views.
+class _UnlockHeaderSquare extends StatelessWidget {
+  const _UnlockHeaderSquare({
+    required this.glyph,
+    required this.background,
+    required this.foreground,
+  });
+
+  final AppGlyph glyph;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 66,
+      height: 66,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: ExcludeSemantics(
+        child: KvIcon(glyph: glyph, size: 28, color: foreground),
+      ),
+    );
+  }
+}
+
+/// The `UnlockMissing` mockup (spec 025 FR-U4): the file is gone, so the screen
+/// offers the repairs instead of a dead end. Re-download needs a sync mapping
+/// and a platform that supports remote sources; remove asks first.
+class _UnlockMissingView extends StatelessWidget {
+  const _UnlockMissingView({
+    required this.state,
+    required this.onLocate,
+    required this.onRedownload,
+    required this.onRemove,
+    required this.onBack,
+  });
+
+  final DatabaseUnlockState state;
+  final VoidCallback onLocate;
+  final VoidCallback onRedownload;
+  final VoidCallback onRemove;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<CustodeColors>()!;
+    final error = state.errorMessage;
+    final canRedownload = state.isRemoteLinked && supportsRemoteSource;
+
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _UnlockBackButton(onBack: onBack),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(top: 8, bottom: 12),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SourceChip(
+                          remote: state.isRemoteLinked,
+                          account: state.remoteAccount,
+                        ),
+                        const SizedBox(height: 14),
+                        _UnlockHeaderSquare(
+                          glyph: AppGlyph.warning,
+                          background: colors.attentionTint,
+                          foreground: colors.attentionText,
+                        ),
+                        const SizedBox(height: 14),
+                        Semantics(
+                          header: true,
+                          child: Text(
+                            "${state.databaseLabel} can't be found",
+                            style: AppTextStyles.screenTitleLarge.copyWith(
+                              fontSize: 32,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'The file is no longer where Custode last saw it.',
+                          style: AppTextStyles.body.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                        if (error != null && error.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              error,
+                              style: AppTextStyles.secondary.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.attentionText,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        KvPillButton(label: 'Locate file', onPressed: onLocate),
+                        if (canRedownload) ...[
+                          const SizedBox(height: 10),
+                          KvSecondaryPillButton(
+                            label: 'Download again from Google Drive',
+                            onPressed: onRedownload,
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        Center(
+                          child: TextButton(
+                            onPressed: onRemove,
+                            style: TextButton.styleFrom(
+                              foregroundColor: colors.linkText,
+                              minimumSize: const Size(44, 44),
+                              textStyle: AppTextStyles.rowTitle,
+                            ),
+                            child: const Text('Remove from list'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
-            Expanded(child: content),
+            Center(
+              child: TextButton.icon(
+                onPressed: onBack,
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.linkText,
+                  minimumSize: const Size(44, 44),
+                  textStyle: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                icon: KvIcon(glyph: AppGlyph.back, size: 16),
+                label: const Text('Back to databases'),
+              ),
+            ),
           ],
         ),
       ),
@@ -462,68 +623,6 @@ class _PendingCaptureNotice extends StatelessWidget {
   }
 }
 
-/// FR-5 default: "Use a key file" link, plus (only when
-/// `biometricAvailable`) a 1×14 divider and "Biometric unlock" — 13 px
-/// `linkText` inline links (mock 01-02 "Unlock" default state). The name is
-/// deliberately generic: the sensor is Face ID, Touch ID, fingerprint or
-/// face unlock depending on the device, and the OS prompt names it.
-class _UnlockLinkRow extends StatelessWidget {
-  const _UnlockLinkRow({
-    required this.onPickKeyFile,
-    required this.biometricAvailable,
-    required this.onBiometricRetry,
-  });
-
-  /// Null hides the link (a key file is already selected).
-  final VoidCallback? onPickKeyFile;
-  final bool biometricAvailable;
-  final VoidCallback onBiometricRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<CustodeColors>()!;
-
-    Widget link(IconData icon, String label, VoidCallback onTap) {
-      return InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 17, color: colors.linkText),
-              const SizedBox(width: 7),
-              Text(
-                label,
-                style: AppTextStyles.body.copyWith(
-                  fontSize: 13,
-                  color: colors.linkText,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Center(
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 14,
-        children: [
-          if (onPickKeyFile != null)
-            link(AppIcons.key, 'Use a key file', onPickKeyFile!),
-          if (onPickKeyFile != null && biometricAvailable)
-            Container(width: 1, height: 14, color: colors.divider),
-          if (biometricAvailable)
-            link(AppIcons.fingerprint, 'Biometric unlock', onBiometricRetry),
-        ],
-      ),
-    );
-  }
-}
-
 /// Single caption-style link: "Use master password instead" (biometric
 /// gate).
 class _UnlockCaptionLink extends StatelessWidget {
@@ -542,66 +641,6 @@ class _UnlockCaptionLink extends StatelessWidget {
         style: AppTextStyles.body.copyWith(
           fontSize: 13.5,
           color: colors.linkText,
-        ),
-      ),
-    );
-  }
-}
-
-/// The selected key file as one standard list row (same `KvListRow` the
-/// rest of the app uses): tap changes it, the trailing circle removes it.
-/// Replaces the old card with two outlined buttons, which was the only
-/// surface on this screen not drawn from the shared widget set.
-class _KeyFileSelector extends StatelessWidget {
-  const _KeyFileSelector({
-    required this.keyFilePath,
-    required this.onPickKeyFile,
-    required this.onClearKeyFile,
-  });
-
-  final String keyFilePath;
-  final Future<void> Function() onPickKeyFile;
-  final VoidCallback onClearKeyFile;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<CustodeColors>()!;
-    final basename = kIsWeb ? keyFilePath : p.basename(keyFilePath);
-    // spec 014 FR-3: a managed key rests under an opaque identifier; the
-    // real name is recorded by `MobileFileStorage` and looked up here.
-    final opaque = MobileFileStorage.isOpaqueFileName(basename);
-
-    return FutureBuilder<String>(
-      future: opaque
-          ? MobileFileStorage.keyFileDisplayName(keyFilePath)
-          : Future.value(basename),
-      initialData: opaque ? 'Key file' : basename,
-      builder: (context, snapshot) => KvListRow(
-        title: snapshot.data!,
-        subtitle: opaque || isManagedStoragePlatform
-            ? 'Stored in app internal key storage.'
-            : keyFilePath,
-        semanticLabel: 'Change key file',
-        onTap: () => onPickKeyFile(),
-        leading: Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: colors.positiveTint,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: KvIcon(
-            glyph: AppGlyph.key,
-            size: 18,
-            color: colors.positiveText,
-          ),
-        ),
-        trailing: KvCircleIconButton(
-          glyph: AppGlyph.close,
-          tooltip: 'Remove key file',
-          nested: true,
-          onPressed: onClearKeyFile,
         ),
       ),
     );

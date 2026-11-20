@@ -3,6 +3,8 @@ import 'package:password_manager/features/password_manager/data/datasources/biom
 import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_security_profile.dart';
 import 'package:password_manager/features/password_manager/domain/errors/database_access_failure.dart';
+import 'package:password_manager/features/password_manager/domain/models/database_sync_mapping.dart';
+import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/create_database_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/get_active_database_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/resolve_database_duplicate_usecase.dart';
@@ -46,6 +48,7 @@ void main() {
         getActiveDatabaseUseCase: GetActiveDatabaseUseCase(registryRepository),
         resolveDatabaseDuplicateUseCase: ResolveDatabaseDuplicateUseCase(
           registryRepository,
+          syncRepository,
         ),
         unlockDatabaseUseCase: unlockUseCase,
         createDatabaseUseCase: CreateDatabaseUseCase(
@@ -93,6 +96,28 @@ void main() {
       },
     );
 
+    test('unlocks with a selected key file and passes its path on', () async {
+      fileRepository.existingPaths.add('/tmp/vault.key');
+      final states = <DatabaseUnlockState>[];
+      final sub = bloc.stream.listen(states.add);
+
+      bloc.add(const InitializeDatabaseUnlock());
+      await _untilLast(states, (s) => s.phase == UnlockPhase.ready);
+      bloc.add(const UpdateKeyFilePath('/tmp/vault.key'));
+      await _untilLast(states, (s) => s.keyFilePath == '/tmp/vault.key');
+      bloc.add(
+        const UnlockWithManualCredentials(
+          password: 'secret',
+          keyFilePath: '/tmp/vault.key',
+        ),
+      );
+      await _untilLast(states, (s) => s.unlocked);
+
+      expect(unlockUseCase.lastKeyFilePath, '/tmp/vault.key');
+
+      await sub.cancel();
+    });
+
     test('retrying failed biometric authentication does not unlock and leaves '
         'the vault untouched', () async {
       biometric.available = true;
@@ -115,6 +140,26 @@ void main() {
       await sub.cancel();
     });
 
+    test('a non-typed failure while selecting a key file surfaces an error '
+        'instead of escaping the handler', () async {
+      fileRepository.existingPaths.add('/tmp/vault.key');
+      fileRepository.ensureManagedKeyFileError = StateError('import failed');
+
+      final states = <DatabaseUnlockState>[];
+      final sub = bloc.stream.listen(states.add);
+
+      bloc.add(const InitializeDatabaseUnlock());
+      await _untilLast(states, (s) => s.phase == UnlockPhase.ready);
+      bloc.add(const UpdateKeyFilePath('/tmp/vault.key'));
+      await _untilLast(states, (s) => s.errorMessage != null);
+
+      expect(states.last.phase, UnlockPhase.ready);
+      expect(states.last.errorMessage, 'Unable to use the selected key file.');
+      expect(states.last.keyFilePath, isNull);
+
+      await sub.cancel();
+    });
+
     group('manual unlock fallback from the biometric gate', () {
       /// Registers the db + a biometric-required security profile so
       /// `initializeUnlock` actually enters the gate, and makes every
@@ -122,6 +167,7 @@ void main() {
       void seedBiometricRequiredWithBrokenSensor() {
         biometric.available = true;
         biometric.authenticateResult = false;
+        fileRepository.existingPaths.add('/tmp/vault.kdbx');
         registryRepository.records = [
           DatabaseRecord(
             databaseId: 'db-1',
@@ -295,7 +341,7 @@ void main() {
         expect(states.last.failure, isA<InvalidCredentialsFailure>());
         expect(
           states.last.errorMessage,
-          'Incorrect master password or key file.',
+          'Wrong password or key file. Check both and try again.',
         );
 
         await sub.cancel();
@@ -371,6 +417,340 @@ void main() {
       },
     );
 
+    group('source, notices and missing-file recovery (spec 025)', () {
+      DatabaseRecord record() => DatabaseRecord(
+        databaseId: 'db-1',
+        canonicalPath: '/tmp/vault.kdbx',
+        displayName: 'Personal',
+        sourceType: DatabaseSourceType.local,
+        fileHash: 'old-hash',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+
+      DatabaseSyncMapping mapping() => const DatabaseSyncMapping(
+        databasePath: '/tmp/vault.kdbx',
+        providerId: 'google_drive',
+        remoteFileId: 'remote-1',
+        remoteFileName: 'vault.kdbx',
+      );
+
+      Future<List<DatabaseUnlockState>> startMissing({
+        bool mapped = false,
+      }) async {
+        registryRepository.records = [record()];
+        if (mapped) {
+          syncRepository.mappings['/tmp/vault.kdbx'] = mapping();
+        }
+        final states = <DatabaseUnlockState>[];
+        bloc.stream.listen(states.add);
+        bloc.add(const InitializeDatabaseUnlock());
+        await _untilLast(states, (s) => s.phase == UnlockPhase.failure);
+        return states;
+      }
+
+      test('copies the source, account and id from the bootstrap', () async {
+        fileRepository.existingPaths.add('/tmp/vault.kdbx');
+        registryRepository.records = [record()];
+        syncRepository
+          ..mappings['/tmp/vault.kdbx'] = mapping()
+          ..connected = true
+          ..account = const StorageAccountSummary(
+            displayLabel: 'mara@example.com',
+            email: 'mara@example.com',
+          );
+
+        bloc.add(const InitializeDatabaseUnlock());
+        await _until(() => bloc.state.phase == UnlockPhase.ready);
+
+        expect(bloc.state.isRemoteLinked, isTrue);
+        expect(bloc.state.remoteAccount?.email, 'mara@example.com');
+        expect(bloc.state.databaseId, 'db-1');
+        expect(syncRepository.connectCalls, 0);
+      });
+
+      test('a keystore failure after a good unlock is a notice, not a '
+          'failed unlock', () async {
+        fileRepository.existingPaths.add('/tmp/vault.kdbx');
+        registryRepository.records = [record()];
+        securityRepository.profiles['db-1'] = const DatabaseSecurityProfile(
+          databaseId: 'db-1',
+          biometricProtectionEnabled: true,
+        );
+        sessionRepository.saveError = StateError('keystore unavailable');
+
+        bloc.add(const InitializeDatabaseUnlock());
+        await _until(() => bloc.state.phase == UnlockPhase.ready);
+        bloc.add(
+          const UnlockWithManualCredentials(
+            password: 'secret',
+            keyFilePath: null,
+          ),
+        );
+        await _until(() => bloc.state.unlocked);
+
+        expect(bloc.state.notice, biometricsNotEnabledNotice);
+        expect(bloc.state.errorMessage, isNull);
+      });
+
+      test('F2: a profile write failure after a good unlock is a notice, '
+          'never "unable to unlock"', () async {
+        fileRepository.existingPaths.add('/tmp/vault.kdbx');
+        registryRepository.records = [record()];
+        securityRepository.saveError = StateError('metadata unavailable');
+
+        bloc.add(const InitializeDatabaseUnlock());
+        await _until(() => bloc.state.phase == UnlockPhase.ready);
+        bloc.add(
+          const UnlockWithManualCredentials(
+            password: 'secret',
+            keyFilePath: null,
+          ),
+        );
+        await _until(
+          () => bloc.state.unlocked || bloc.state.errorMessage != null,
+        );
+
+        expect(bloc.state.unlocked, isTrue);
+        expect(bloc.state.notice, unlockSettingsNotSavedNotice);
+        expect(bloc.state.errorMessage, isNull);
+      });
+
+      test('F3: a picked key file is used for this unlock even when the '
+          'choice cannot be saved', () async {
+        fileRepository.existingPaths.addAll([
+          '/tmp/vault.kdbx',
+          '/tmp/vault.key',
+        ]);
+        registryRepository.records = [record()];
+        securityRepository.saveError = StateError('metadata unavailable');
+
+        bloc.add(const InitializeDatabaseUnlock());
+        await _until(() => bloc.state.phase == UnlockPhase.ready);
+        bloc.add(const UpdateKeyFilePath('/tmp/vault.key'));
+        await _until(
+          () =>
+              bloc.state.keyFilePath != null || bloc.state.errorMessage != null,
+        );
+
+        expect(bloc.state.phase, UnlockPhase.ready);
+        expect(bloc.state.keyFilePath, '/tmp/vault.key');
+        expect(bloc.state.notice, keyFileNotRememberedNotice);
+        expect(bloc.state.errorMessage, isNull, reason: 'not a blocking error');
+
+        bloc.add(
+          UnlockWithManualCredentials(
+            password: '',
+            keyFilePath: bloc.state.keyFilePath,
+          ),
+        );
+        await _until(() => bloc.state.unlocked);
+        expect(unlockUseCase.lastKeyFilePath, '/tmp/vault.key');
+      });
+
+      test('F3: a key file that saved leaves no notice behind', () async {
+        fileRepository.existingPaths.addAll([
+          '/tmp/vault.kdbx',
+          '/tmp/vault.key',
+        ]);
+        registryRepository.records = [record()];
+
+        bloc.add(const InitializeDatabaseUnlock());
+        await _until(() => bloc.state.phase == UnlockPhase.ready);
+        bloc.add(const UpdateKeyFilePath('/tmp/vault.key'));
+        await _until(() => bloc.state.keyFilePath != null);
+
+        expect(bloc.state.notice, isNull);
+      });
+
+      group('F4: the stored credential cannot be read', () {
+        setUp(() {
+          fileRepository.existingPaths.add('/tmp/vault.kdbx');
+          registryRepository.records = [record()];
+          securityRepository.profiles['db-1'] = const DatabaseSecurityProfile(
+            databaseId: 'db-1',
+            biometricProtectionEnabled: true,
+          );
+          sessionRepository
+            ..masterPasswords['db-1'] = 'stored'
+            ..readError = StateError('keystore read failed');
+          biometric.available = true;
+        });
+
+        Future<void> expectManualPathWorks() async {
+          expect(bloc.state.phase, UnlockPhase.ready);
+          expect(
+            bloc.state.errorMessage,
+            'Saved credentials could not be read. Enter your master password.',
+          );
+          expect(unlockUseCase.callCount, 0);
+
+          bloc.add(
+            const UnlockWithManualCredentials(
+              password: 'secret',
+              keyFilePath: null,
+            ),
+          );
+          await _until(() => bloc.state.unlocked);
+          expect(unlockUseCase.lastPassword, 'secret');
+        }
+
+        test('at initialise it falls back to the ready form, not the '
+            'failure view', () async {
+          bloc.add(const InitializeDatabaseUnlock());
+          await _until(
+            () =>
+                bloc.state.phase == UnlockPhase.ready &&
+                    bloc.state.errorMessage != null ||
+                bloc.state.phase == UnlockPhase.failure,
+          );
+
+          await expectManualPathWorks();
+        });
+
+        test('from "Use biometrics" it does not stay on Decrypting', () async {
+          biometric.authenticateResult = false;
+          bloc.add(const InitializeDatabaseUnlock());
+          await _until(() => bloc.state.phase == UnlockPhase.biometricGate);
+          bloc.add(const RequestManualUnlockFallback());
+          await _until(() => bloc.state.phase == UnlockPhase.ready);
+
+          biometric.authenticateResult = true;
+          bloc.add(const RetryBiometricAuthentication());
+          // Before the fix the handler threw and this stayed on `decrypting`.
+          await _until(() => bloc.state.errorMessage != null);
+
+          await expectManualPathWorks();
+        });
+      });
+
+      test('F9a: the state says whether biometrics are enabled for this '
+          'database', () async {
+        fileRepository.existingPaths.add('/tmp/vault.kdbx');
+        registryRepository.records = [record()];
+        securityRepository.profiles['db-1'] = const DatabaseSecurityProfile(
+          databaseId: 'db-1',
+          biometricProtectionEnabled: true,
+        );
+
+        bloc.add(const InitializeDatabaseUnlock());
+        await _until(() => bloc.state.phase == UnlockPhase.ready);
+
+        // No sensor here, so the gate is skipped; the flag is still reported.
+        expect(bloc.state.biometricEnabled, isTrue);
+      });
+
+      test('a missing file at initialise lands in the failure phase with '
+          'the typed failure and no text', () async {
+        final states = await startMissing();
+
+        expect(states.last.failure, isA<DatabaseFileMissingFailure>());
+        expect(states.last.errorMessage, isNull);
+        expect(states.last.displayName, 'Personal');
+      });
+
+      test('a missing file at unlock also lands there without text', () async {
+        fileRepository.existingPaths.add('/tmp/vault.kdbx');
+        registryRepository.records = [record()];
+        unlockUseCase.error = const DatabaseFileMissingFailure('vault.kdbx');
+
+        bloc.add(const InitializeDatabaseUnlock());
+        await _until(() => bloc.state.phase == UnlockPhase.ready);
+        bloc.add(
+          const UnlockWithManualCredentials(
+            password: 'secret',
+            keyFilePath: null,
+          ),
+        );
+        await _until(() => bloc.state.phase == UnlockPhase.failure);
+
+        expect(bloc.state.failure, isA<DatabaseFileMissingFailure>());
+        expect(bloc.state.errorMessage, isNull);
+      });
+
+      test('locating a matching file re-initialises at the new path', () async {
+        await startMissing();
+        fileRepository
+          ..existingPaths.add('/tmp/found.kdbx')
+          ..hashFileResult = 'old-hash';
+
+        bloc.add(const LocateMissingDatabaseFile('/tmp/found.kdbx'));
+        await _until(() => bloc.state.phase == UnlockPhase.ready);
+
+        expect(bloc.state.databasePath, '/tmp/found.kdbx');
+        expect(
+          registryRepository.records.single.canonicalPath,
+          '/tmp/found.kdbx',
+        );
+      });
+
+      test('a hash mismatch keeps the missing view with the reason', () async {
+        await startMissing();
+        fileRepository.hashFileResult = 'other-hash';
+
+        bloc.add(const LocateMissingDatabaseFile('/tmp/other.kdbx'));
+        await _until(() => bloc.state.errorMessage != null);
+
+        expect(bloc.state.phase, UnlockPhase.failure);
+        expect(bloc.state.failure, isA<DatabaseFileMissingFailure>());
+        expect(bloc.state.errorMessage, contains('does not match'));
+        expect(
+          registryRepository.records.single.canonicalPath,
+          '/tmp/vault.kdbx',
+        );
+      });
+
+      test('a typed failure while locating shows its message inline', () async {
+        await startMissing();
+        fileRepository.openExistingPathError = (_) =>
+            const InvalidDatabaseFileFailure('x.kdbx');
+
+        bloc.add(const LocateMissingDatabaseFile('/tmp/x.kdbx'));
+        await _until(() => bloc.state.errorMessage != null);
+
+        expect(bloc.state.phase, UnlockPhase.failure);
+        expect(bloc.state.failure, isA<DatabaseFileMissingFailure>());
+        expect(bloc.state.errorMessage, contains('not a valid'));
+      });
+
+      test('re-download restores the file and re-initialises', () async {
+        await startMissing(mapped: true);
+        fileRepository.existingPaths.add('/tmp/vault.kdbx');
+
+        bloc.add(const RedownloadMissingDatabase());
+        await _until(() => bloc.state.phase == UnlockPhase.ready);
+
+        expect(fileRepository.commitTargets, ['/tmp/vault.kdbx']);
+        expect(bloc.state.databasePath, '/tmp/vault.kdbx');
+      });
+
+      test(
+        'a failed re-download keeps the missing view with a message',
+        () async {
+          await startMissing(mapped: true);
+          fileRepository.stageError = StateError('offline');
+
+          bloc.add(const RedownloadMissingDatabase());
+          await _until(() => bloc.state.errorMessage != null);
+
+          expect(bloc.state.phase, UnlockPhase.failure);
+          expect(
+            bloc.state.errorMessage,
+            'Unable to download the database again.',
+          );
+        },
+      );
+
+      test('remove drops the record and flags the state', () async {
+        await startMissing();
+
+        bloc.add(const RemoveMissingDatabase());
+        await _until(() => bloc.state.databaseRemoved);
+
+        expect(registryRepository.records, isEmpty);
+      });
+    });
+
     test('no fake progress: progress stays null through decrypting', () async {
       final states = <DatabaseUnlockState>[];
       final sub = bloc.stream.listen(states.add);
@@ -428,6 +808,19 @@ void main() {
   });
 
   group('DatabaseUnlockState.copyWith', () {
+    test('F7: remoteAccount and notice can be cleared', () {
+      const state = DatabaseUnlockState(
+        databasePath: '/tmp/vault.kdbx',
+        remoteAccount: StorageAccountSummary(displayLabel: 'mara@example.com'),
+        notice: 'something',
+      );
+
+      expect(state.copyWith().remoteAccount, isNotNull);
+      expect(state.copyWith().notice, 'something');
+      expect(state.copyWith(clearRemoteAccount: true).remoteAccount, isNull);
+      expect(state.copyWith(clearNotice: true).notice, isNull);
+    });
+
     test('failure survives when clearError:true and failure is explicit', () {
       const state = DatabaseUnlockState(databasePath: '/tmp/vault.kdbx');
       const someFailure = InvalidCredentialsFailure();

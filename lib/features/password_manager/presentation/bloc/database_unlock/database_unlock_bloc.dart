@@ -1,8 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:loggy/loggy.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../data/datasources/biometric_data_source.dart';
 import '../../../domain/errors/database_access_failure.dart';
+import '../../../domain/models/recent_database_removal_mode.dart';
 import '../../coordinators/database_session_coordinator.dart';
 import '../database_selection/database_selection_bloc.dart' show failureMessage;
 import 'database_unlock_event.dart';
@@ -23,6 +25,9 @@ class DatabaseUnlockBloc
     on<RequestManualUnlockFallback>(_onRequestManualUnlockFallback);
     on<UnlockWithManualCredentials>(_onUnlockWithManualCredentials);
     on<UpdateKeyFilePath>(_onUpdateKeyFilePath);
+    on<LocateMissingDatabaseFile>(_onLocateMissingDatabase);
+    on<RedownloadMissingDatabase>(_onRedownloadMissingDatabase);
+    on<RemoveMissingDatabase>(_onRemoveMissingDatabase);
   }
 
   final BiometricDataSource biometricDataSource;
@@ -59,11 +64,29 @@ class DatabaseUnlockBloc
 
       var nextState = state.copyWith(
         displayName: bootstrap.displayName,
+        databaseId: bootstrap.databaseId,
+        isRemoteLinked: bootstrap.isRemoteLinked,
+        remoteAccount: bootstrap.remoteAccount,
+        clearRemoteAccount: bootstrap.remoteAccount == null,
+        biometricEnabled: bootstrap.biometricRequired,
         keyFilePath: bootstrap.keyFilePath,
         clearKeyFilePath: bootstrap.keyFilePath == null,
         biometricAvailable: bootstrap.biometricAvailable,
         clearError: true,
       );
+
+      if (bootstrap.fileMissing) {
+        // Recoverable in place: the screen offers locate / re-download /
+        // remove instead of a credential form.
+        _safeEmit(
+          emit,
+          nextState.copyWith(
+            phase: UnlockPhase.failure,
+            failure: DatabaseFileMissingFailure(p.basename(state.databasePath)),
+          ),
+        );
+        return;
+      }
 
       if (bootstrap.biometricRequired && bootstrap.biometricAvailable) {
         nextState = nextState.copyWith(phase: UnlockPhase.biometricGate);
@@ -195,17 +218,22 @@ class DatabaseUnlockBloc
     );
 
     try {
-      await databaseSessionCoordinator.unlockWithManualCredentials(
-        databasePath: state.databasePath,
-        password: event.password,
-        keyFilePath: event.keyFilePath,
-      );
+      final notice = await databaseSessionCoordinator
+          .unlockWithManualCredentials(
+            databasePath: state.databasePath,
+            password: event.password,
+            keyFilePath: event.keyFilePath,
+          );
 
+      // Whatever could not be saved after a good unlock is a notice, never a
+      // failure (spec 025 D10).
       _safeEmit(
         emit,
         state.copyWith(
           phase: UnlockPhase.unlocked,
           keyFilePath: event.keyFilePath,
+          notice: notice,
+          clearNotice: true,
           clearError: true,
         ),
       );
@@ -232,8 +260,9 @@ class DatabaseUnlockBloc
         (normalizedKeyFilePath == null || normalizedKeyFilePath.isEmpty)
         ? null
         : normalizedKeyFilePath;
+    final bool remembered;
     try {
-      await databaseSessionCoordinator.updateKeyFilePath(
+      remembered = await databaseSessionCoordinator.updateKeyFilePath(
         databasePath: state.databasePath,
         keyFilePath: nextKeyFilePath,
       );
@@ -243,15 +272,125 @@ class DatabaseUnlockBloc
         state.copyWith(failure: failure, errorMessage: failureMessage(failure)),
       );
       return;
+    } catch (e, st) {
+      // The key itself could not be taken into managed storage, so no unlock
+      // can use it. It must not escape the handler: the user would see the
+      // key file silently not being applied.
+      logError('Updating the key file path failed.', e, st);
+      _safeEmit(
+        emit,
+        state.copyWith(
+          clearError: true,
+          errorMessage: 'Unable to use the selected key file.',
+        ),
+      );
+      return;
     }
+    // The key is usable for this unlock whether or not the choice was saved.
     _safeEmit(
       emit,
       state.copyWith(
         keyFilePath: nextKeyFilePath,
         clearKeyFilePath: nextKeyFilePath == null,
+        notice: remembered || nextKeyFilePath == null
+            ? null
+            : keyFileNotRememberedNotice,
+        clearNotice: true,
         clearError: true,
       ),
     );
+  }
+
+  Future<void> _onLocateMissingDatabase(
+    LocateMissingDatabaseFile event,
+    Emitter<DatabaseUnlockState> emit,
+  ) =>
+      _recoverMissingFile(emit, 'Unable to use the selected file.', (id) async {
+        return databaseSessionCoordinator.locateMissingDatabase(
+          databaseId: id,
+          selectedPath: event.selectedPath,
+        );
+      });
+
+  Future<void> _onRedownloadMissingDatabase(
+    RedownloadMissingDatabase event,
+    Emitter<DatabaseUnlockState> emit,
+  ) => _recoverMissingFile(
+    emit,
+    'Unable to download the database again.',
+    databaseSessionCoordinator.redownloadMissingDatabase,
+  );
+
+  /// Both recoveries end the same way: on success the screen initialises again
+  /// at the (possibly new) path, on failure the missing view stays with the
+  /// reason inline.
+  Future<void> _recoverMissingFile(
+    Emitter<DatabaseUnlockState> emit,
+    String fallback,
+    Future<DatabaseSelectionSessionResult> Function(String databaseId) recover,
+  ) async {
+    final databaseId = state.databaseId;
+    if (databaseId == null || state.phase != UnlockPhase.failure) {
+      return;
+    }
+    final previous = state;
+    _safeEmit(
+      emit,
+      state.copyWith(phase: UnlockPhase.initializing, clearError: true),
+    );
+    try {
+      final result = await recover(databaseId);
+      if (result.status == DatabaseSessionStatus.success &&
+          result.path != null) {
+        _safeEmit(emit, state.copyWith(databasePath: result.path));
+        await _onInitializeDatabaseUnlock(
+          const InitializeDatabaseUnlock(),
+          emit,
+        );
+        return;
+      }
+      _safeEmit(
+        emit,
+        previous.copyWith(errorMessage: result.message ?? fallback),
+      );
+    } catch (e, st) {
+      logError('Recovering a missing database file failed.', e, st);
+      _safeEmit(
+        emit,
+        previous.copyWith(
+          errorMessage: e is DatabaseAccessFailure
+              ? failureMessage(e)
+              : fallback,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onRemoveMissingDatabase(
+    RemoveMissingDatabase event,
+    Emitter<DatabaseUnlockState> emit,
+  ) async {
+    if (state.phase != UnlockPhase.failure) {
+      return;
+    }
+    final previous = state;
+    _safeEmit(
+      emit,
+      state.copyWith(phase: UnlockPhase.initializing, clearError: true),
+    );
+    try {
+      await databaseSessionCoordinator.removeRecentDatabase(
+        path: state.databasePath,
+        mode: RecentDatabaseRemovalMode.removeOnly,
+      );
+      _safeEmit(emit, state.copyWith(databaseRemoved: true));
+    } catch (e, st) {
+      logError('Removing a missing database failed.', e, st);
+      _safeEmit(
+        emit,
+        previous.copyWith(errorMessage: 'Unable to remove the database.'),
+      );
+    }
   }
 
   Future<void> _tryStoredCredentialsUnlock(
@@ -266,23 +405,31 @@ class DatabaseUnlockBloc
       ),
     );
 
-    final hasStoredPassword = await databaseSessionCoordinator
-        .hasStoredMasterPassword(databasePath: state.databasePath);
-    final hasKeyFile =
-        state.keyFilePath != null && state.keyFilePath!.isNotEmpty;
-
-    if (!hasStoredPassword && !hasKeyFile) {
-      _safeEmit(
-        emit,
-        state.copyWith(
-          phase: UnlockPhase.ready,
-          errorMessage: 'No saved credentials found. Insert password or select a key file.',
-        ),
-      );
-      return;
-    }
-
+    // Everything that reads the keystore sits inside the try: a read that
+    // throws must land on the ready form, where the manual path still works,
+    // and never leave this phase on `decrypting`.
+    var fallback =
+        'Saved credentials could not be read. Enter your master password.';
     try {
+      final hasStoredPassword = await databaseSessionCoordinator
+          .hasStoredMasterPassword(databasePath: state.databasePath);
+      final hasKeyFile =
+          state.keyFilePath != null && state.keyFilePath!.isNotEmpty;
+
+      if (!hasStoredPassword && !hasKeyFile) {
+        _safeEmit(
+          emit,
+          state.copyWith(
+            phase: UnlockPhase.ready,
+            errorMessage:
+                'No saved credentials found. Insert password or select a key '
+                'file.',
+          ),
+        );
+        return;
+      }
+
+      fallback = 'Saved credentials are not valid. Unlock manually.';
       await databaseSessionCoordinator.unlockWithStoredCredentials(
         databasePath: state.databasePath,
         keyFilePath: state.keyFilePath,
@@ -301,7 +448,7 @@ class DatabaseUnlockBloc
         emit,
         e,
         genericPhase: UnlockPhase.ready,
-        fallback: 'Saved credentials are not valid. Unlock manually.',
+        fallback: fallback,
       );
     }
   }
@@ -341,7 +488,11 @@ class DatabaseUnlockBloc
         state.copyWith(
           phase: _phaseForFailure(error),
           failure: error,
-          errorMessage: failureMessage(error),
+          // The missing view words this itself; only action errors show text.
+          clearError: error is DatabaseFileMissingFailure,
+          errorMessage: error is DatabaseFileMissingFailure
+              ? null
+              : failureMessage(error),
         ),
       );
       return;

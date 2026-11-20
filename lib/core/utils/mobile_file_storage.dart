@@ -203,17 +203,6 @@ class MobileFileStorage {
     return p.join(directory.path, normalized);
   }
 
-  static Future<bool> fileExistsInAppDirectory({
-    required String fileName,
-    required String subdirectory,
-  }) async {
-    final filePath = await getPathInAppDirectory(
-      fileName: fileName,
-      subdirectory: subdirectory,
-    );
-    return File(filePath).exists();
-  }
-
   static Future<List<AppStorageFileEntry>> listFilesInAppDirectory({
     required String subdirectory,
   }) async {

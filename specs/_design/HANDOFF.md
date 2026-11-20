@@ -135,6 +135,12 @@ picked over search-first and "evolved strip") is:
 
 ### `01-02 Database & Unlock.dc.html`
 
+> Superseded for the database and unlock screens by `15 Database flows.dc.html`
+> and spec 025 (issue #275) (2026-11-19). Kept as the
+> historical record; still current for the invalid-file sheet, the key file
+> manager, the decrypting view and the biometric gate. The "Use Face ID for
+> Work.kdbx?" prompt after a Drive import described below was removed.
+
 Journey 01 — database selection (`DatabaseSelectionBloc`,
 `database_selection_screen.dart`, `create_database_dialog.dart`,
 `recent_databases_section.dart`):
@@ -284,6 +290,33 @@ Vault list, entry detail with reveal + TOTP, health, the new field diff, setting
 with a Light / Dark / System selector (`ThemeCubit` already holds the three
 values), and the extension popup — all on the dark token mapping above.
 
+### `15 Database flows.dc.html`
+
+Current reference for every flow before the vault opens. It supersedes the
+database and unlock screens of `01-02 Database & Unlock.dc.html`; the behaviour
+and copy contract is spec 025 (issue #275), the flow rules
+are in `specs/_design/decisions-database-flows.md`. One data hierarchy on every
+screen: source/account, then database file, then credentials.
+
+1. **Add / open** (Open path: welcome, source, Drive list, conflict, unlock,
+   vault): welcome with two actions (`Create new database`, `Open a database`);
+   source sheet "Where is your database?" (Open path only); Drive file list with
+   the account visible and a real `Switch account`; one conflict sheet.
+2. **Create** (Create path: welcome, step 1, step 2, vault directly): step 1
+   "Name and place" chooses the source and the name, step 2 "Protect it" sets
+   the credentials; no retyping of the password afterwards.
+3. **Unlock** (also every reopen and every selection from the list): source
+   chip, name, password, fixed key-file slot; inline error; recoverable missing
+   file; one biometric offer after the first successful manual unlock.
+4. **Databases list**: grouped by source and account, credentials as tags, one
+   "+" opening the Add sheet with the same two actions.
+
+Phone 390×844, light. Frames show the implemented copy; captions mark each
+place where the implementation deliberately differs from the approved mockup
+(absolute modified dates in the Drive list, day-granular `Synced today`, no icon
+on the inline unlock error, the design-system switch, the offer sheet body, the
+`monitor` glyph for `This device`).
+
 ## Interactions & behaviour
 
 - Copy actions keep the existing snackbars ("Copied password.", "Copied
@@ -339,12 +372,13 @@ New state needed only for the two new features:
 | --- | --- |
 | `00 Catalogo & Piano.dc.html` | Assumptions, source map, principles, visual direction, the twelve-journey catalogue |
 | `03 Vault - modelli di navigazione.dc.html` | The three navigation models; **1a** is the chosen one |
-| `01-02 Database & Unlock.dc.html` | Journeys 01–02, all states, mobile + tablet |
+| `01-02 Database & Unlock.dc.html` | Journeys 01–02, all states, mobile + tablet (database and unlock screens superseded by 15) |
 | `04-06 Voce, editor, generatore.dc.html` | Journeys 04–06, all states, mobile + tablet |
 | `07-09 Sync, igiene, import-export.dc.html` | Journeys 07–09 + the per-field conflict feature |
 | `10-12 Sicurezza, autofill, estensione.dc.html` | Journeys 10–12 + the in-page overlay feature |
 | `13 Icona app & estensione.dc.html` | Icon directions, chosen mark, generated asset map |
 | `14 Dark mode.dc.html` | Dark token mapping and six key screens |
+| `15 Database flows.dc.html` | Database flows redesign (spec 025): add/open, create, unlock, databases list; supersedes the database and unlock screens of 01-02 |
 | `screenshots/*.jpg` | Flat renders of each design file, for quick visual reference |
 
 Captions inside the files are in Italian; all product copy is in English, as in

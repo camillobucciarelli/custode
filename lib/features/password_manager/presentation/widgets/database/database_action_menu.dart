@@ -11,12 +11,15 @@ import '../../../../../../core/widgets/kv_icon.dart';
 class DatabaseActionMenu extends StatelessWidget {
   const DatabaseActionMenu({
     super.key,
+    required this.name,
     required this.onOpen,
     required this.onExport,
     required this.onRemove,
     this.onLocate,
   });
 
+  /// Database display name, so each row's menu has its own label.
+  final String name;
   final VoidCallback onOpen;
   final VoidCallback onExport;
   final VoidCallback onRemove;
@@ -31,7 +34,7 @@ class DatabaseActionMenu extends StatelessWidget {
       width: 44,
       height: 44,
       child: KvContextMenu(
-        tooltip: 'More actions',
+        tooltip: 'More actions for $name',
         icon: KvIcon(glyph: AppGlyph.more, size: 17, color: colors.iconNeutral),
         items: [
           if (onLocate != null)

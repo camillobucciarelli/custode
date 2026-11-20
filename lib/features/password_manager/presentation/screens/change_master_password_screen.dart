@@ -1,7 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as path;
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_glyph.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/custode_colors.dart';
@@ -11,6 +10,7 @@ import '../../../../core/widgets/kv_pill_button.dart';
 import '../../../../injection_container.dart' as di;
 import '../../domain/utils/password_strength.dart';
 import '../coordinators/vault_session_coordinator.dart';
+import '../widgets/entry/strength_strip.dart';
 
 /// FR-2/T3 — screen 2 ("Change master password"). The three real fields
 /// are unchanged from the legacy `Database settings` dialog's password
@@ -209,7 +209,7 @@ class _ChangeMasterPasswordScreenState
               ),
               if (_newCtrl.text.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                _StrengthBar(assessment: assessment),
+                StrengthBar(assessment: assessment),
               ],
               const SizedBox(height: 14),
               _PasswordFieldRow(
@@ -330,51 +330,6 @@ class _PasswordFieldRow extends StatelessWidget {
                   color: colors.positiveText,
                 ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StrengthBar extends StatelessWidget {
-  const _StrengthBar({required this.assessment});
-
-  final PasswordStrengthAssessment assessment;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<CustodeColors>()!;
-    final filled = switch (assessment.level) {
-      PasswordStrengthLevel.weak => 1,
-      PasswordStrengthLevel.fair => 2,
-      PasswordStrengthLevel.good => 3,
-      PasswordStrengthLevel.strong => 4,
-    };
-    final activeColor = assessment.level == PasswordStrengthLevel.strong
-        ? colors.positiveFill
-        : AppColors.accent400;
-
-    return Row(
-      children: [
-        for (var i = 0; i < 4; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              height: 6,
-              decoration: BoxDecoration(
-                color: i < filled ? activeColor : colors.divider,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
-        ],
-        const SizedBox(width: 8),
-        Text(
-          assessment.label,
-          style: AppTextStyles.metaLarge.copyWith(
-            color: colors.positiveText,
-            fontWeight: FontWeight.w600,
           ),
         ),
       ],

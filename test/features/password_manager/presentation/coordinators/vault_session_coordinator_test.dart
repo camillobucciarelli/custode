@@ -733,10 +733,7 @@ void main() {
       expect(backups, isEmpty);
     });
 
-    test('protected key paths cover current and shared profiles', () async {
-      // Native absolute path: `getProtectedKeyFilePaths` normalises with
-      // `p.normalize`, which on Windows turns `/tmp/shared.key` into
-      // `\tmp\shared.key`. Same assertion, spelled for the host.
+    test('persisted key path is read from the database profile', () async {
       final shared = p.join(Directory.systemTemp.path, 'shared.key');
       registryRepository.records = [
         _recordForTest('db-1', '/tmp/a.kdbx'),
@@ -751,7 +748,6 @@ void main() {
         keyFilePath: shared,
       );
 
-      expect(await coordinator.getProtectedKeyFilePaths(), {shared});
       expect(await coordinator.getPersistedKeyFilePath('/tmp/a.kdbx'), shared);
     });
 
@@ -1051,7 +1047,10 @@ class _FakeSyncRepository implements DatabaseSyncRepository {
   Future<void> disconnect() async {}
 
   @override
-  Future<Uint8List> downloadRemoteFile(String fileId) async {
+  Future<Uint8List> downloadRemoteFile(
+    String fileId, {
+    required String providerId,
+  }) async {
     throw UnimplementedError();
   }
 

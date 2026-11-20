@@ -37,7 +37,13 @@ abstract class DatabaseSyncRepository {
   Future<List<DatabaseSyncMapping>> getAllMappings();
   Future<void> setAutoSync(String databasePath, bool enabled);
   Future<List<RemoteFile>> listRemoteFiles({String? query});
-  Future<Uint8List> downloadRemoteFile(String fileId);
+
+  /// Remote identity is `(providerId, fileId)`: a provider this build does
+  /// not support is rejected before any authentication or remote call.
+  Future<Uint8List> downloadRemoteFile(
+    String fileId, {
+    required String providerId,
+  });
 
   /// C-2: the connected Google account's display label/email, or the
   /// desktop fallback when identity cannot be determined without expanding

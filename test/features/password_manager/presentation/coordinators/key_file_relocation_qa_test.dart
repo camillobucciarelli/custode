@@ -15,7 +15,12 @@ import 'package:password_manager/features/password_manager/data/services/vault_k
 import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_security_profile.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_sync_repository.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/create_database_usecase.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/get_active_database_usecase.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/link_database_to_remote_usecase.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/resolve_database_duplicate_usecase.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/apple_autofill_v2_coordinator.dart';
+import 'package:password_manager/features/password_manager/presentation/coordinators/database_session_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/vault_session_coordinator.dart';
 
 import 'fake_database_ports.dart';
@@ -105,6 +110,42 @@ void main() {
       databaseSyncRepository: unused,
       vaultKdbxService: unused,
       appleAutofillV2Coordinator: unused,
+    );
+  }
+
+  /// The live coordinator behind the key manager's delete protection
+  /// (`pickKeyFile` passes `getProtectedKeyFilePaths` to the sheet), over the
+  /// same real registry and security stores as [buildCoordinator].
+  Future<DatabaseSessionCoordinator> buildSessionCoordinator() async {
+    final registry = DatabaseRegistryRepositoryImpl(
+      localDataSource: DatabaseRegistryLocalDataSourceImpl(
+        sharedPreferences: await SharedPreferences.getInstance(),
+        secureDataSource: secure,
+      ),
+    );
+    final files = FakeDatabaseFileRepository();
+    final sync = FakeDatabaseSyncRepository();
+    return DatabaseSessionCoordinator(
+      sessionSecretHolder: SessionSecretHolder(),
+      databaseFileRepository: files,
+      databaseSessionRepository: FakeDatabaseSessionRepository(),
+      databaseRegistryRepository: registry,
+      databaseSecurityRepository: DatabaseSecurityRepositoryImpl(
+        localDataSource: DatabaseSecurityLocalDataSourceImpl(
+          secureDataSource: secure,
+        ),
+      ),
+      databaseSyncRepository: sync,
+      linkDatabaseToRemote: LinkDatabaseToRemoteUseCase(sync),
+      getActiveDatabaseUseCase: GetActiveDatabaseUseCase(registry),
+      resolveDatabaseDuplicateUseCase: ResolveDatabaseDuplicateUseCase(
+        registry,
+        sync,
+      ),
+      unlockDatabaseUseCase: FakeUnlockDatabaseUseCase(),
+      createDatabaseUseCase: CreateDatabaseUseCase(
+        databaseFileRepository: files,
+      ),
     );
   }
 
@@ -242,14 +283,15 @@ void main() {
     expect(await File(resolved!).exists(), isTrue);
   });
 
-  test('getProtectedKeyFilePaths resolves against the new root', () async {
+  test('a key file in use stays protected from deletion after relocation: '
+      'getProtectedKeyFilePaths resolves against the new root', () async {
     final keysDir = await Directory(p.join(oldDocs.path, 'keys'))
         .create(recursive: true);
     final keyFile = File(p.join(keysDir.path, 'protected.keyx'));
     await keyFile.writeAsString('key-material');
 
     final now = DateTime.utc(2024, 1, 1);
-    final coordinator = await buildCoordinator();
+    final coordinator = await buildSessionCoordinator();
     await coordinator.databaseRegistryRepository.upsert(
       DatabaseRecord(
         databaseId: 'db-1',
@@ -266,7 +308,14 @@ void main() {
 
     await relocate();
 
-    final paths = await (await buildCoordinator()).getProtectedKeyFilePaths();
-    expect(paths, {p.join(newDocs.path, 'keys', 'protected.keyx')});
+    final paths = await (await buildSessionCoordinator())
+        .getProtectedKeyFilePaths();
+    final relocatedKey = p.join(newDocs.path, 'keys', 'protected.keyx');
+    expect(paths, {relocatedKey});
+    expect(
+      await File(relocatedKey).exists(),
+      isTrue,
+      reason: 'the protected path must be the file the key manager lists',
+    );
   });
 }

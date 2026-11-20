@@ -29,8 +29,12 @@ import 'package:password_manager/features/password_manager/domain/models/storage
 import 'package:password_manager/features/password_manager/presentation/bloc/database_unlock/database_unlock_bloc.dart';
 import 'package:password_manager/features/password_manager/presentation/bloc/database_unlock/database_unlock_event.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/database/database_selection_sheets.dart';
-import 'package:password_manager/features/password_manager/presentation/widgets/database/drive_picker_sheet.dart';
-import 'package:password_manager/features/password_manager/presentation/widgets/database/biometric_prompt_sheet.dart';
+import 'package:password_manager/core/widgets/kv_bottom_sheet.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/database/add_database_sheet.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/database/database_conflict_sheet.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/database/database_source_sheet.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/sync/remote_file_picker.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/database/biometric_offer_sheet.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/internal_key_file_manager_sheet.dart';
 
 import 'database_selection_unlock_test_utils.dart';
@@ -157,29 +161,29 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        tester.widget<Text>(find.text('Name your database')).style!.color,
+        tester.widget<Text>(find.text('Name and place')).style!.color,
         CustodeColors.dark.textPrimary,
       );
 
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
       expect(
-        tester.widget<Text>(find.text('Choose your credentials')).style!.color,
+        tester.widget<Text>(find.text('Protect it')).style!.color,
         CustodeColors.dark.textPrimary,
       );
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Drive loading/empty resolve textPrimary/textSecondary', (
+    testWidgets('Drive file sheet resolves textPrimary on every state', (
       tester,
     ) async {
       await tester.pumpWidget(
         pumpableSheetHost(
           themeMode: ThemeMode.dark,
           onOpen: (context) async {
-            await showDrivePickerSheet(
+            await _showRemoteFilePicker(
               context,
-              loadPickerData: () async => const RemoteFileSelectionData(
+              load: () async => const RemoteFileSelectionData(
                 files: [],
                 account: StorageAccountSummary(
                   displayLabel: 'jane@example.com',
@@ -195,6 +199,37 @@ void main() {
 
       final title = tester.widget<Text>(find.text('Open from Google Drive'));
       expect(title.style!.color, CustodeColors.dark.textPrimary);
+      expect(
+        tester
+            .widget<Text>(
+              find.text('No .kdbx files found for jane@example.com.'),
+            )
+            .style!
+            .color,
+        CustodeColors.dark.textSecondary,
+      );
+    });
+
+    testWidgets('source sheet resolves declared roles', (tester) async {
+      await pumpableSelectionScreen();
+      await tester.pumpWidget(
+        pumpableSheetHost(
+          themeMode: ThemeMode.dark,
+          onOpen: (context) async {
+            await showDatabaseSourceSheet(context);
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.widget<Text>(find.text('Where is your database?')).style!.color,
+        CustodeColors.dark.textPrimary,
+      );
+      expect(
+        tester.widget<Text>(find.text('Not connected')).style!.color,
+        CustodeColors.dark.textSecondary,
+      );
     });
 
     testWidgets('invalid sheet resolves declared roles', (tester) async {
@@ -239,15 +274,18 @@ void main() {
       );
     });
 
-    testWidgets('duplicate sheet resolves declared roles', (tester) async {
+    testWidgets('conflict sheet resolves declared roles', (tester) async {
       await tester.pumpWidget(
         pumpableSheetHost(
           themeMode: ThemeMode.dark,
           onOpen: (context) async {
-            await showDuplicateDatabaseSheet(
+            await showDatabaseConflictSheet(
               context,
               importedName: 'a.kdbx',
+              importedRemote: true,
               existingName: 'b.kdbx',
+              existingRemote: false,
+              recommendExisting: true,
             );
           },
         ),
@@ -256,10 +294,18 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(
         tester
-            .widget<Text>(find.text('Duplicate database detected'))
+            .widget<Text>(find.text('This database is already here'))
             .style!
             .color,
         CustodeColors.dark.textPrimary,
+      );
+      // The highlighted option reads attentionText on attentionTint.
+      final title = tester.widget<Text>(find.text('Open the existing one'));
+      expect(title.style!.color, CustodeColors.dark.attentionText);
+      _expectDeclaredPair(
+        CustodeColors.dark,
+        CustodeColors.dark.attentionText,
+        CustodeColors.dark.attentionTint,
       );
     });
 
@@ -310,11 +356,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField), 'wrong');
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Unlock vault'));
+      await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       final errorText = tester.widget<Text>(
-        find.text('Incorrect master password or key file.'),
+        find.text('Wrong password or key file. Check both and try again.'),
       );
       _expectDeclaredPair(
         CustodeColors.dark,
@@ -340,7 +386,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       final buttonFinder = find.ancestor(
-        of: find.text('Unlock with key file'),
+        of: find.text('Unlock'),
         matching: find.byType(ElevatedButton),
       );
       expect(buttonFinder, findsOneWidget);
@@ -367,7 +413,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField), 'x');
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Unlock vault'));
+      await tester.tap(find.text('Unlock'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(tester.takeException(), isNull);
@@ -403,12 +449,12 @@ void main() {
       );
     });
 
-    testWidgets('Biometric prompt resolves declared roles', (tester) async {
+    testWidgets('Biometric offer resolves declared roles', (tester) async {
       await tester.pumpWidget(
         pumpableSheetHost(
           themeMode: ThemeMode.dark,
           onOpen: (context) async {
-            await showBiometricPromptDialog(context, basename: 'work.kdbx');
+            await showBiometricOfferSheet(context, databaseName: 'work.kdbx');
           },
         ),
       );
@@ -417,7 +463,7 @@ void main() {
       expect(
         tester
             .renderObject<RenderParagraph>(
-              find.text('Use biometric unlock for work.kdbx?'),
+              find.text('Unlock work.kdbx with biometrics?'),
             )
             .text
             .style!
@@ -465,6 +511,30 @@ void main() {
         find.byKey(const ValueKey('selection-two-column-row')),
         findsNothing,
       );
+    });
+
+    testWidgets('the "+" is in the header and opens the Add sheet at 599, 600 '
+        'and 1024', (tester) async {
+      for (final width in [599.0, 600.0, 1024.0]) {
+        await pumpSelectionAt(tester, width);
+        final add = find.byTooltip('Add database');
+        expect(add, findsOneWidget, reason: 'width=$width');
+        final size = tester.getSize(add);
+        expect(size.width, greaterThanOrEqualTo(44), reason: 'width=$width');
+        expect(size.height, greaterThanOrEqualTo(44), reason: 'width=$width');
+        // The inline add rows are gone: the actions exist only in the sheet.
+        expect(find.text('Create new database'), findsNothing);
+
+        await tester.tap(add);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+        expect(find.text('Add a database'), findsOneWidget);
+        expect(find.text('Create new database'), findsOneWidget);
+        expect(find.text('Open a database'), findsOneWidget);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await resetDatabaseTestDi();
+      }
     });
 
     testWidgets('600 and 1024 render two-column without overflow', (
@@ -573,7 +643,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.enterText(find.byType(TextFormField), 'wrong');
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Unlock vault'));
+        await tester.tap(find.text('Unlock'));
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);
@@ -581,7 +651,9 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(TextFormField),
-            matching: find.text('Incorrect master password or key file.'),
+            matching: find.text(
+              'Wrong password or key file. Check both and try again.',
+            ),
           ),
           findsOneWidget,
         );
@@ -623,7 +695,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.enterText(find.byType(TextFormField), 'x');
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Unlock vault'));
+        await tester.tap(find.text('Unlock'));
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);
@@ -752,15 +824,61 @@ void main() {
         );
 
         testWidgets(
-          'duplicate sheet: root navigator, radius-32, width @ '
+          'conflict sheet: root navigator, radius-32, width @ '
           '${width.toInt()} (${themeMode.name})',
           (tester) async => expectSheetGeometry(
             tester,
             (context) async {
-              await showDuplicateDatabaseSheet(
+              await showDatabaseConflictSheet(
                 context,
                 importedName: 'a.kdbx',
+                importedRemote: false,
                 existingName: 'b.kdbx',
+                existingRemote: false,
+                recommendExisting: false,
+              );
+            },
+            themeMode: themeMode,
+            width: width,
+          ),
+        );
+
+        testWidgets('add sheet: root navigator, radius-32, width @ '
+            '${themeMode.name}/$width', (tester) async {
+          await expectSheetGeometry(
+            tester,
+            showAddDatabaseSheet,
+            themeMode: themeMode,
+            width: width,
+          );
+          expect(find.text('Add a database'), findsOneWidget);
+        });
+
+        testWidgets('source sheet: root navigator, radius-32, width @ '
+            '${width.toInt()} (${themeMode.name})', (tester) async {
+          await pumpableSelectionScreen();
+          await expectSheetGeometry(
+            tester,
+            (context) async {
+              await showDatabaseSourceSheet(context);
+            },
+            themeMode: themeMode,
+            width: width,
+          );
+        });
+
+        testWidgets(
+          'Drive file sheet: root navigator, radius-32, width @ '
+          '${width.toInt()} (${themeMode.name})',
+          (tester) async => expectSheetGeometry(
+            tester,
+            (context) async {
+              await _showRemoteFilePicker(
+                context,
+                load: () async => const RemoteFileSelectionData(
+                  files: [],
+                  account: StorageAccountSummary(displayLabel: 'Drive'),
+                ),
               );
             },
             themeMode: themeMode,
@@ -783,12 +901,12 @@ void main() {
         );
 
         testWidgets(
-          'Biometric prompt: dialog on every width @ '
+          'Biometric offer: root navigator, radius-32, width @ '
           '${width.toInt()} (${themeMode.name})',
-          (tester) async => expectConfirmDialog(
+          (tester) async => expectSheetGeometry(
             tester,
             (context) async {
-              await showBiometricPromptDialog(context, basename: 'work.kdbx');
+              await showBiometricOfferSheet(context, databaseName: 'work.kdbx');
             },
             themeMode: themeMode,
             width: width,
@@ -803,4 +921,16 @@ void main() {
       expect(source, contains('useRootNavigator: true'));
     });
   });
+}
+
+/// The sheet behind `pickRemoteFile`, with scripted loaders instead of DI.
+Future<void> _showRemoteFilePicker(
+  BuildContext context, {
+  required Future<RemoteFileSelectionData> Function() load,
+}) async {
+  await KvBottomSheet.show<void>(
+    context: context,
+    builder: (_) =>
+        RemoteFilePickerSheet(load: load, reconnect: load, switchAccount: load),
+  );
 }

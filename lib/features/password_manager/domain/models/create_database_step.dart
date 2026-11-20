@@ -12,8 +12,3 @@ enum CreateDatabaseStep {
   /// control, biometric activation.
   credentials,
 }
-
-/// Password strength category as computed by the screen from the plaintext
-/// password (never transmitted). Only the category crosses into BLoC
-/// events/state (C-5 "validation facts, not plaintext").
-enum PasswordStrengthCategory { weak, fair, good, strong }

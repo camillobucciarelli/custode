@@ -252,9 +252,6 @@ class _FakeVaultSessionCoordinator implements VaultSessionCoordinator {
   Future<String?> getPersistedKeyFilePath(String databasePath) async => null;
 
   @override
-  Future<Set<String>> getProtectedKeyFilePaths() async => const {};
-
-  @override
   Future<void> changeDatabase({required String currentDatabasePath}) async {}
 
   @override

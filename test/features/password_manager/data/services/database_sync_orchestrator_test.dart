@@ -480,6 +480,34 @@ void main() {
       );
     }
 
+    test('downloadRemoteFile refuses an unsupported provider before any '
+        'remote call', () async {
+      provider.setFile(
+        id: 'remote-foreign',
+        name: 'vault.kdbx',
+        bytes: Uint8List.fromList([9]),
+        md5Checksum: null,
+      );
+
+      await expectLater(
+        orchestrator.downloadRemoteFile('remote-foreign', providerId: sentinel),
+        throwsA(
+          isA<CloudStorageException>()
+              .having(
+                (e) => e.code,
+                'code',
+                CloudStorageErrorCode.unsupportedProvider,
+              )
+              .having(
+                (e) => e.toString(),
+                'toString',
+                isNot(contains(sentinel)),
+              ),
+        ),
+      );
+      expect(provider.totalCalls, 0, reason: 'no auth or remote I/O');
+    });
+
     test('new links store the injected provider id', () async {
       final localFile = await _createTempDatabase(Uint8List.fromList([1]));
       addTearDown(() => localFile.parent.delete(recursive: true));

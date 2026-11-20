@@ -3308,7 +3308,10 @@ class _FakeSyncRepository implements DatabaseSyncRepository {
       databasePath == mapping?.databasePath ? mapping : null;
 
   @override
-  Future<Uint8List> downloadRemoteFile(String fileId) async {
+  Future<Uint8List> downloadRemoteFile(
+    String fileId, {
+    required String providerId,
+  }) async {
     if (fileId != mapping?.remoteFileId) {
       throw StateError('unexpected remote file id');
     }

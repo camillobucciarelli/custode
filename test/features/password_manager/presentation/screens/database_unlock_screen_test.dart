@@ -23,9 +23,16 @@ import 'package:password_manager/features/password_manager/domain/models/apple_a
 import 'package:password_manager/features/password_manager/domain/repositories/autofill_ports.dart';
 import 'package:password_manager/features/password_manager/domain/services/apple_autofill_v2_payload_mapper.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/android_autofill_save_coordinator.dart';
+import 'package:password_manager/features/password_manager/presentation/coordinators/database_session_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/pending_passkey_adoption_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/session_secret_holder.dart';
 import 'package:password_manager/features/password_manager/data/services/vault_kdbx_service.dart';
+import 'package:password_manager/core/widgets/kv_circle_icon_button.dart';
+import 'package:password_manager/features/password_manager/domain/models/database_sync_mapping.dart';
+import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
+import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_bloc.dart';
+import 'package:password_manager/features/password_manager/presentation/screens/database_selection_screen.dart';
+import 'package:password_manager/features/password_manager/presentation/utils/platform_utils.dart';
 import 'package:password_manager/injection_container.dart' as di;
 
 import '../bloc/vault/vault_bloc_harness.dart'
@@ -194,7 +201,7 @@ void main() {
         'kv-test-only-not-a-real-password',
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Unlock vault'));
+      await tester.tap(find.text('Unlock'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
@@ -220,7 +227,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final buttonFinder = find.ancestor(
-        of: find.text('Unlock vault'),
+        of: find.text('Unlock'),
         matching: find.byType(ElevatedButton),
       );
       expect(tester.widget<ElevatedButton>(buttonFinder).onPressed, isNull);
@@ -285,7 +292,7 @@ void main() {
         // Manual credential form is now reachable and submits normally.
         await tester.enterText(find.byType(TextFormField), 'kv-test-only');
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Unlock vault'));
+        await tester.tap(find.text('Unlock'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 50));
 
@@ -334,17 +341,612 @@ void main() {
 
       bloc.add(const UpdateKeyFilePath(keyPath));
       await tester.pumpAndSettle();
-      expect(find.text('Unlock with key file'), findsOneWidget);
+      expect(find.text('personal.key'), findsOneWidget);
       expect(find.byTooltip('Remove key file'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Remove key file'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Unlock vault'), findsOneWidget);
-      // FR-5 mock alignment: the always-visible "Select key file" button is
-      // gone; the no-key-file state now shows the "Use a key file" link.
-      expect(find.text('Use a key file'), findsOneWidget);
+      expect(find.text('Unlock'), findsOneWidget);
+      // The slot is always on screen: empty it offers to add one.
+      expect(find.text('Add a key file'), findsOneWidget);
+    });
+  });
+
+  group('Ready-phase error message', () {
+    testWidgets('a generic (untyped) unlock error is shown inline', (
+      tester,
+    ) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      result.harness.unlockUseCase.error = StateError('boom');
+
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'x');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('Unable to unlock database with provided credentials.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('Biometric offer after a manual unlock (spec 025 FR-U6)', () {
+    // The screen keeps the vault route out of reach: a hung navigation is
+    // not needed because the sheet resolves first and the vault route only
+    // needs the DI the harness already registers.
+    final localRecord = DatabaseRecord(
+      databaseId: 'db-1',
+      canonicalPath: path,
+      displayName: 'Personal',
+      sourceType: DatabaseSourceType.local,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+    );
+    final remoteRecord = DatabaseRecord(
+      databaseId: 'db-1',
+      canonicalPath: path,
+      displayName: 'Personal',
+      sourceType: DatabaseSourceType.drive,
+      sourceRef: 'remote-1',
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+    );
+
+    Future<DatabaseTestHarness> pumpAndUnlock(
+      WidgetTester tester,
+      DatabaseRecord record, {
+      bool biometricAvailable = true,
+      Map<String, DatabaseSecurityProfile> securityProfiles = profiles,
+      String password = 'kv-test-only',
+    }) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: [record],
+        securityProfiles: securityProfiles,
+        biometricAvailable: biometricAvailable,
+      );
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+      if (securityProfiles['db-1']?.biometricProtectionEnabled ?? false) {
+        await tester.tap(find.text('Use master password instead'));
+        await tester.pumpAndSettle();
+      }
+      await tester.enterText(find.byType(TextFormField), password);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unlock'));
+      // The spinner behind the sheet animates forever: no pumpAndSettle.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      return result.harness;
+    }
+
+    for (final (label, record) in [
+      ('local', localRecord),
+      ('remote', remoteRecord),
+    ]) {
+      testWidgets('$label database: Enable stores the credential at once, '
+          'once', (tester) async {
+        final harness = await pumpAndUnlock(tester, record);
+
+        expect(find.text('Unlock Personal with biometrics?'), findsOneWidget);
+        expect(
+          find.text('You can change this anytime in Settings.'),
+          findsOneWidget,
+        );
+        expect(harness.sessionRepository.masterPasswords, isEmpty);
+
+        await tester.tap(find.text('Enable'));
+        await tester.pumpAndSettle();
+
+        expect(harness.sessionRepository.masterPasswords, {
+          'db-1': 'kv-test-only',
+        });
+        final saved = harness.securityRepository.profiles['db-1']!;
+        expect(saved.biometricProtectionEnabled, isTrue);
+        expect(saved.biometricOfferAnswered, isTrue);
+        expect(find.text('Unlock Personal with biometrics?'), findsNothing);
+      });
+    }
+
+    testWidgets('Not now counts as answered and writes nothing', (
+      tester,
+    ) async {
+      final harness = await pumpAndUnlock(tester, localRecord);
+
+      await tester.tap(find.text('Not now'));
+      await tester.pumpAndSettle();
+
+      expect(harness.sessionRepository.masterPasswords, isEmpty);
+      final saved = harness.securityRepository.profiles['db-1']!;
+      expect(saved.biometricProtectionEnabled, isFalse);
+      expect(saved.biometricOfferAnswered, isTrue);
+    });
+
+    testWidgets('dismissing the sheet counts as answered', (tester) async {
+      final harness = await pumpAndUnlock(tester, localRecord);
+
+      // Tap the barrier above the sheet.
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expect(harness.sessionRepository.masterPasswords, isEmpty);
+      expect(
+        harness.securityRepository.profiles['db-1']!.biometricOfferAnswered,
+        isTrue,
+      );
+    });
+
+    testWidgets('not shown again once answered', (tester) async {
+      await pumpAndUnlock(
+        tester,
+        localRecord,
+        securityProfiles: const {
+          'db-1': DatabaseSecurityProfile(
+            databaseId: 'db-1',
+            biometricOfferAnswered: true,
+          ),
+        },
+      );
+
+      expect(find.text('Unlock Personal with biometrics?'), findsNothing);
+      expect(find.text('vault:$path'), findsOneWidget);
+    });
+
+    testWidgets('not shown without device biometrics', (tester) async {
+      await pumpAndUnlock(tester, localRecord, biometricAvailable: false);
+
+      expect(find.text('Unlock Personal with biometrics?'), findsNothing);
+      expect(find.text('vault:$path'), findsOneWidget);
+    });
+
+    testWidgets('not shown on a platform without biometric unlock', (
+      tester,
+    ) async {
+      debugPlatformCapabilities = const PlatformCapabilities(
+        supportsRemoteSource: false,
+        supportsBiometricUnlock: false,
+        persistsDatabases: false,
+      );
+      addTearDown(() => debugPlatformCapabilities = null);
+
+      await pumpAndUnlock(tester, localRecord);
+
+      expect(find.text('Unlock Personal with biometrics?'), findsNothing);
+    });
+
+    testWidgets('a keystore failure still unlocks and tells the user', (
+      tester,
+    ) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: [localRecord],
+        securityProfiles: profiles,
+        biometricAvailable: true,
+      );
+      result.harness.sessionRepository.saveError = StateError('keystore');
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'kv-test-only');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unlock'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(find.text('Enable'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Biometrics could not be enabled. You can try again in Settings.',
+        ),
+        findsOneWidget,
+      );
+      expect(result.harness.unlockUseCase.callCount, 1);
+      expect(
+        result
+            .harness
+            .securityRepository
+            .profiles['db-1']!
+            .biometricProtectionEnabled,
+        isFalse,
+      );
+    });
+  });
+
+  group('Layout and accessibility (spec 025 FR-U1, FR-U3)', () {
+    testWidgets('error renders inside the credential group, no snackbar', (
+      tester,
+    ) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      result.harness.unlockUseCase.error = const InvalidCredentialsFailure();
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'x');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('unlock-credentials')),
+          matching: find.text(
+            'Wrong password or key file. Check both and try again.',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('shows source, name, field, key slot, Unlock in order with '
+        '44 px icon targets', (tester) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+
+      double top(Finder f) => tester.getTopLeft(f).dy;
+      expect(
+        top(find.text('This device')),
+        lessThan(top(find.text('personal.kdbx'))),
+      );
+      expect(
+        top(find.text('personal.kdbx')),
+        lessThan(top(find.text('Master password').first)),
+      );
+      expect(
+        top(find.text('Master password').first),
+        lessThan(top(find.text('Add a key file'))),
+      );
+      expect(
+        top(find.text('Add a key file')),
+        lessThan(top(find.text('Unlock'))),
+      );
+      for (final tooltip in ['Back to databases', 'Show password']) {
+        final size = tester.getSize(
+          find.ancestor(
+            of: find.byTooltip(tooltip),
+            matching: find.byType(KvCircleIconButton),
+          ),
+        );
+        expect(size.width, greaterThanOrEqualTo(44), reason: tooltip);
+        expect(size.height, greaterThanOrEqualTo(44), reason: tooltip);
+      }
+    });
+
+    testWidgets('a mapped database shows the Google Drive source with the '
+        'connected account', (tester) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      result.harness.syncRepository
+        ..mappings[path] = const DatabaseSyncMapping(
+          databasePath: path,
+          providerId: 'google_drive',
+          remoteFileId: 'remote-1',
+          remoteFileName: 'personal.kdbx',
+        )
+        ..connected = true
+        ..account = const StorageAccountSummary(
+          displayLabel: 'mara@example.com',
+          email: 'mara@example.com',
+        );
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Google Drive · mara@example.com'), findsOneWidget);
+    });
+
+    testWidgets('the card stays at most 600 wide at 1024', (tester) async {
+      tester.view.physicalSize = const Size(1024, 768);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getSize(find.byKey(const ValueKey('unlock-credentials'))).width,
+        lessThanOrEqualTo(600),
+      );
+    });
+  });
+
+  group('Tester findings (spec 025)', () {
+    const biometricsOn = {
+      'db-1': DatabaseSecurityProfile(
+        databaseId: 'db-1',
+        biometricProtectionEnabled: true,
+      ),
+    };
+
+    testWidgets('F9a: Use biometrics is offered whenever biometrics are '
+        'enabled and available, and goes through the gate', (tester) async {
+      // The gate is passed, but there is no stored credential: the ready form
+      // shows without the user ever asking for the manual fallback.
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: biometricsOn,
+        biometricAvailable: true,
+      );
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+
+      final bloc = tester
+          .element(find.byType(Scaffold).first)
+          .read<DatabaseUnlockBloc>();
+      expect(bloc.state.phase, UnlockPhase.ready);
+      expect(bloc.state.manualFallbackRequested, isFalse);
+      expect(find.text('Use biometrics'), findsOneWidget);
+
+      final phases = <UnlockPhase>[];
+      final sub = bloc.stream.listen((s) => phases.add(s.phase));
+      await tester.tap(find.text('Use biometrics'));
+      await tester.pumpAndSettle();
+      // Not awaited: a future from outside the test zone never completes
+      // under the fake clock.
+      unawaited(sub.cancel());
+
+      expect(phases.first, UnlockPhase.biometricGate);
+      expect(result.harness.unlockUseCase.callCount, 0);
+    });
+
+    testWidgets('F9a: not offered when biometrics are off for the database '
+        'or the device has none', (tester) async {
+      final off = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+        biometricAvailable: true,
+      );
+      await tester.pumpWidget(off.widget);
+      await tester.pumpAndSettle();
+      expect(find.text('Use biometrics'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await resetDatabaseTestDi();
+      final noSensor = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: biometricsOn,
+      );
+      await tester.pumpWidget(noSensor.widget);
+      await tester.pumpAndSettle();
+      expect(find.text('Use biometrics'), findsNothing);
+    });
+
+    testWidgets('F3: a key file whose choice cannot be saved still fills the '
+        'slot, with a notice inside the credential group', (tester) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      result.harness.fileRepository.existingPaths.add('/tmp/personal.key');
+      result.harness.securityRepository.saveError = StateError('storage');
+      result.harness.unlockUseCase.hang = true;
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+
+      tester
+          .element(find.byType(Scaffold).first)
+          .read<DatabaseUnlockBloc>()
+          .add(const UpdateKeyFilePath('/tmp/personal.key'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('personal.key'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('unlock-credentials')),
+          matching: find.text(keyFileNotRememberedNotice),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.tap(find.text('Unlock'));
+      await tester.pump();
+      expect(result.harness.unlockUseCase.lastKeyFilePath, '/tmp/personal.key');
+    });
+
+    testWidgets('F2: a settings write failure after decryption opens the '
+        'vault and says so', (tester) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      result.harness.securityRepository.saveError = StateError('storage');
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'kv-test-only');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('vault:$path'), findsOneWidget);
+      expect(find.text(unlockSettingsNotSavedNotice), findsOneWidget);
+      expect(
+        find.text('Unable to unlock database with provided credentials.'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('the database name is a heading', (tester) async {
+      final handle = tester.ensureSemantics();
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getSemantics(find.text('personal.kdbx')),
+        isSemantics(isHeader: true),
+      );
+      handle.dispose();
+    });
+
+    testWidgets('the missing-file title is a heading', (tester) async {
+      final handle = tester.ensureSemantics();
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      result.harness.fileRepository.existingPaths.remove(path);
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getSemantics(find.text("personal.kdbx can't be found")),
+        isSemantics(isHeader: true),
+      );
+      handle.dispose();
+    });
+  });
+
+  group('Missing file view (spec 025 FR-U4)', () {
+    Future<DatabaseTestHarness> pumpMissing(
+      WidgetTester tester, {
+      bool mapped = false,
+    }) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      result.harness.fileRepository.existingPaths.remove(path);
+      if (mapped) {
+        result.harness.syncRepository.mappings[path] =
+            const DatabaseSyncMapping(
+              databasePath: path,
+              providerId: 'google_drive',
+              remoteFileId: 'remote-1',
+              remoteFileName: 'personal.kdbx',
+            );
+      }
+      await tester.pumpWidget(
+        BlocProvider<DatabaseSelectionBloc>.value(
+          value: DatabaseSelectionBloc(
+            databaseSessionCoordinator: result.harness.coordinator,
+          ),
+          child: result.widget,
+        ),
+      );
+      await tester.pumpAndSettle();
+      return result.harness;
+    }
+
+    testWidgets('without a mapping: locate, remove, back, and no re-download', (
+      tester,
+    ) async {
+      await pumpMissing(tester);
+
+      expect(find.text("personal.kdbx can't be found"), findsOneWidget);
+      expect(
+        find.text('The file is no longer where Custode last saw it.'),
+        findsOneWidget,
+      );
+      expect(find.text('Locate file'), findsOneWidget);
+      expect(find.text('Remove from list'), findsOneWidget);
+      expect(find.text('Back to databases'), findsWidgets);
+      expect(find.text('Download again from Google Drive'), findsNothing);
+      expect(find.byType(TextFormField), findsNothing);
+    });
+
+    testWidgets('with a mapping the re-download restores the file and the '
+        'form', (tester) async {
+      final harness = await pumpMissing(tester, mapped: true);
+      harness.fileRepository.existingPaths.add(path);
+
+      await tester.tap(find.text('Download again from Google Drive'));
+      await tester.pumpAndSettle();
+
+      expect(harness.fileRepository.commitTargets, [path]);
+      expect(find.byType(TextFormField), findsOneWidget);
+      expect(find.text("personal.kdbx can't be found"), findsNothing);
+    });
+
+    testWidgets('re-download is hidden where remote sources are unsupported', (
+      tester,
+    ) async {
+      debugPlatformCapabilities = const PlatformCapabilities(
+        supportsRemoteSource: false,
+        supportsBiometricUnlock: false,
+        persistsDatabases: false,
+      );
+      addTearDown(() => debugPlatformCapabilities = null);
+
+      await pumpMissing(tester, mapped: true);
+
+      expect(find.text('Download again from Google Drive'), findsNothing);
+      expect(find.text('Locate file'), findsOneWidget);
+    });
+
+    testWidgets('a failed re-download keeps the view and says why inline', (
+      tester,
+    ) async {
+      final harness = await pumpMissing(tester, mapped: true);
+      harness.fileRepository.stageError = StateError('offline');
+
+      await tester.tap(find.text('Download again from Google Drive'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Unable to download the database again.'),
+        findsOneWidget,
+      );
+      expect(find.text("personal.kdbx can't be found"), findsOneWidget);
+    });
+
+    testWidgets('remove asks first, then removes and leaves', (tester) async {
+      final harness = await pumpMissing(tester);
+
+      await tester.tap(find.text('Remove from list'));
+      await tester.pumpAndSettle();
+      expect(find.text('Remove personal.kdbx from the list?'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(harness.registryRepository.records, isNotEmpty);
+
+      await tester.tap(find.text('Remove from list'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
+      // The selection screen behind animates forever: no pumpAndSettle.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(harness.registryRepository.records, isEmpty);
+      expect(find.byType(DatabaseSelectionScreen), findsOneWidget);
     });
   });
 
@@ -364,7 +966,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField), 'x');
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Unlock vault'));
+      await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
@@ -380,11 +982,13 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(TextFormField),
-            matching: find.text('Incorrect master password or key file.'),
+            matching: find.text(
+              'Wrong password or key file. Check both and try again.',
+            ),
           ),
           findsOneWidget,
         );
-        expect(find.text('Unlock vault'), findsOneWidget);
+        expect(find.text('Unlock'), findsOneWidget);
       },
     );
 
@@ -408,7 +1012,7 @@ void main() {
 
     testWidgets(
       'DatabaseFileMissingFailure: replaces the credential form with the '
-      'failure surface',
+      'missing-file view',
       (tester) async {
         await submitWithError(
           tester,
@@ -417,7 +1021,8 @@ void main() {
 
         expect(find.byType(SnackBar), findsNothing);
         expect(find.byType(TextFormField), findsNothing);
-        expect(find.text('Back to database list'), findsOneWidget);
+        expect(find.text("personal.kdbx can't be found"), findsOneWidget);
+        expect(find.text('Locate file'), findsOneWidget);
       },
     );
 

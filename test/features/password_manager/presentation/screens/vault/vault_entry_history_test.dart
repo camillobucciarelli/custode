@@ -102,9 +102,6 @@ class _FixtureVaultSessionCoordinator implements VaultSessionCoordinator {
   @override
   Future<String?> getPersistedKeyFilePath(String databasePath) async => null;
 
-  @override
-  Future<Set<String>> getProtectedKeyFilePaths() async => const {};
-
   /// Recorded, not performed: the test asserts the shell was replaced, and
   /// the real lock needs the session secret holder.
   int lockVaultCalls = 0;

@@ -135,8 +135,8 @@ class DatabaseSyncOrchestrator {
   /// spec 010 T302: a persisted mapping is executable only by the provider
   /// this build injects. Runs before any auth, remote call, backup, metadata
   /// mutation or local write; the raw stored id is never interpolated.
-  void _requireSupportedProvider(DatabaseSyncMapping mapping) {
-    if (mapping.providerId != _provider.providerId) {
+  void _requireSupportedProvider(String providerId) {
+    if (providerId != _provider.providerId) {
       throw const CloudStorageException(
         CloudStorageErrorCode.unsupportedProvider,
       );
@@ -171,7 +171,7 @@ class DatabaseSyncOrchestrator {
     if (mapping == null) {
       throw Exception('Current database is not linked to Google Drive.');
     }
-    _requireSupportedProvider(mapping);
+    _requireSupportedProvider(mapping.providerId);
 
     final dbFile = File(databasePath);
     if (!await dbFile.exists()) {
@@ -406,7 +406,11 @@ class DatabaseSyncOrchestrator {
     return _provider.listKdbxFiles(query: query);
   }
 
-  Future<Uint8List> downloadRemoteFile(String fileId) {
+  Future<Uint8List> downloadRemoteFile(
+    String fileId, {
+    required String providerId,
+  }) async {
+    _requireSupportedProvider(providerId);
     return _provider.downloadFile(fileId);
   }
 
@@ -417,7 +421,7 @@ class DatabaseSyncOrchestrator {
     }
     // Toggling auto-sync is a mapping mutation, so T302's guard applies here
     // too: a mapping this build cannot execute must not be rewritten.
-    _requireSupportedProvider(mapping);
+    _requireSupportedProvider(mapping.providerId);
     await _upsertMappingKeyed(mapping.copyWith(autoSyncEnabled: enabled));
   }
 

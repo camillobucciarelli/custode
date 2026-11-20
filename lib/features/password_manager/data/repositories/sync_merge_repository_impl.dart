@@ -312,7 +312,10 @@ class SyncMergeRepositoryImpl implements SyncMergeRepository {
         // candidate yet to short-circuit against, so the only sound move is
         // to re-merge against what the remote actually holds now.
         try {
-          remoteBytes = await _sync.downloadRemoteFile(mapping.remoteFileId);
+          remoteBytes = await _sync.downloadRemoteFile(
+            mapping.remoteFileId,
+            providerId: mapping.providerId,
+          );
         } on Object {
           return MergeRejected(
             MergeFailureCode.uploadOutcomeAmbiguous,
@@ -505,7 +508,10 @@ class SyncMergeRepositoryImpl implements SyncMergeRepository {
       // spending a re-merge round on it.
       final Uint8List redownloaded;
       try {
-        redownloaded = await _sync.downloadRemoteFile(mapping.remoteFileId);
+        redownloaded = await _sync.downloadRemoteFile(
+          mapping.remoteFileId,
+          providerId: mapping.providerId,
+        );
       } on Object {
         // The write went out and the read-back showed divergence, so the
         // outcome is exactly as unknown as the two paths above — mark it the
@@ -970,7 +976,10 @@ class SyncMergeRepositoryImpl implements SyncMergeRepository {
       throw const SyncMergeFailure(MergeFailureCode.mergePreconditionFailed);
     }
     try {
-      return await _sync.downloadRemoteFile(mapping.remoteFileId);
+      return await _sync.downloadRemoteFile(
+        mapping.remoteFileId,
+        providerId: mapping.providerId,
+      );
     } on SyncMergeFailure {
       rethrow;
     } on Object {

@@ -25,6 +25,9 @@ class RemoteFileRow extends StatefulWidget {
     required this.file,
     required this.selected,
     required this.isLinkedElsewhere,
+    this.alreadyAdded = false,
+    this.showChevron = false,
+    this.background,
     this.onTap,
     this.onLink,
   });
@@ -32,6 +35,17 @@ class RemoteFileRow extends StatefulWidget {
   final RemoteFile file;
   final bool selected;
   final bool isLinkedElsewhere;
+
+  /// Open flow (spec 025 FR-O3): the file already has a database on this
+  /// device. Tapping it is still allowed; the conflict sheet decides.
+  final bool alreadyAdded;
+
+  /// Tap-to-choose rows end with a chevron instead of the Link button.
+  final bool showChevron;
+
+  /// Fill when not selected; defaults to `surface` (a row on the page). A row
+  /// inside a sheet passes `surfaceNested` to stay distinguishable.
+  final Color? background;
   final VoidCallback? onTap;
 
   /// Rendered as the trailing "Link" button on the selected row only.
@@ -58,7 +72,9 @@ class _RemoteFileRowState extends State<RemoteFileRow> {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: selected ? AppColors.accent200 : colors.surface,
+        color: selected
+            ? AppColors.accent200
+            : widget.background ?? colors.surface,
         border: Border.all(
           color: selected
               ? AppColors.accent400
@@ -110,15 +126,31 @@ class _RemoteFileRowState extends State<RemoteFileRow> {
                           fontWeight: selected ? FontWeight.w600 : null,
                         ),
                       ),
-                      if (subtitleParts.isNotEmpty) ...[
+                      if (subtitleParts.isNotEmpty || widget.alreadyAdded) ...[
                         const SizedBox(height: 2),
-                        Text(
-                          subtitleParts.join(' · '),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.secondary.copyWith(
-                            color: colors.textSecondary,
-                          ),
+                        // The tag shares the metadata line and drops to its
+                        // own run when both do not fit, so date and size are
+                        // never cut by it.
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (subtitleParts.isNotEmpty)
+                              Text(
+                                subtitleParts.join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.secondary.copyWith(
+                                  color: colors.textSecondary,
+                                ),
+                              ),
+                            if (widget.alreadyAdded)
+                              const KvTag(
+                                label: 'Already added',
+                                variant: KvTagVariant.positive,
+                              ),
+                          ],
                         ),
                       ],
                     ],
@@ -127,6 +159,14 @@ class _RemoteFileRowState extends State<RemoteFileRow> {
                 if (widget.isLinkedElsewhere) ...[
                   const SizedBox(width: 8),
                   const KvTag(label: 'Linked', variant: KvTagVariant.attention),
+                ],
+                if (widget.showChevron) ...[
+                  const SizedBox(width: 8),
+                  KvIcon(
+                    glyph: AppGlyph.chevronRight,
+                    size: 18,
+                    color: colors.textSecondary,
+                  ),
                 ],
                 if (selected && widget.onLink != null) ...[
                   const SizedBox(width: 10),

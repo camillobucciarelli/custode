@@ -1,30 +1,59 @@
-// spec 015 T014: widget assertions for the two-step wizard — the three key
-// modes, the optional password with and without confirmation, the invalid
-// name blocking step 1, and a failure that keeps the wizard mounted with
-// its draft intact. These replace per-state goldens; the spec names the
-// omitted axes (1024x768, dark) in its golden inventory.
-import 'package:material_ui/material_ui.dart';
-import 'package:password_manager/core/theme/app_icons.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:password_manager/features/password_manager/presentation/screens/create_database_screen.dart';
+// Spec 025 S3 (T301/T302/T305): the Create wizard on the Kv design system.
+// Source selection, name validation, the three key modes through the row and
+// sheet, the optional password, biometric availability, a refused submission
+// that keeps the draft, and the web download-only outcome behind the
+// capability override. Replaces the spec 015 T014 assertions that targeted
+// stock Material widgets.
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:password_manager/core/widgets/kv_switch.dart';
+import 'package:password_manager/features/password_manager/domain/models/create_database_step.dart';
+import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
+import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_bloc.dart';
+import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_state.dart';
+import 'package:password_manager/features/password_manager/presentation/screens/create_database_screen.dart';
+import 'package:password_manager/features/password_manager/presentation/utils/platform_utils.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/key_file_picker.dart';
+
+import '../coordinators/fake_database_ports.dart';
 import 'database_selection_unlock_test_utils.dart';
+
+const _webCapabilities = PlatformCapabilities(
+  supportsRemoteSource: false,
+  supportsBiometricUnlock: false,
+  persistsDatabases: false,
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  tearDown(resetDatabaseTestDi);
+  tearDown(() async {
+    debugPlatformCapabilities = null;
+    await resetDatabaseTestDi();
+  });
 
-  Future<void> pumpWizard(WidgetTester tester) async {
-    final result = await pumpableCreateDatabaseScreen();
+  Future<DatabaseTestHarness> pumpWizard(
+    WidgetTester tester, {
+    bool biometricAvailable = false,
+    FakeDatabaseSyncRepository? syncRepository,
+  }) async {
+    final result = await pumpableCreateDatabaseScreen(
+      biometricAvailable: biometricAvailable,
+      syncRepository: syncRepository,
+    );
     await tester.pumpWidget(result.widget);
     await tester.pumpAndSettle();
+    return result.harness;
   }
 
   Future<void> pumpWebWizard(WidgetTester tester) async {
-    final result = await pumpableCreateDatabaseScreen(webMode: true);
-    await tester.pumpWidget(result.widget);
-    await tester.pumpAndSettle();
+    debugPlatformCapabilities = _webCapabilities;
+    await pumpWizard(tester);
   }
 
   Future<void> goToCredentials(WidgetTester tester) async {
@@ -32,25 +61,177 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  ElevatedButton primaryButton(WidgetTester tester) =>
+      tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+
+  Future<void> addGeneratedKey(WidgetTester tester) async {
+    await tester.tap(find.text('Add a key file'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Generate a new key file'));
+    await tester.pumpAndSettle();
+  }
+
+  const password = 'kv-test-only-not-a-real-password';
+
+  Future<void> enterPasswordAndConfirm(WidgetTester tester) async {
+    await tester.enterText(find.byType(TextFormField).at(0), password);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).at(1), password);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('FR-X6: while creating, the action names the database', (
+    tester,
+  ) async {
+    await pumpWizard(tester);
+    await goToCredentials(tester);
+
+    tester
+        .element(find.byType(CreateDatabaseScreen))
+        .read<DatabaseSelectionBloc>()
+        // ignore: invalid_use_of_visible_for_testing_member
+        .emit(
+          const DatabaseSelectionCreateStep(
+            CreateDatabaseStep.credentials,
+            submitting: true,
+          ),
+        );
+    // One frame delivers the stream event, the next builds from it.
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Creating new_database.kdbx…'), findsOneWidget);
+    expect(primaryButton(tester).onPressed, isNull);
+  });
+
+  group('FR-C2 step 1: where it lives', () {
+    testWidgets('This device is the default and Drive offers Connect when '
+        'signed out', (tester) async {
+      await pumpWizard(tester);
+
+      expect(find.text('Name and place'), findsOneWidget);
+      expect(find.text('Step 1 of 2'), findsOneWidget);
+      expect(find.text('This device'), findsOneWidget);
+      expect(find.text('Not connected'), findsOneWidget);
+      expect(find.text('Connect'), findsOneWidget);
+      expect(
+        tester.getSemantics(find.text('This device')),
+        matchesSemantics(
+          label: "This device, Stays in Custode's storage",
+          isButton: true,
+          isSelected: true,
+          isEnabled: true,
+          hasEnabledState: true,
+          hasSelectedState: true,
+          hasTapAction: true,
+          isFocusable: false,
+        ),
+      );
+    });
+
+    testWidgets('Connect signs in once and selects Drive with its account', (
+      tester,
+    ) async {
+      final sync = FakeDatabaseSyncRepository();
+      sync.account = const StorageAccountSummary(
+        displayLabel: 'mara@example.com',
+        email: 'mara@example.com',
+      );
+      await pumpWizard(tester, syncRepository: sync);
+
+      await tester.tap(find.text('Google Drive'));
+      await tester.pumpAndSettle();
+
+      expect(sync.connectCalls, 1);
+      expect(find.text('mara@example.com'), findsOneWidget);
+      expect(find.text('Connect'), findsNothing);
+    });
+
+    testWidgets('an already connected account is selectable without signing '
+        'in again', (tester) async {
+      final sync = FakeDatabaseSyncRepository()..connected = true;
+      sync.account = const StorageAccountSummary(
+        displayLabel: 'mara@example.com',
+        email: 'mara@example.com',
+      );
+      await pumpWizard(tester, syncRepository: sync);
+
+      expect(find.text('mara@example.com'), findsOneWidget);
+      expect(find.text('Connect'), findsNothing);
+      await tester.tap(find.text('Google Drive'));
+      await tester.pumpAndSettle();
+      expect(sync.connectCalls, 0);
+    });
+
+    testWidgets('a refused sign-in keeps This device and says so', (
+      tester,
+    ) async {
+      final sync = _RefusingSyncRepository();
+      await pumpWizard(tester, syncRepository: sync);
+
+      await tester.tap(find.text('Google Drive'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Could not connect to Google Drive.'), findsOneWidget);
+      expect(find.text('Connect'), findsOneWidget);
+    });
+
+    testWidgets('the capability override disables Drive in place with its '
+        'reason and never signs in', (tester) async {
+      final sync = FakeDatabaseSyncRepository();
+      debugPlatformCapabilities = _webCapabilities;
+      await pumpWizard(tester, syncRepository: sync);
+
+      expect(find.text('Google Drive'), findsOneWidget);
+      expect(find.text('Not available in the browser'), findsOneWidget);
+      expect(find.text('Connect'), findsNothing);
+      await tester.tap(find.text('Google Drive'));
+      await tester.pumpAndSettle();
+      expect(sync.connectCalls, 0);
+    });
+
+    testWidgets('the live caption names the file, with or without the '
+        'extension', (tester) async {
+      await pumpWizard(tester);
+      expect(find.text('Saved as new_database.kdbx'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextFormField), 'Personal');
+      await tester.pumpAndSettle();
+      expect(find.text('Saved as Personal.kdbx'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextFormField), 'Work.KDBX');
+      await tester.pumpAndSettle();
+      expect(find.text('Saved as Work.KDBX'), findsOneWidget);
+    });
+  });
+
   group('FR-8 name validation blocks step 1', () {
     testWidgets('an invalid character disables Continue and shows the error', (
       tester,
     ) async {
       await pumpWizard(tester);
 
-      await tester.enterText(find.byType(TextFormField), 'bad:name.kdbx');
+      await tester.enterText(find.byType(TextFormField), 'bad:name');
       await tester.pumpAndSettle();
 
-      expect(find.text('Invalid characters in file name.'), findsOneWidget);
-      final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      expect(find.text('Invalid characters in the name.'), findsOneWidget);
+      expect(find.textContaining('Saved as'), findsNothing);
       expect(
-        button.onPressed,
+        primaryButton(tester).onPressed,
         isNull,
-        reason: 'FR-8: no silent sanitisation — the step must not advance',
+        reason: 'FR-8: no silent sanitisation, the step must not advance',
       );
+      expect(find.text('Name and place'), findsOneWidget);
+    });
 
-      // Still on step 1 even if something tried to advance.
-      expect(find.text('Name your database'), findsOneWidget);
+    testWidgets('an empty name blocks Continue', (tester) async {
+      await pumpWizard(tester);
+
+      await tester.enterText(find.byType(TextFormField), '   ');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a database name.'), findsOneWidget);
+      expect(primaryButton(tester).onPressed, isNull);
     });
 
     testWidgets('a valid name advances to the single credentials step', (
@@ -59,7 +240,7 @@ void main() {
       await pumpWizard(tester);
       await goToCredentials(tester);
 
-      expect(find.text('Choose your credentials'), findsOneWidget);
+      expect(find.text('Protect it'), findsOneWidget);
       expect(find.text('Step 2 of 2'), findsOneWidget);
     });
   });
@@ -70,10 +251,9 @@ void main() {
       await pumpWizard(tester);
       await goToCredentials(tester);
 
-      expect(find.text('Confirm Password'), findsNothing);
+      expect(find.text('Confirm password'), findsNothing);
       expect(find.text('Weak'), findsNothing);
-      final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-      expect(button.onPressed, isNull);
+      expect(primaryButton(tester).onPressed, isNull);
       expect(
         find.text(
           'Set a master password or choose a key file to protect the '
@@ -83,59 +263,81 @@ void main() {
       );
     });
 
-    testWidgets('non-empty password: confirmation mandatory, mismatch shown '
-        'at the field', (tester) async {
+    testWidgets('non-empty password: strength shown, confirmation mandatory, '
+        'mismatch shown at the field', (tester) async {
       await pumpWizard(tester);
       await goToCredentials(tester);
 
-      await tester.enterText(
-        find.byType(TextFormField).at(0),
-        'kv-test-only-not-a-real-password',
-      );
+      await tester.enterText(find.byType(TextFormField).at(0), password);
       await tester.pumpAndSettle();
 
-      expect(find.text('Confirm Password'), findsOneWidget);
+      // Label and hint, both named for the field.
+      expect(find.text('Confirm password'), findsWidgets);
+      expect(find.text('Strong'), findsOneWidget);
+      expect(find.text('Confirm the master password to continue.'), findsOne);
 
       await tester.enterText(find.byType(TextFormField).at(1), 'different');
       await tester.pumpAndSettle();
 
       expect(find.text('Passwords do not match.'), findsOneWidget);
-      final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-      expect(button.onPressed, isNull);
+      expect(primaryButton(tester).onPressed, isNull);
 
-      await tester.enterText(
-        find.byType(TextFormField).at(1),
-        'kv-test-only-not-a-real-password',
-      );
+      await tester.enterText(find.byType(TextFormField).at(1), password);
       await tester.pumpAndSettle();
-      final enabled = tester.widget<ElevatedButton>(
-        find.byType(ElevatedButton),
+      expect(primaryButton(tester).onPressed, isNotNull);
+      expect(find.text('Create database'), findsOneWidget);
+      expect(
+        find.text('Opens right away, no need to type the password again.'),
+        findsOneWidget,
       );
-      expect(enabled.onPressed, isNotNull);
+    });
+
+    testWidgets('the eye toggles reveal each field', (tester) async {
+      await pumpWizard(tester);
+      await goToCredentials(tester);
+      await tester.enterText(find.byType(TextFormField).at(0), password);
+      await tester.pumpAndSettle();
+
+      EditableText editable(int i) => tester.widget<EditableText>(
+        find.descendant(
+          of: find.byType(TextFormField).at(i),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(editable(0).obscureText, isTrue);
+      await tester.tap(find.byTooltip('Show password'));
+      await tester.pumpAndSettle();
+      expect(editable(0).obscureText, isFalse);
+      expect(editable(1).obscureText, isTrue);
+      await tester.tap(find.byTooltip('Show confirmation'));
+      await tester.pumpAndSettle();
+      expect(editable(1).obscureText, isFalse);
     });
   });
 
-  group('FR-4 three-way key control', () {
-    testWidgets('the three modes are mutually exclusive radio options', (
-      tester,
-    ) async {
+  group('FR-C3 key file row and sheet', () {
+    testWidgets('the empty row offers both choices in a sheet', (tester) async {
       await pumpWizard(tester);
       await goToCredentials(tester);
 
-      expect(find.text('No key file'), findsOneWidget);
-      expect(find.text('Select an existing file'), findsOneWidget);
-      expect(find.text('Generate automatically'), findsOneWidget);
-      expect(find.byType(RadioListTile<KeyFileMode>), findsNWidgets(3));
+      await tester.tap(find.text('Add a key file'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Choose a file'), findsOneWidget);
+      expect(find.text('Generate a new key file'), findsOneWidget);
     });
 
-    testWidgets('generate mode is a factor by itself and shows the permanent '
+    testWidgets('generate is a factor by itself and shows the permanent '
         'FR-13 backup warning inline', (tester) async {
       await pumpWizard(tester);
       await goToCredentials(tester);
 
-      await tester.tap(find.text('Generate automatically'));
-      await tester.pumpAndSettle();
+      await addGeneratedKey(tester);
 
+      expect(
+        find.text('New key file, created with the database'),
+        findsOneWidget,
+      );
       expect(
         find.text(
           'Back up the generated key file: losing it makes the database '
@@ -143,81 +345,132 @@ void main() {
         ),
         findsOneWidget,
       );
-      final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
       expect(
-        button.onPressed,
+        primaryButton(tester).onPressed,
         isNotNull,
         reason: 'FR-2: a generated key file is a valid sole factor',
       );
     });
 
-    testWidgets('switching back to "No key file" removes the key factor', (
+    testWidgets('removing the key returns to none and removes the factor', (
+      tester,
+    ) async {
+      await pumpWizard(tester);
+      await goToCredentials(tester);
+      await addGeneratedKey(tester);
+
+      await tester.tap(find.byTooltip('Remove key file'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add a key file'), findsOneWidget);
+      expect(
+        find.textContaining('Back up the generated key file'),
+        findsNothing,
+      );
+      expect(primaryButton(tester).onPressed, isNull);
+    });
+
+    testWidgets('choose a file selects it as the sole factor and shows its '
+        'name (bytes picker)', (tester) async {
+      debugPlatformCapabilities = _webCapabilities;
+      final original = FilePickerPlatform.instance;
+      FilePickerPlatform.instance = _BytesFilePicker();
+      addTearDown(() => FilePickerPlatform.instance = original);
+      await pumpWizard(tester);
+      await goToCredentials(tester);
+
+      await tester.tap(find.text('Add a key file'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose a file'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('web.key'), findsOneWidget);
+      expect(primaryButton(tester).onPressed, isNotNull);
+      expect(find.byType(KeyFileRow), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Remove key file'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add a key file'), findsOneWidget);
+    });
+  });
+
+  group('biometric switch', () {
+    testWidgets('disabled with its reason when the device has none', (
       tester,
     ) async {
       await pumpWizard(tester);
       await goToCredentials(tester);
 
-      await tester.tap(find.text('Generate automatically'));
+      expect(find.text('Unlock with biometrics'), findsOneWidget);
+      expect(find.text('Not available on this device'), findsOneWidget);
+      await tester.tap(find.byType(KvSwitch));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('No key file'));
-      await tester.pumpAndSettle();
+      expect(tester.widget<KvSwitch>(find.byType(KvSwitch)).value, isFalse);
+    });
 
-      final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-      expect(button.onPressed, isNull);
+    testWidgets('toggles when the device offers biometrics', (tester) async {
+      await pumpWizard(tester, biometricAvailable: true);
+      await goToCredentials(tester);
+
+      expect(find.text('Not available on this device'), findsNothing);
+      await tester.tap(find.byType(KvSwitch));
+      await tester.pumpAndSettle();
+      expect(tester.widget<KvSwitch>(find.byType(KvSwitch)).value, isTrue);
     });
   });
 
   group('FR-10/FR-11 failure keeps the wizard mounted', () {
     testWidgets('a refused submission renders in the wizard with the draft '
         'intact', (tester) async {
-      await pumpWizard(tester);
-      await tester.enterText(find.byType(TextFormField), 'MyVault.kdbx');
+      await pumpWizard(tester, biometricAvailable: true);
+      await tester.enterText(find.byType(TextFormField), 'MyVault');
       await tester.pumpAndSettle();
       await goToCredentials(tester);
 
       // FR-11 refusal: biometrics on with no password to store.
-      await tester.tap(find.text('Generate automatically'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Enable biometric protection'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Create'));
+      await addGeneratedKey(tester);
+      await tester.tap(find.byType(KvSwitch));
       await tester.pumpAndSettle();
 
-      // Wizard still mounted, on the credentials step, with the message.
+      await tester.tap(find.text('Create database'));
+      await tester.pumpAndSettle();
+
       expect(find.byType(CreateDatabaseScreen), findsOneWidget);
-      expect(find.text('Choose your credentials'), findsOneWidget);
+      expect(find.text('Protect it'), findsOneWidget);
       expect(
         find.textContaining('Biometric unlock needs a master password'),
         findsOneWidget,
       );
 
       // Draft intact: going back shows the typed name.
-      await tester.tap(find.byIcon(AppIcons.back));
+      await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      expect(find.text('MyVault.kdbx'), findsOneWidget);
+      expect(find.text('MyVault'), findsOneWidget);
     });
   });
 
-  group('FR-14 web download-only path (T021/T022)', () {
-    testWidgets('no biometric step, keeps-nothing notice, and the two-gesture '
-        'order: database download stays blocked until the key download is '
-        'requested', (tester) async {
+  group('FR-C8 web download-only outcome (capability override)', () {
+    testWidgets('keeps-nothing caption, a disabled biometric row in place, '
+        'and the two-gesture order: the database download stays blocked '
+        'until the key download is requested', (tester) async {
       await pumpWebWizard(tester);
       await goToCredentials(tester);
 
-      expect(find.text('Enable biometric protection'), findsNothing);
+      expect(find.text('Unlock with biometrics'), findsOneWidget);
+      expect(find.text('Not available on this device'), findsOneWidget);
       expect(
         find.textContaining('Reloading the page loses this draft'),
         findsOneWidget,
       );
 
-      await tester.tap(find.text('Generate automatically'));
-      await tester.pumpAndSettle();
+      await addGeneratedKey(tester);
+      expect(
+        find.text('Downloads the database. The browser keeps nothing.'),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Prepare downloads'));
       await tester.pumpAndSettle();
 
-      // Download phase: key first, database gated.
       expect(find.text('Download key file'), findsOneWidget);
       final databaseButton = tester.widget<OutlinedButton>(
         find.widgetWithText(OutlinedButton, 'Download database'),
@@ -239,17 +492,8 @@ void main() {
         'nothing', (tester) async {
       await pumpWebWizard(tester);
       await goToCredentials(tester);
+      await enterPasswordAndConfirm(tester);
 
-      await tester.enterText(
-        find.byType(TextFormField).at(0),
-        'kv-test-only-not-a-real-password',
-      );
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byType(TextFormField).at(1),
-        'kv-test-only-not-a-real-password',
-      );
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Prepare downloads'));
       await tester.pumpAndSettle();
 
@@ -260,4 +504,35 @@ void main() {
       expect(databaseButton.onPressed, isNotNull);
     });
   });
+}
+
+class _RefusingSyncRepository extends FakeDatabaseSyncRepository {
+  @override
+  Future<void> connect() async => throw Exception('cancelled');
+}
+
+class _BytesFilePicker extends FilePickerPlatform {
+  @override
+  Future<FilePickerResult?> pickFiles({
+    String? dialogTitle,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    Function(FilePickerStatus)? onFileLoading,
+    int compressionQuality = 0,
+    bool allowMultiple = false,
+    bool withData = false,
+    bool withReadStream = false,
+    bool lockParentWindow = false,
+    bool readSequential = false,
+    bool cancelUploadOnWindowBlur = true,
+  }) async {
+    return FilePickerResult([
+      PlatformFile(
+        name: 'web.key',
+        size: 3,
+        bytes: Uint8List.fromList(const [1, 2, 3]),
+      ),
+    ]);
+  }
 }

@@ -53,6 +53,32 @@ void main() {
 
       expect(profile!.biometricProtectionEnabled, isTrue);
     });
+
+    test('spec 025: an absent biometricOfferAnswered flag decodes to false '
+        '(existing installs are offered once)', () async {
+      localDataSource.profiles['db-legacy'] = {
+        'databaseId': 'db-legacy',
+        'biometricProtectionEnabled': false,
+      };
+
+      final profile = await repository.getProfile('db-legacy');
+
+      expect(profile!.biometricOfferAnswered, isFalse);
+    });
+
+    test('spec 025: biometricOfferAnswered round-trips unchanged', () async {
+      await repository.saveProfile(
+        const DatabaseSecurityProfile(
+          databaseId: 'db-answered',
+          biometricOfferAnswered: true,
+        ),
+      );
+
+      final profile = await repository.getProfile('db-answered');
+
+      expect(profile!.biometricOfferAnswered, isTrue);
+      expect(profile.biometricProtectionEnabled, isFalse);
+    });
   });
 }
 

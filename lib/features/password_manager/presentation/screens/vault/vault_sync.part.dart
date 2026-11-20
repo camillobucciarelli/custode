@@ -260,34 +260,6 @@ class _RemoteFilePickerScreenState extends State<_RemoteFilePickerScreen> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: TextField(
-                enabled: !_isReconnecting,
-                decoration: InputDecoration(
-                  hintText: 'Search .kdbx file',
-                  prefixIcon: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: KvIcon(
-                      glyph: AppGlyph.search,
-                      size: 18,
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                ),
-                onChanged: (value) {
-                  _query = value;
-                  final bloc = context.read<VaultBloc>();
-                  final state = bloc.state;
-                  if (_isReconnecting ||
-                      state.remoteFilesError != null ||
-                      !state.isDriveConnected) {
-                    return;
-                  }
-                  bloc.add(LoadRemoteFiles(query: value));
-                },
-              ),
-            ),
             Expanded(
               child: BlocBuilder<VaultBloc, VaultState>(
                 buildWhen: (p, n) =>
@@ -297,103 +269,48 @@ class _RemoteFilePickerScreenState extends State<_RemoteFilePickerScreen> {
                     p.remoteFilesReconnectRequired !=
                         n.remoteFilesReconnectRequired,
                 builder: (context, state) {
-                  final syncError = state.remoteFilesError;
-                  if (syncError != null) {
-                    final reconnectRequired =
-                        state.remoteFilesReconnectRequired;
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              reconnectRequired
-                                  ? 'Google authorization expired'
-                                  : 'Unable to reconnect',
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.panelTitleLarge.copyWith(
-                                color: colors.attentionText,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              syncError,
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.body.copyWith(
-                                color: colors.attentionText,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Semantics(
-                              container: true,
-                              button: true,
-                              enabled: !_isReconnecting,
-                              label: reconnectRequired
-                                  ? 'Reconnect Google Drive'
-                                  : 'Retry Google Drive connection',
-                              child: ExcludeSemantics(
-                                child: KvPillButton(
-                                  label: _isReconnecting
-                                      ? 'Reconnecting...'
-                                      : reconnectRequired
-                                      ? 'Reconnect'
-                                      : 'Retry',
-                                  onPressed: _isReconnecting
-                                      ? null
-                                      : _reconnectAndReload,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                  if (state.isLoadingRemoteFiles) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
                   // If the list changed (e.g. the user filtered by typing) and
                   // the previously selected file is no longer in it, drop the
                   // stale selection instead of leaving "Link" enabled against
-                  // an id no longer visible/valid — see spec-005 Copilot fix.
-                  // MUST run before the isEmpty early-return below: a filter
-                  // that narrows the list to zero results is exactly the
-                  // case where the selection needs clearing.
+                  // an id no longer visible/valid, see spec-005 Copilot fix.
+                  // MUST run for an empty list too: a filter that narrows the
+                  // list to zero results is exactly the case where the
+                  // selection needs clearing.
                   if (_selectedId != null &&
                       !state.remoteFiles.any(
                         (file) => file.id == _selectedId,
                       )) {
                     _selectedId = null;
                   }
-                  if (state.remoteFiles.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No .kdbx files found.',
-                        style: AppTextStyles.body.copyWith(
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    );
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: state.remoteFiles.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 9),
-                    itemBuilder: (context, index) {
-                      final file = state.remoteFiles[index];
-                      return RemoteFileRow(
-                        file: file,
-                        selected: _selectedId == file.id,
-                        isLinkedElsewhere: _isLinkedElsewhere(file),
-                        onTap: () => setState(
-                          () => _selectedId = _selectedId == file.id
-                              ? null
-                              : file.id,
-                        ),
-                        onLink: _completeSelectedLink,
-                      );
+                  return RemoteFileList(
+                    files: state.remoteFiles,
+                    isLoading: state.isLoadingRemoteFiles,
+                    errorMessage: state.remoteFilesError,
+                    reconnectRequired: state.remoteFilesReconnectRequired,
+                    isReconnecting: _isReconnecting,
+                    onReconnect: _reconnectAndReload,
+                    onQueryChanged: (value) {
+                      _query = value;
+                      final bloc = context.read<VaultBloc>();
+                      final state = bloc.state;
+                      if (_isReconnecting ||
+                          state.remoteFilesError != null ||
+                          !state.isDriveConnected) {
+                        return;
+                      }
+                      bloc.add(LoadRemoteFiles(query: value));
                     },
+                    rowBuilder: (context, file) => RemoteFileRow(
+                      file: file,
+                      selected: _selectedId == file.id,
+                      isLinkedElsewhere: _isLinkedElsewhere(file),
+                      onTap: () => setState(
+                        () => _selectedId = _selectedId == file.id
+                            ? null
+                            : file.id,
+                      ),
+                      onLink: _completeSelectedLink,
+                    ),
                   );
                 },
               ),

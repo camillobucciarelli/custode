@@ -54,6 +54,12 @@ class DatabaseSyncMapping extends Equatable {
   final bool autoSyncEnabled;
   final String? lastError;
 
+  /// Whether this mapping links to the given remote file. Remote identity is
+  /// the tuple, never the id alone (spec 010). The one lookup behind both the
+  /// picker's `Already added` tag and import conflict detection.
+  bool pointsAt({required String providerId, required String remoteFileId}) =>
+      this.providerId == providerId && this.remoteFileId == remoteFileId;
+
   DatabaseSyncMapping copyWith({
     String? databaseId,
     String? databasePath,

@@ -18,6 +18,11 @@ class SessionSecretMissingError extends StateError {
 class SessionSecretHolder {
   String? _secret;
 
+  /// The key file that opened this session, set only when the unlock could
+  /// not persist it to the security profile (spec 025 D10). While non-null it
+  /// wins over the profile; `path` is null for an unlock without a key file.
+  ({String? path})? keyFileOverride;
+
   bool get hasSecret => _secret != null;
 
   void set(String secret) {
@@ -36,6 +41,7 @@ class SessionSecretHolder {
 
   void clear() {
     _secret = null;
+    keyFileOverride = null;
   }
 
   @override

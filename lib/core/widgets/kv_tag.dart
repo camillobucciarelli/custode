@@ -6,7 +6,7 @@ import '../theme/custode_colors.dart';
 /// PIXEL_SPEC "Tags / badges": padding 3/9, radius 999, size 10-11/600.
 /// Reused across spec-005's remote-file "linked" warning, the duplicates
 /// screen's Keep/Merge tags, and the (out-of-scope) conflict "differs" tag.
-enum KvTagVariant { attention, positive, neutral, meta }
+enum KvTagVariant { attention, positive, neutral, nested, meta, accent }
 
 class KvTag extends StatelessWidget {
   const KvTag({
@@ -28,7 +28,10 @@ class KvTag extends StatelessWidget {
         null,
       ),
       KvTagVariant.positive => (colors.positiveTint, colors.positiveText, null),
+      KvTagVariant.accent => (colors.actionFill, colors.actionText, null),
       KvTagVariant.neutral => (colors.surface, colors.textPrimary, null),
+      // A quiet tag sitting on a `surface` row.
+      KvTagVariant.nested => (colors.surfaceNested, colors.textSecondary, null),
       KvTagVariant.meta => (
         Colors.transparent,
         colors.textSecondary,
