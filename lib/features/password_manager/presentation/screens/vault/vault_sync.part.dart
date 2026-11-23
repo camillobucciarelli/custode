@@ -72,7 +72,9 @@ class _VaultSyncDestinationState extends State<_VaultSyncDestination> {
                   state.databasePath,
                   databaseLabel: state.databaseLabel,
                 ),
-                onCreateNewFile: () => _createNewDriveFile(context, state),
+                onCreateNewFile: state.syncStatus == DatabaseSyncStatus.syncing
+                    ? null
+                    : () => _createNewDriveFile(context, state),
                 onPickExisting: () => _pickExistingDriveFile(context),
                 onToggleAutoSync: (enabled) => context.read<VaultBloc>().add(
                   ToggleCurrentDatabaseAutoSync(enabled),

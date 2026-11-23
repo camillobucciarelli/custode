@@ -1,10 +1,14 @@
 // spec-005 T19: iterate DatabaseSyncStatus.values, assert a non-empty hero
 // for each (AC2); assert no auth call on first `disconnected` render (AC3).
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:password_manager/core/theme/app_theme.dart';
+import 'package:password_manager/core/widgets/kv_list_row.dart';
+import 'package:password_manager/features/password_manager/domain/models/database_sync_mapping.dart';
 import 'package:password_manager/features/password_manager/domain/models/database_sync_status.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/sync/sync_status_hero.dart';
 
@@ -206,6 +210,71 @@ void main() {
       );
     },
   );
+
+  group('Regression: "Create a new file" double-tap must not create two remote '
+      'files (Drive does not enforce filename uniqueness)', () {
+    testWidgets(
+      'a second tap while linking is in flight does not fire a second '
+      'linkDatabaseToRemote call',
+      (tester) async {
+        addTearDown(resetVaultShellTestDi);
+        final repo = _SlowLinkDatabaseSyncRepository()..connected = true;
+
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          await pumpableVaultShell(databaseSyncRepository: repo),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Sync'));
+        await tester.pumpAndSettle();
+
+        final createTile = find.text('Create a new file on Google Drive');
+        expect(createTile, findsOneWidget);
+
+        await tester.tap(createTile);
+        // One pump is enough for the bloc's synchronous "syncing" emit to
+        // land and rebuild the hero — the tile stays on screen (the
+        // not-linked hero doesn't swap views on `status`) but its tap
+        // handler must now be disabled.
+        await tester.pump();
+
+        expect(repo.linkCallCount, 1);
+
+        // The UI-level guard in vault_sync.part.dart must itself disable
+        // the tile's tap handler while syncing — asserted directly on the
+        // widget, not just via the downstream repository call count, so a
+        // regression that removes the UI guard (but leaves the bloc's own
+        // re-entrancy guard in place) still fails this test.
+        expect(
+          tester
+              .widget<KvListRow>(
+                find.ancestor(of: createTile, matching: find.byType(KvListRow)),
+              )
+              .onTap,
+          isNull,
+          reason:
+              'the "Create a new file" row must disable its own onTap '
+              'while syncStatus is syncing, independent of the bloc guard',
+        );
+
+        // A second tap while the first `linkDatabaseToRemote` call is
+        // still in flight (the fast-double-tap window from the field
+        // report) must not fire another one.
+        await tester.tap(createTile);
+        await tester.pump();
+
+        expect(repo.linkCallCount, 1);
+
+        repo.gate.complete();
+        await tester.pumpAndSettle();
+      },
+    );
+  });
 }
 
 class _SpyDatabaseSyncRepository extends FakeDatabaseSyncRepository {
@@ -215,5 +284,28 @@ class _SpyDatabaseSyncRepository extends FakeDatabaseSyncRepository {
   Future<void> connect() async {
     connectCallCount += 1;
     await super.connect();
+  }
+}
+
+/// Never resolves `linkDatabaseToRemote` until the test completes [gate],
+/// holding the bloc in `syncStatus: syncing` so a second, near-simultaneous
+/// tap can be asserted against without racing a real async gap.
+class _SlowLinkDatabaseSyncRepository extends FakeDatabaseSyncRepository {
+  int linkCallCount = 0;
+  final Completer<void> gate = Completer<void>();
+
+  @override
+  Future<DatabaseSyncMapping> linkDatabaseToRemote({
+    required String databasePath,
+    String? remoteFileId,
+    String? remoteFileName,
+  }) async {
+    linkCallCount += 1;
+    await gate.future;
+    return super.linkDatabaseToRemote(
+      databasePath: databasePath,
+      remoteFileId: remoteFileId,
+      remoteFileName: remoteFileName,
+    );
   }
 }

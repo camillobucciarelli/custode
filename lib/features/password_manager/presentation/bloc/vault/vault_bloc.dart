@@ -2589,6 +2589,14 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
     LinkCurrentDatabaseToDrive event,
     Emitter<VaultState> emit,
   ) async {
+    // Re-entrancy guard: a fast double-tap on "Create a new file" (or a
+    // second event already queued before the UI reflects `syncing`) must
+    // not fire a second createFile — Drive doesn't enforce name uniqueness,
+    // so two calls create two orphaned remote files for one local database.
+    if (state.syncStatus == DatabaseSyncStatus.syncing) {
+      return;
+    }
+
     if (!state.isDriveConnected) {
       _safeEmit(
         emit,
