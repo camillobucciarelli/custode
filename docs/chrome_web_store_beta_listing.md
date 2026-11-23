@@ -178,6 +178,7 @@ for broader link-only beta access. Do not use Public distribution for this beta.
   IDs.
 - Create required Chrome Web Store promotional image sizes shown by the current
   dashboard, including a 440x280 small promo tile when requested. These are
-  listing assets and are not packaged in the extension ZIP.
+  listing assets and are not packaged in the extension ZIP. Ready-made
+  candidates and the store icon are in `docs/store_assets/chrome_web_store/`.
 - Complete pricing/distribution, privacy-practice, and policy certification
   attestations manually in the developer dashboard.

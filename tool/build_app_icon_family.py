@@ -50,11 +50,16 @@ UNBADGED = {
     Path("custode-monochrome-1024.png"): (1024, "monochrome"),
     Path("app-512.png"): (512, "full"),
     Path("app-192.png"): (192, "full"),
-    Path("ext-128.png"): (128, "full"),
-    Path("ext-48.png"): (48, "full"),
-    Path("ext-32.png"): (32, "full"),
-    Path("ext-16.png"): (16, "full"),
+    Path("ext-128.png"): (128, "ext"),
+    Path("ext-48.png"): (48, "ext"),
+    Path("ext-32.png"): (32, "ext"),
+    Path("ext-16.png"): (16, "ext"),
 }
+# Extension icons are a peach rounded tile on a transparent canvas. The 128 px
+# one follows the Chrome Web Store rule (96 px artwork, 16 px transparent
+# padding per side); the toolbar sizes fill the canvas to stay legible.
+EXT_INSET = {128: 16}
+EXT_RADIUS = 0.22  # corner radius as a fraction of the tile side
 BADGES = {
     16: (1, 4, 1, 2, Decimal(13)),
     32: (1, 9, 2, 5, Decimal("26.5")),
@@ -625,9 +630,32 @@ def _draw_component(draw: object, component: str, high_size: int, fill: object) 
         draw.ellipse(_scaled_box((cx - radius, cy - radius, cx + radius, cy + radius), high_size), fill=fill)
 
 
+def render_ext(size: int) -> object:
+    from PIL import Image, ImageDraw
+
+    inset = EXT_INSET.get(size, 0)
+    tile = size - 2 * inset
+    # RGB stays peach under the transparent pixels so the rounded edge cannot
+    # pick up a dark fringe; only the alpha channel carries the tile shape.
+    image = Image.new("RGB", (size, size), PEACH[:3])
+    image.paste(render_mark(tile, "full"), (inset, inset))
+    mask = Image.new("L", (size * SS, size * SS), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        (inset * SS, inset * SS, (size - inset) * SS - 1, (size - inset) * SS - 1),
+        radius=round(tile * EXT_RADIUS * SS),
+        fill=255,
+    )
+    # BOX, not LANCZOS: the straight tile edges sit on the pixel grid and must
+    # stay exactly 0/255, with no ringing into the transparent padding.
+    image.putalpha(mask.resize((size, size), Image.Resampling.BOX))
+    return image
+
+
 def render_mark(size: int, variant: str) -> object:
     from PIL import Image, ImageDraw
 
+    if variant == "ext":
+        return render_ext(size)
     high_size = size * SS
     background = PEACH if variant == "full" else (0, 0, 0, 0)
     high = Image.new("RGBA", (high_size, high_size), background)
@@ -670,7 +698,7 @@ def render_state(base: object, size: int, state: str) -> object:
     if outer - core != 2 * ring:
         raise ValidationError(f"invalid badge ring geometry at {size}")
     image = base.convert("RGBA")
-    image.putalpha(Image.new("L", image.size, 115))
+    image.putalpha(image.getchannel("A").point(lambda value: value * 115 // 255))
     outer_mask = _circle_mask(size, outer, center)
     alpha = image.getchannel("A")
     alpha.paste(0, mask=outer_mask)
@@ -786,9 +814,9 @@ def build_review_sheet(images: dict[Path, object]) -> object:
     for size, (x, y, factor, enlarged_x) in ready_layout.items():
         image = images[Path(f"ext-{size}.png")]
         assert isinstance(image, Image.Image)
-        sheet.paste(image, (x, y))
+        sheet.paste(image, (x, y), mask=image.getchannel("A"))
         enlarged = image.resize((size * factor,) * 2, Image.Resampling.NEAREST)
-        sheet.paste(enlarged, (x + enlarged_x, y))
+        sheet.paste(enlarged, (x + enlarged_x, y), mask=enlarged.getchannel("A"))
         label(x, y + 4 + max(size, enlarged.height), f"ready {size}px / 1x + {factor}x nearest")
 
     label(1120, 62, "STATES / 1x + NEAREST")
@@ -1002,6 +1030,7 @@ def validate_state_image(image: object, base: object, size: int, state: str) -> 
     if outer - core != ring * 2:
         raise ValidationError(f"badge ring width mismatch in {state} {size}px")
 
+    base = base.convert("RGBA")
     expected_colour = LOCKED if state == "locked" else NOHOST
     ring_alpha_threshold = {16: 48, 32: 80, 48: 80}[size]
     actual_core: set[int] = set()
@@ -1012,15 +1041,18 @@ def validate_state_image(image: object, base: object, size: int, state: str) -> 
             index = y * size + x
             state_pixel = image.getpixel((x, y))
             base_pixel = base.getpixel((x, y))[:3]
+            dimmed_alpha = base.getpixel((x, y))[3] * 115 // 255
             core_distance = sum((state_pixel[channel] - expected_colour[channel]) ** 2 for channel in range(3))
             base_distance = sum((state_pixel[channel] - base_pixel[channel]) ** 2 for channel in range(3))
             if state_pixel[3] >= 128 and core_distance < base_distance:
                 actual_core.add(index)
-            if state_pixel[3] <= ring_alpha_threshold:
+            # The cut-out is measured against the dimmed base alpha, so the
+            # tile's own transparent corners never read as badge ring.
+            if dimmed_alpha and state_pixel[3] * 115 <= ring_alpha_threshold * dimmed_alpha:
                 actual_ring.add(index)
             distance_squared = (2 * x + 1 - centre2) ** 2 + (2 * y + 1 - centre2) ** 2
             if distance_squared >= (outer + 6) ** 2:
-                if state_pixel[:3] != base_pixel or state_pixel[3] != 115:
+                if state_pixel[:3] != base_pixel or state_pixel[3] != dimmed_alpha:
                     raise ValidationError(f"base layer corruption in {state} {size}px at {(x, y)}")
     validate_badge_masks(size, actual_core, actual_ring)
 
@@ -1080,8 +1112,20 @@ def validate_output(output: Path) -> None:
         with Image.open(output / relative) as decoded:
             decoded.load()
             image = decoded.copy()
-        validate_raster_oracle(image, size, variant)
         rendered[relative] = image
+        if variant == "ext":
+            inset = EXT_INSET.get(size, 0)
+            last = size - 1
+            validate_raster_oracle(image.crop((inset, inset, size - inset, size - inset)), size - 2 * inset, "full")
+            alpha = image.getchannel("A")
+            transparent = [(0, 0), (last, 0), (0, last), (last, last)]
+            if inset:
+                transparent += [(x, y) for x in range(size) for y in range(size) if min(x, y, last - x, last - y) < inset]
+            opaque = [(inset, size // 2), (last - inset, size // 2), (size // 2, inset), (size // 2, last - inset)]
+            if any(alpha.getpixel(point) for point in transparent) or any(alpha.getpixel(point) != 255 for point in opaque):
+                raise ValidationError(f"extension tile alpha mismatch: {relative}")
+            continue
+        validate_raster_oracle(image, size, variant)
         if variant == "full":
             edge = (
                 [image.getpixel((x, 0)) for x in range(size)]

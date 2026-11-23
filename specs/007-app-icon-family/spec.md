@@ -163,10 +163,10 @@ root `icons/` path is assumed.
 | `custode-monochrome-1024.png` | 1024×1024 | RGBA, white ink | Android monochrome; iOS tinted source |
 | `app-512.png` | 512×512 | RGB, opaque `#ffe1d0` | web normal/maskable and Linux source |
 | `app-192.png` | 192×192 | RGB, opaque `#ffe1d0` | web normal/maskable source |
-| `ext-128.png` | 128×128 | RGB, opaque `#ffe1d0` | extension ready/base icon only |
-| `ext-48.png` | 48×48 | RGB, opaque `#ffe1d0` | extension ready/base; web favicon source |
-| `ext-32.png` | 32×32 | RGB, opaque `#ffe1d0` | extension ready/base icon |
-| `ext-16.png` | 16×16 | RGB, opaque `#ffe1d0` | extension ready/base icon |
+| `ext-128.png` | 128×128 | RGBA, 96×96 `#ffe1d0` rounded tile, 16 px transparent padding | extension ready/base icon only |
+| `ext-48.png` | 48×48 | RGBA, full-canvas `#ffe1d0` rounded tile | extension ready/base icon |
+| `ext-32.png` | 32×32 | RGBA, full-canvas `#ffe1d0` rounded tile | extension ready/base icon |
+| `ext-16.png` | 16×16 | RGBA, full-canvas `#ffe1d0` rounded tile | extension ready/base icon |
 | `state/ext-16-locked.png` | 16×16 | RGBA | 45% base + locked badge |
 | `state/ext-32-locked.png` | 32×32 | RGBA | 45% base + locked badge |
 | `state/ext-48-locked.png` | 48×48 | RGBA | 45% base + locked badge |

@@ -59,14 +59,35 @@ For the **monochrome** variant, take `custode-mark-foreground.svg` and set every
 | `custode-monochrome-1024.png` | 1024 | transparent, white ink | `adaptive_icon_monochrome` |
 | `app-512.png` | 512 | `#ffe1d0` | `web/icons/Icon-512.png`, `Icon-maskable-512.png` |
 | `app-192.png` | 192 | `#ffe1d0` | `web/icons/Icon-192.png`, `Icon-maskable-192.png` |
-| `ext-128.png` | 128 | `#ffe1d0` | extension `icons/icon-128.png` |
-| `ext-48.png` | 48 | `#ffe1d0` | extension `icons/icon-48.png` |
-| `ext-32.png` | 32 | `#ffe1d0` | extension `icons/icon-32.png` |
-| `ext-16.png` | 16 | `#ffe1d0` | extension `icons/icon-16.png` |
+| `ext-128.png` | 128 | transparent, `#ffe1d0` rounded tile | extension `icons/icon-128.png` |
+| `ext-48.png` | 48 | transparent, `#ffe1d0` rounded tile | extension `icons/icon-48.png` |
+| `ext-32.png` | 32 | transparent, `#ffe1d0` rounded tile | extension `icons/icon-32.png` |
+| `ext-16.png` | 16 | transparent, `#ffe1d0` rounded tile | extension `icons/icon-16.png` |
 
 Pre-rendered PNGs exist in the design project under
 `design_handoff_custode_restyle/icons/`. Regenerating from the SVG is fine —
-render at 4× and downsample, no additional padding, no rounding.
+render at 4× and downsample, no additional padding, no rounding. The extension
+icons are the one exception, below.
+
+### Extension icon geometry
+
+The `ext-*` icons are RGBA: the full-bleed mark clipped to a rounded tile
+(corner radius 22 % of the tile side) on a transparent canvas, so the browser
+toolbar and the Chrome Web Store never show an opaque square.
+
+| File | Tile | Transparent padding | Corner radius |
+| --- | --- | --- | --- |
+| `ext-128.png` | 96 × 96, centred | 16 px per side | 21 px |
+| `ext-48.png` | 48 × 48 | none | 10.5 px |
+| `ext-32.png` | 32 × 32 | none | 7 px |
+| `ext-16.png` | 16 × 16 | none | 3.5 px |
+
+The 128 px geometry is the Chrome Web Store rule for square icons (96 px
+artwork plus 16 px transparent padding per side). The toolbar sizes keep the
+tile at full canvas so the mark does not shrink further. The state PNGs dim the
+same tile to 45 %, so their corners are transparent too. `web/favicon.png`
+keeps the earlier opaque 48 px render. Store listing graphics live in
+`docs/store_assets/chrome_web_store/`.
 
 ### `pubspec.yaml` diff
 

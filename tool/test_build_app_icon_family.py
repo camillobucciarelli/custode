@@ -390,6 +390,26 @@ class GeneratedTreeTest(unittest.TestCase):
                 with self.assertRaisesRegex(icons.ValidationError, component):
                     icons.validate_size_16_probes(erased_one)
 
+    def test_extension_icons_are_rounded_tiles_with_store_padding(self) -> None:
+        for size in (16, 32, 48, 128):
+            with Image.open(self.run_a / f"ext-{size}.png") as icon:
+                self.assertEqual(icon.mode, "RGBA")
+                alpha = icon.getchannel("A")
+            self.assertEqual(alpha.getpixel((0, 0)), 0, size)
+            self.assertEqual(alpha.getpixel((size // 2, size // 2)), 255, size)
+        # Chrome Web Store: 96 px artwork with 16 px transparent padding per side.
+        self.assertEqual(alpha.getbbox(), (16, 16, 112, 112))
+
+        mutated = self.parent / "ext-opaque"
+        shutil.copytree(self.run_a, mutated)
+        with Image.open(mutated / "ext-128.png") as source:
+            opaque = source.copy()
+        opaque.putalpha(255)
+        icons.save_png(opaque, mutated / "ext-128.png")
+        rewrite_manifest(mutated)
+        with self.assertRaisesRegex(icons.ValidationError, "tile alpha"):
+            icons.validate_output(mutated)
+
     def test_review_sheet_exposes_monochrome_alpha_on_checkerboard(self) -> None:
         with Image.open(self.run_a / "review/app-icon-family-review.png") as sheet:
             crop = sheet.crop((40, 590, 216, 766))
