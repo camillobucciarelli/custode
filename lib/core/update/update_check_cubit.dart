@@ -29,12 +29,22 @@ bool isNewerVersion(String remote, String local) {
   return false;
 }
 
+enum UpdateCheckOutcome { upToDate, available, failed }
+
 class UpdateCheckState {
   const UpdateCheckState({
     required this.enabled,
     this.availableVersion,
     this.announce = false,
+    this.checking = false,
+    this.outcome,
   });
+
+  /// A manual check ([UpdateCheckCubit.checkNow]) is in flight.
+  final bool checking;
+
+  /// Result of the last manual check; null until one finishes.
+  final UpdateCheckOutcome? outcome;
 
   final bool enabled;
 
@@ -83,6 +93,36 @@ class UpdateCheckCubit extends Cubit<UpdateCheckState> {
     await _gateway.setEnabled(value);
     emit(UpdateCheckState(enabled: value));
     if (value) await _check(force: true);
+  }
+
+  /// Explicit user-initiated check. Works while the opt-in is off (the tap is
+  /// the consent) and never touches the persisted `enabled` flag.
+  Future<UpdateCheckOutcome> checkNow() async {
+    if (!supported) return UpdateCheckOutcome.failed;
+    emit(UpdateCheckState(enabled: _gateway.enabled, checking: true));
+    final version = await _gateway.fetchLatestVersion();
+    final newer =
+        version != null && isNewerVersion(version, kApplicationVersion);
+    final outcome = version == null
+        ? UpdateCheckOutcome.failed
+        : newer
+        ? UpdateCheckOutcome.available
+        : UpdateCheckOutcome.upToDate;
+    if (isClosed) return outcome;
+    // Re-read: the user may have toggled the opt-in while the request ran.
+    final enabled = _gateway.enabled;
+    if (version != null && enabled) {
+      await _gateway.setLastCheckMs(_now().millisecondsSinceEpoch);
+      await _gateway.setLatestVersion(version);
+    }
+    emit(
+      UpdateCheckState(
+        enabled: enabled,
+        availableVersion: newer ? version : null,
+        outcome: outcome,
+      ),
+    );
+    return outcome;
   }
 
   Future<void> _check({required bool force}) async {

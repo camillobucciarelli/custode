@@ -785,12 +785,36 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination>
                   glyph: AppGlyph.linkSimple,
                   iconBackground: colors.positiveTint,
                   iconColor: colors.positiveText,
-                  title: 'Check for updates',
+                  title: 'Check automatically',
                   subtitle:
                       'Contacts custode.camillobucciarelli.dev once a day',
                   value: updateState.enabled,
                   onChanged: (value) => unawaited(
                     context.read<UpdateCheckCubit>().setEnabled(value),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Live: the screen reader hears what the check found.
+                Semantics(
+                  liveRegion: true,
+                  child: _SettingsRow(
+                    glyph: AppGlyph.linkSimple,
+                    title: 'Check for updates',
+                    subtitle: updateState.checking
+                        ? 'Checking...'
+                        : switch (updateState.outcome) {
+                            UpdateCheckOutcome.upToDate => 'Up to date',
+                            UpdateCheckOutcome.available =>
+                              'Version ${updateState.availableVersion} available',
+                            UpdateCheckOutcome.failed =>
+                              'Could not check for updates',
+                            null => 'Check now',
+                          },
+                    onTap: updateState.checking
+                        ? null
+                        : () => unawaited(
+                            context.read<UpdateCheckCubit>().checkNow(),
+                          ),
                   ),
                 ),
                 if (updateState.availableVersion != null) ...[

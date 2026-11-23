@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/update/update_check_cubit.dart';
 import 'package:password_manager/core/update/update_check_gateway.dart';
@@ -96,6 +98,62 @@ void main() {
     expect(gateway.lastCheckMs, isNotNull);
   });
 
+  group('checkNow', () {
+    test('up to date, even with the opt-in off, keeps enabled false', () async {
+      final cubit = build(respond: () => kApplicationVersion);
+      expect(await cubit.checkNow(), UpdateCheckOutcome.upToDate);
+      expect(cubit.state.outcome, UpdateCheckOutcome.upToDate);
+      expect(cubit.state.checking, isFalse);
+      expect(cubit.state.enabled, isFalse);
+      expect(gateway.enabled, isFalse);
+      expect(gateway.calls, 1);
+    });
+
+    test('newer version is reported without flipping enabled', () async {
+      final cubit = build(respond: () => '9.0.0');
+      expect(await cubit.checkNow(), UpdateCheckOutcome.available);
+      expect(cubit.state.availableVersion, '9.0.0');
+      expect(cubit.state.announce, isFalse);
+      expect(cubit.state.enabled, isFalse);
+      expect(gateway.enabled, isFalse);
+    });
+
+    test('failure is reported', () async {
+      final cubit = build(respond: () => null);
+      expect(await cubit.checkNow(), UpdateCheckOutcome.failed);
+      expect(cubit.state.outcome, UpdateCheckOutcome.failed);
+    });
+
+    test('opt-in toggled while pending is not overwritten', () async {
+      final gate = Completer<void>();
+      final cubit = build(enabled: true, respond: () => '9.0.0');
+      gateway.gate = gate;
+      final pending = cubit.checkNow();
+      await cubit.setEnabled(false);
+      gate.complete();
+      await pending;
+      expect(cubit.state.enabled, isFalse);
+      expect(gateway.lastCheckMs, isNull);
+
+      final gate2 = Completer<void>();
+      gateway.gate = gate2;
+      final pending2 = cubit.checkNow();
+      final toggled = cubit.setEnabled(true);
+      gate2.complete();
+      await Future.wait([pending2, toggled]);
+      expect(cubit.state.enabled, isTrue);
+    });
+
+    test('emits a checking state while pending', () async {
+      final cubit = build(respond: () => '9.0.0');
+      final states = <bool>[];
+      cubit.stream.listen((s) => states.add(s.checking));
+      await cubit.checkNow();
+      await Future<void>.delayed(Duration.zero);
+      expect(states, [true, false]);
+    });
+  });
+
   test('a known newer version is restored from the gateway', () {
     final cubit = build(enabled: true, latest: '9.0.0');
     expect(cubit.state.availableVersion, '9.0.0');
@@ -108,6 +166,7 @@ class _FakeGateway implements UpdateCheckGateway {
 
   final String? Function()? respond;
   int calls = 0;
+  Completer<void>? gate;
 
   @override
   bool enabled;
@@ -131,6 +190,7 @@ class _FakeGateway implements UpdateCheckGateway {
   @override
   Future<String?> fetchLatestVersion() async {
     calls++;
+    await gate?.future;
     return respond?.call();
   }
 }
