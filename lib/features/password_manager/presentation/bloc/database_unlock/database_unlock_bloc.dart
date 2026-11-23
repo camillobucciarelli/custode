@@ -243,6 +243,18 @@ class DatabaseUnlockBloc
         state.copyWith(failure: failure, errorMessage: failureMessage(failure)),
       );
       return;
+    } catch (e, st) {
+      // Storage/profile errors must not escape the handler: the user would
+      // see the key file silently not being applied.
+      logError('Updating the key file path failed.', e, st);
+      _safeEmit(
+        emit,
+        state.copyWith(
+          clearError: true,
+          errorMessage: 'Unable to use the selected key file.',
+        ),
+      );
+      return;
     }
     _safeEmit(
       emit,

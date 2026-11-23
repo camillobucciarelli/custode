@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:password_manager/core/theme/app_theme.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_security_profile.dart';
 import 'package:password_manager/features/password_manager/domain/errors/database_access_failure.dart';
@@ -26,6 +27,7 @@ import 'package:password_manager/features/password_manager/presentation/coordina
 import 'package:password_manager/features/password_manager/presentation/coordinators/pending_passkey_adoption_coordinator.dart';
 import 'package:password_manager/features/password_manager/presentation/coordinators/session_secret_holder.dart';
 import 'package:password_manager/features/password_manager/data/services/vault_kdbx_service.dart';
+import 'package:password_manager/features/password_manager/presentation/screens/database_unlock_screen.dart';
 import 'package:password_manager/injection_container.dart' as di;
 
 import '../bloc/vault/vault_bloc_harness.dart'
@@ -346,6 +348,161 @@ void main() {
       // gone; the no-key-file state now shows the "Use a key file" link.
       expect(find.text('Use a key file'), findsOneWidget);
     });
+  });
+
+  group('Ready-phase error message', () {
+    testWidgets('a generic (untyped) unlock error is shown inline', (
+      tester,
+    ) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      result.harness.unlockUseCase.error = StateError('boom');
+
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'x');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unlock vault'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('Unable to unlock database with provided credentials.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('Drive-linked unlock with key file after biometric prompt', () {
+    for (final choice in ['Not now', 'Enable']) {
+      testWidgets('choice=$choice: key file reaches the unlock use case', (
+        tester,
+      ) async {
+        const drivePath = '/tmp/drive.kdbx';
+        const keyPath = '/tmp/drive.key';
+        final result = await pumpableUnlockScreen(
+          databasePath: drivePath,
+          records: [
+            DatabaseRecord(
+              databaseId: 'db-1',
+              canonicalPath: drivePath,
+              displayName: 'drive.kdbx',
+              sourceType: DatabaseSourceType.drive,
+              sourceRef: 'remote-1',
+              createdAt: DateTime(2026, 1, 1),
+              updatedAt: DateTime(2026, 1, 1),
+            ),
+          ],
+          biometricAvailable: true,
+        );
+        result.harness.fileRepository.existingPaths.add(keyPath);
+        // File header: hang keeps the bloc in `decrypting` so the success
+        // navigation (VaultScreen, needs the full vault DI) never runs.
+        result.harness.unlockUseCase.hang = true;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const DatabaseUnlockScreen(
+              databasePath: drivePath,
+              promptBiometricSetup: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(choice));
+        await tester.pumpAndSettle();
+
+        final bloc = tester
+            .element(find.byType(Scaffold).first)
+            .read<DatabaseUnlockBloc>();
+        await tester.enterText(find.byType(TextFormField), 'pw');
+        await tester.pumpAndSettle();
+        bloc.add(const UpdateKeyFilePath(keyPath));
+        await tester.pumpAndSettle();
+        expect(bloc.state.keyFilePath, keyPath);
+
+        await tester.tap(find.text('Unlock with key file'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(result.harness.unlockUseCase.callCount, 1);
+        expect(result.harness.unlockUseCase.lastKeyFilePath, keyPath);
+        expect(bloc.state.phase, UnlockPhase.decrypting);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
+
+  group('Enable biometrics then manual unlock (Android report)', () {
+    // Hypothesis: after "Enable" no credential is stored, so the manual
+    // submit is refused with "Use biometric authentication before ...".
+    // The gate ends either verified (auth ok, nothing stored) or, when the
+    // prompt fails/is cancelled, via "Use master password instead".
+    for (final authOk in [true, false]) {
+      testWidgets('biometric auth ok=$authOk: submit reaches the use case', (
+        tester,
+      ) async {
+        const drivePath = '/tmp/drive2.kdbx';
+        const keyPath = '/tmp/drive2.key';
+        final result = await pumpableUnlockScreen(
+          databasePath: drivePath,
+          records: [
+            DatabaseRecord(
+              databaseId: 'db-1',
+              canonicalPath: drivePath,
+              displayName: 'drive2.kdbx',
+              sourceType: DatabaseSourceType.drive,
+              sourceRef: 'remote-1',
+              createdAt: DateTime(2026, 1, 1),
+              updatedAt: DateTime(2026, 1, 1),
+            ),
+          ],
+          biometricAvailable: true,
+          biometricAuthenticateResult: authOk,
+        );
+        result.harness.fileRepository.existingPaths.add(keyPath);
+        result.harness.unlockUseCase.hang = true;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const DatabaseUnlockScreen(
+              databasePath: drivePath,
+              promptBiometricSetup: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Enable'));
+        await tester.pumpAndSettle();
+        if (!authOk) {
+          await tester.tap(find.text('Use master password instead'));
+          await tester.pumpAndSettle();
+        }
+
+        final bloc = tester
+            .element(find.byType(Scaffold).first)
+            .read<DatabaseUnlockBloc>();
+        await tester.enterText(find.byType(TextFormField), 'pw');
+        await tester.pumpAndSettle();
+        bloc.add(const UpdateKeyFilePath(keyPath));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Unlock with key file'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(
+          bloc.state.errorMessage,
+          isNot(contains('Use biometric authentication')),
+        );
+        expect(result.harness.unlockUseCase.callCount, 1);
+        expect(result.harness.unlockUseCase.lastKeyFilePath, keyPath);
+      });
+    }
   });
 
   group('C-3 typed failure placement', () {

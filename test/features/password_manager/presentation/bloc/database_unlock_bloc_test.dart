@@ -93,6 +93,28 @@ void main() {
       },
     );
 
+    test('unlocks with a selected key file and passes its path on', () async {
+      fileRepository.existingPaths.add('/tmp/vault.key');
+      final states = <DatabaseUnlockState>[];
+      final sub = bloc.stream.listen(states.add);
+
+      bloc.add(const InitializeDatabaseUnlock());
+      await _untilLast(states, (s) => s.phase == UnlockPhase.ready);
+      bloc.add(const UpdateKeyFilePath('/tmp/vault.key'));
+      await _untilLast(states, (s) => s.keyFilePath == '/tmp/vault.key');
+      bloc.add(
+        const UnlockWithManualCredentials(
+          password: 'secret',
+          keyFilePath: '/tmp/vault.key',
+        ),
+      );
+      await _untilLast(states, (s) => s.unlocked);
+
+      expect(unlockUseCase.lastKeyFilePath, '/tmp/vault.key');
+
+      await sub.cancel();
+    });
+
     test('retrying failed biometric authentication does not unlock and leaves '
         'the vault untouched', () async {
       biometric.available = true;
@@ -111,6 +133,26 @@ void main() {
 
       expect(states.last.biometricVerified, isFalse);
       expect(unlockUseCase.callCount, 0);
+
+      await sub.cancel();
+    });
+
+    test('a non-typed failure while selecting a key file surfaces an error '
+        'instead of escaping the handler', () async {
+      fileRepository.existingPaths.add('/tmp/vault.key');
+      fileRepository.ensureManagedKeyFileError = StateError('import failed');
+
+      final states = <DatabaseUnlockState>[];
+      final sub = bloc.stream.listen(states.add);
+
+      bloc.add(const InitializeDatabaseUnlock());
+      await _untilLast(states, (s) => s.phase == UnlockPhase.ready);
+      bloc.add(const UpdateKeyFilePath('/tmp/vault.key'));
+      await _untilLast(states, (s) => s.errorMessage != null);
+
+      expect(states.last.phase, UnlockPhase.ready);
+      expect(states.last.errorMessage, 'Unable to use the selected key file.');
+      expect(states.last.keyFilePath, isNull);
 
       await sub.cancel();
     });

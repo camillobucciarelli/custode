@@ -30,7 +30,6 @@ import '../coordinators/database_session_coordinator.dart';
 import '../coordinators/pending_passkey_adoption_coordinator.dart';
 import '../../data/datasources/biometric_data_source.dart';
 import '../widgets/managed_key_picker_gate.dart';
-import '../../domain/errors/database_access_failure.dart';
 import '../widgets/database/biometric_prompt_sheet.dart';
 import '../widgets/internal_key_file_manager_sheet.dart';
 import '../utils/platform_utils.dart';

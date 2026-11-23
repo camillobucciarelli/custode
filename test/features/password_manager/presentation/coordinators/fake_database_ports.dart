@@ -176,8 +176,14 @@ class FakeDatabaseFileRepository implements DatabaseFileRepository {
   }) async => selectedPath ?? '/tmp/$fileName';
 
   @override
-  Future<String?> ensureManagedKeyFilePath(String? keyFilePath) async =>
-      keyFilePath;
+  Future<String?> ensureManagedKeyFilePath(String? keyFilePath) async {
+    final error = ensureManagedKeyFileError;
+    if (error != null) throw error;
+    return keyFilePath;
+  }
+
+  /// When set, `ensureManagedKeyFilePath` throws it (managed import failure).
+  Object? ensureManagedKeyFileError;
 
   @override
   Future<void> deleteFile(String path) async {

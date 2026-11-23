@@ -239,10 +239,10 @@ class _UnlockReadyForm extends StatelessWidget {
     final hasKeyFile =
         state.keyFilePath != null && state.keyFilePath!.trim().isNotEmpty;
 
-    final credentialError =
-        state.failure != null &&
-            (state.failure is InvalidCredentialsFailure ||
-                state.failure is KeyFileMissingFailure)
+    // Any error the bloc leaves in the ready phase (typed credential/key file
+    // failures and generic ones alike) must be visible; the field's errorText
+    // is announced by InputDecorator as a live region.
+    final credentialError = (state.errorMessage?.isNotEmpty ?? false)
         ? state.errorMessage
         : null;
 
