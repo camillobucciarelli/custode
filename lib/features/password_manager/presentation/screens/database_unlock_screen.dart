@@ -225,18 +225,30 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
           // The notice sits outside the phase switch: with biometrics enabled the
           // manual form is never shown, and that is precisely the case where the
           // user is most likely to walk away without knowing what they lose.
-          return Column(
-            children: [
-              if (_hasPendingCapture &&
-                  state.phase != UnlockPhase.unlocked &&
-                  state.phase != UnlockPhase.decrypting)
-                const _PendingCaptureNotice(),
-              if (_waitingPasskeys > 0 &&
-                  state.phase != UnlockPhase.unlocked &&
-                  state.phase != UnlockPhase.decrypting)
-                _WaitingPasskeysNotice(count: _waitingPasskeys),
-              Expanded(child: _phaseView(context, state)),
-            ],
+          // Issue #276: system back is the on-screen back, confirmation
+          // included. Not while the vault is opening: that ends in its own
+          // navigation.
+          final busy =
+              state.phase == UnlockPhase.decrypting ||
+              state.phase == UnlockPhase.unlocked;
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop && !busy) unawaited(_goToDatabaseSelection());
+            },
+            child: Column(
+              children: [
+                if (_hasPendingCapture &&
+                    state.phase != UnlockPhase.unlocked &&
+                    state.phase != UnlockPhase.decrypting)
+                  const _PendingCaptureNotice(),
+                if (_waitingPasskeys > 0 &&
+                    state.phase != UnlockPhase.unlocked &&
+                    state.phase != UnlockPhase.decrypting)
+                  _WaitingPasskeysNotice(count: _waitingPasskeys),
+                Expanded(child: _phaseView(context, state)),
+              ],
+            ),
           );
         },
       ),

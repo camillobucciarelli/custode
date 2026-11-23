@@ -363,13 +363,11 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
 
         return PopScope(
           canPop: false,
+          // Issue #276: system back is the on-screen back, one step at a
+          // time; from the first step `_back` cancels and the listener
+          // above performs the single pop.
           onPopInvokedWithResult: (didPop, _) {
-            if (didPop || submitting) return;
-            // Dispatch only: the listener above performs the single pop
-            // when the state leaves the create flow.
-            context.read<DatabaseSelectionBloc>().add(
-              const CancelCreateDatabaseFlow(),
-            );
+            if (!didPop) _back(step, submitting: submitting);
           },
           child: Scaffold(
             backgroundColor: colors.ground,

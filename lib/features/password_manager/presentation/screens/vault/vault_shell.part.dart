@@ -734,8 +734,68 @@ class _VaultViewState extends State<_VaultView> with WidgetsBindingObserver {
     return 'Unknown service';
   }
 
+  /// Issue #276 / GLOSSARY "Back step": what one system back undoes here, or
+  /// null when nothing is left and back leaves the app (the vault stays
+  /// unlocked until auto-lock). Read from state, so `canPop` is right before
+  /// an Android predictive back gesture starts.
+  ///
+  /// Search and folder steps only apply on the Vault destination: the other
+  /// destinations replace the records list, so a back there that cleared a
+  /// hidden search would change nothing the user can see.
+  VoidCallback? _backStep(BuildContext context, VaultState state) {
+    // The lock overlay hides the vault; nothing behind it may change.
+    if (_isLocked) return null;
+    if (_activePane != null) {
+      return () => unawaited(_router.requestCancelCurrentPane());
+    }
+    if (_selectedDestination != VaultDestination.vault) {
+      return () => unawaited(_selectDestination(VaultDestination.vault));
+    }
+    final bloc = context.read<VaultBloc>();
+    if (state.searchQuery.isNotEmpty) {
+      return () => bloc.add(const ClearVaultSearchQuery());
+    }
+    final current = state.currentGroupId;
+    // The folder column has no history to step back through.
+    if (_effectiveLayout(context).hasFolderPane ||
+        current == null ||
+        current == state.rootGroupId) {
+      return null;
+    }
+    final parentId =
+        state.groups
+            .where((group) => group.id == current)
+            .firstOrNull
+            ?.parentId ??
+        state.rootGroupId;
+    if (parentId == null) return null;
+    return () => bloc.add(SelectVaultFolder(parentId));
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Built once per shell build and handed in, so a search keystroke only
+    // rebuilds the PopScope, not the shell.
+    final shell = _buildShell(context);
+    return BlocBuilder<VaultBloc, VaultState>(
+      buildWhen: (previous, current) =>
+          previous.searchQuery != current.searchQuery ||
+          previous.currentGroupId != current.currentGroupId ||
+          previous.rootGroupId != current.rootGroupId ||
+          previous.groups != current.groups,
+      builder: (context, state) => PopScope(
+        canPop: _backStep(context, state) == null,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) {
+            _backStep(context, context.read<VaultBloc>().state)?.call();
+          }
+        },
+        child: shell,
+      ),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     final topInset = MediaQuery.paddingOf(context).top;
 
     return VaultShellSessionScope(

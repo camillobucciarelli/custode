@@ -182,6 +182,68 @@ void main() {
     });
   });
 
+  group('issue #276: system back is the on-screen back', () {
+    Future<void> pumpUnlock(WidgetTester tester) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: path,
+        records: records,
+        securityProfiles: profiles,
+      );
+      // The selection screen reads its bloc from above the Navigator.
+      await tester.pumpWidget(
+        BlocProvider<DatabaseSelectionBloc>.value(
+          value: DatabaseSelectionBloc(
+            databaseSessionCoordinator: result.harness.coordinator,
+          ),
+          child: result.widget,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    // The selection screen animates forever: no pumpAndSettle after it.
+    Future<void> settleIntoSelection(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+
+    testWidgets('with nothing typed it returns to the database list', (
+      tester,
+    ) async {
+      await pumpUnlock(tester);
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await settleIntoSelection(tester);
+
+      expect(find.byType(DatabaseSelectionScreen), findsOneWidget);
+    });
+
+    testWidgets('typed credentials ask first, and Stay here stays', (
+      tester,
+    ) async {
+      await pumpUnlock(tester);
+      await tester.enterText(
+        find.byType(TextFormField),
+        'kv-test-only-not-a-real-password',
+      );
+      await tester.pumpAndSettle();
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+      expect(find.text('Return to database list?'), findsOneWidget);
+      await tester.tap(find.text('Stay here'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DatabaseSelectionScreen), findsNothing);
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Return'));
+      await settleIntoSelection(tester);
+      expect(find.byType(DatabaseSelectionScreen), findsOneWidget);
+    });
+  });
+
   group('Submit', () {
     testWidgets('dispatches the entered password to the unlock use case', (
       tester,

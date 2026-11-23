@@ -481,14 +481,20 @@ class _EntryDialogState extends State<_EntryDialog> {
       );
     }
 
-    return Stack(
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(color: colors.ground),
-          child: content,
-        ),
-        if (_isSaving) const _SavingOverlay(),
-      ],
+    // Issue #276: a clean editor lets system back pop its route for real
+    // (predictive preview, iOS swipe); unsaved changes block the pop so the
+    // router's PopScope runs the discard guard instead.
+    return PopScope(
+      canPop: !_isDirty,
+      child: Stack(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(color: colors.ground),
+            child: content,
+          ),
+          if (_isSaving) const _SavingOverlay(),
+        ],
+      ),
     );
   }
 }
