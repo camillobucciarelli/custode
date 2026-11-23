@@ -50,7 +50,9 @@ Google Play; updates there are delivered by Google Play only. It exists only in
 builds installed outside Google Play.
 
 The update check is off by default, and the application makes no request for it
-until you turn on "Check for updates" in Settings. If you enable it:
+until you turn on "Check automatically" in Settings or tap "Check for updates"
+there. A manual tap makes a single request and does not turn the automatic check
+on. If you enable the automatic check:
 
 - The application sends one HTTPS GET request per day (and one when you turn the
   setting on) to `https://custode.camillobucciarelli.dev/latest.json`, a static
@@ -94,7 +96,7 @@ The application connects only to:
 - `www.googleapis.com` — Google Drive upload and download, only when you enable
   cloud sync
 - `custode.camillobucciarelli.dev` — the update check, only when you enable
-  "Check for updates"
+  "Check automatically" or tap "Check for updates"
 - `127.0.0.1` on a local port — detecting the desktop native messaging host for
   browser autofill. This connection never leaves your computer.
 
