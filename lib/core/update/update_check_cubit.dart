@@ -99,8 +99,7 @@ class UpdateCheckCubit extends Cubit<UpdateCheckState> {
   /// the consent) and never touches the persisted `enabled` flag.
   Future<UpdateCheckOutcome> checkNow() async {
     if (!supported) return UpdateCheckOutcome.failed;
-    final enabled = _gateway.enabled;
-    emit(UpdateCheckState(enabled: enabled, checking: true));
+    emit(UpdateCheckState(enabled: _gateway.enabled, checking: true));
     final version = await _gateway.fetchLatestVersion();
     final newer =
         version != null && isNewerVersion(version, kApplicationVersion);
@@ -110,6 +109,8 @@ class UpdateCheckCubit extends Cubit<UpdateCheckState> {
         ? UpdateCheckOutcome.available
         : UpdateCheckOutcome.upToDate;
     if (isClosed) return outcome;
+    // Re-read: the user may have toggled the opt-in while the request ran.
+    final enabled = _gateway.enabled;
     if (version != null && enabled) {
       await _gateway.setLastCheckMs(_now().millisecondsSinceEpoch);
       await _gateway.setLatestVersion(version);
