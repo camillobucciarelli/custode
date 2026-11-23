@@ -245,6 +245,46 @@ void main() {
         reason: 'one step: back to the record, not out of the vault',
       );
     });
+
+    testWidgets('a dirty editor pane under the lock overlay lets back leave', (
+      tester,
+    ) async {
+      await pumpAt(tester, tablet);
+      await openGmail(tester);
+      await tester.tap(inDetail(find.byTooltip('Edit')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        inDetail(find.byType(TextFormField)).first,
+        'Gmail work',
+      );
+      await tester.pumpAndSettle();
+
+      // Background the app long enough ago that resuming locks it.
+      final away = DateTime.now().subtract(const Duration(hours: 1));
+      debugLockOverlayNowOverride = () => away;
+      addTearDown(() => debugLockOverlayNowOverride = DateTime.now);
+      for (final state in const [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Use master password'),
+        findsOneWidget,
+        reason: 'locked',
+      );
+      expect(find.text('Gmail work'), findsOneWidget, reason: 'draft mounted');
+
+      await expectExits(tester);
+      expect(find.text('Discard changes?'), findsNothing);
+    });
   });
 
   group('phone routes', () {

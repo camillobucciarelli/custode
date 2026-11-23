@@ -483,9 +483,11 @@ class _EntryDialogState extends State<_EntryDialog> {
 
     // Issue #276: a clean editor lets system back pop its route for real
     // (predictive preview, iOS swipe); unsaved changes block the pop so the
-    // router's PopScope runs the discard guard instead.
+    // router's PopScope runs the discard guard instead. A pane is not a
+    // route: the shell's back step owns its guard, and under the lock
+    // overlay a veto here would swallow the back that should leave the app.
     return PopScope(
-      canPop: !_isDirty,
+      canPop: !_isDirty || _VaultPaneScope.of(context),
       child: Stack(
         children: [
           DecoratedBox(
