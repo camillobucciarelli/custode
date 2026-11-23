@@ -45,50 +45,10 @@ nothing else restates the version:
   `PATH` when it finds one, and then **fails the build** if the resolved
   `flutter --version` is not the pinned one.
 
-The pin is an exact version, not the `stable` channel, because a channel moves
-under the repo: when stable advanced from 3.44.8 to 3.47.1 a clean checkout of
-`main` went from 1318 passing tests to 42 golden failures (sub-1% antialiasing
-diffs) plus a `pub get --enforce-lockfile` failure, with no change to the code.
-A moving toolchain means the test gate is not reproducible from the repository —
-a fresh clone and CI can disagree with each other and with yesterday's green run.
-
-**To upgrade the toolchain** (a dedicated change, never a side effect of
-something else):
-
-1. Bump the version in `.fvmrc`. That is the only place it is written.
-2. `fvm install && fvm use <version>`, then `fvm flutter pub get`.
-3. Regenerate the golden files and review the diffs — confirm they are rendering
-   changes from the new engine, not real UI regressions.
-4. Run `fvm flutter analyze` and the full `fvm flutter test`, and record the
-   before/after counts in the PR.
-5. Update the version and revision quoted in this section.
-6. Install the new version on the self-hosted runners (below) *before* the next
-   release, or their jobs will fail the version check by design.
-
-#### Self-hosted release runners
-
-The `ios` and `macos` jobs in `release.yml` run on `runs-on: self-hosted` and have
-no `flutter-action` step, so nothing in the workflow installs a toolchain — they
-build with whatever Flutter the machine provides. These jobs produce the
-*published* artifacts, so a wrong version there ships a binary rather than merely
-reddening a test.
-
-The repo cannot install software on those machines, so instead it refuses to build
-with the wrong one: `tool/build_prod_packages.sh` (the single entry point for all
-five build jobs) resolves and verifies the version as described above. A
-mismatched runner now fails loudly with an actionable message instead of silently
-shipping.
-
-Whoever administers those runners must therefore keep the pinned version present,
-by either:
-
-- installing fvm and running `fvm install 3.47.1` once, so the SDK is at
-  `~/fvm/versions/3.47.1/` where the script looks; or
-- putting Flutter 3.47.1 itself on the runner's `PATH`.
-
-The `ios-app-store-publish` and `macos-app-store-publish` jobs are also
-self-hosted but do not need Flutter: they download an artifact built by an earlier
-job and upload it.
+Upgrading the toolchain is a dedicated change, never a side effect of something
+else. Follow the `flutter-toolchain-upgrade` skill
+(`.claude/skills/flutter-toolchain-upgrade/SKILL.md`), which also covers the
+self-hosted release runners.
 
 ## Coding Style & Naming Conventions
 
@@ -137,29 +97,11 @@ A `release/X.Y.x` branch exists for exactly one situation: a fix has to ship on 
 version line that is already published while `main` has moved past it. Do not
 create one preemptively — a line with nothing to fix does not need a branch.
 
-When that situation arrives:
-
-1. Branch `release/X.Y.x` from the released tag it continues (`vX.Y.Z+N`), never
-   from `main` — `main` carries a higher `version:`, and basing a maintenance
-   line on it would ship a version that moves backwards.
-2. Do the work on `hotfix/X.Y.Z` cut from that branch, and open the PR **into
-   `release/X.Y.x`**. A PR from this base into `main` reads as a revert of
-   everything merged since the tag.
-3. Bump the patch digit on that line in the same PR — `0.5.0` → `0.5.1`, never
-   the build counter after the `+` — and reset `+N` per the rule above, safe
-   here precisely because the new patch version has published nothing yet
-   (`version: 0.5.0+4` becomes `version: 0.5.1+1`). Mirror
-   `_kApplicationVersion` in the settings screen, as any version bump does.
-4. Dispatch `release.yml` **from `release/X.Y.x`** to ship it: the workflow bumps
-   and tags whichever branch it is dispatched on, so nothing else is needed.
-5. **Port the fix to `main`** in its own PR, by cherry-pick. This step is not
-   optional: a fix that lives only on a maintenance line is a bug the next
-   version reintroduces. Never merge `release/X.Y.x` into `main` — that drags the
-   older line's `pubspec.yaml` back with it. Expect the cherry-pick to conflict
-   where the two lines have diverged, and resolve in favour of the target
-   branch's own API.
-
-The branch stays after the release, so the next fix on that line has a base.
+When that situation arrives, follow the `maintenance-release` skill
+(`.claude/skills/maintenance-release/SKILL.md`). The rules that always hold:
+branch `release/X.Y.x` from the released tag, never from `main`; open the hotfix
+PR into `release/X.Y.x`, never into `main`; port the fix to `main` by cherry-pick
+in its own PR; never merge `release/X.Y.x` into `main`.
 
 ## Agent skills
 
@@ -197,7 +139,7 @@ After a spec change, run the script (`PROJECT_NUMBER=2 tool/sync_spec_project.sh
 
 - Before changing files for an isolated development task, create a dedicated branch from `origin/main`, unless the user names another base.
 - Use branch names `feat/<slug>`, `fix/<slug>`, `refactor/<slug>`, or `chore/<slug>`.
-- A fix for an already-published version line uses `hotfix/<X.Y.Z>` cut from `release/X.Y.x`, not from `origin/main`. See **Branch model** above for the whole sequence, including the mandatory port back to `main`.
+- A fix for an already-published version line uses `hotfix/<X.Y.Z>` cut from `release/X.Y.x`, not from `origin/main`. See the `maintenance-release` skill for the whole sequence, including the mandatory port back to `main`.
 - If the shared worktree contains unrelated changes, do not switch branches. Create a separate Git worktree for the task instead.
 - Do not reuse or modify another agent's branch or worktree.
 - Do not push, merge, rebase, delete branches, open pull requests, or commit unless the user explicitly requests it.
