@@ -59,7 +59,7 @@ One of the four top-level sections of the vault shell **Page**: Vault, Health, S
 _Avoid_: Tab, Page
 
 **Back step**:
-The single change one press of system back (Android back, iOS swipe-back) undoes, always returning to what the user saw just before. Inside a **Vault session** the precedence is: open **Surface**, search, **Folder**, **Destination**, then leaving the app; leaving the app from the Vault root does not end the Vault session.
+The single change one press of system back (Android back, iOS swipe-back) undoes, always returning to what the user saw just before. Inside a **Vault session** the precedence is: open **Surface**, return to the Vault **Destination**, search, **Folder**, then leaving the app; a locked Vault skips straight to leaving the app; leaving the app from the Vault root does not end the Vault session.
 _Avoid_: Back navigation, pop
 
 ## Relationships
