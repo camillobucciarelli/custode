@@ -616,32 +616,41 @@ final class VaultShellRouter {
     // only finds ancestors of the context it is called with. Building
     // `session.build` from a context ABOVE the scope (the previous shape)
     // means every callback captured from that build sees no scope at all.
+    final content = Builder(
+      builder: (scopedContext) {
+        if (!_sessions.containsKey(session.id)) {
+          return const SizedBox.shrink();
+        }
+        try {
+          return session.build(scopedContext);
+        } catch (_) {
+          cancel(session.id);
+          return const SizedBox.shrink();
+        }
+      },
+    );
     return VaultOperationScope(
       operationId: session.id,
       completeOperation: (result) => complete(session.id, result),
       cancelOperation: () => requestCancel(session.id),
       registerDiscardGuard: (guard) => registerDiscardGuard(session.id, guard),
-      child: PopScope(
-        canPop: session.allowHostRemoval,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) {
-            unawaited(requestCancel(session.id));
-          }
-        },
-        child: Builder(
-          builder: (scopedContext) {
-            if (!_sessions.containsKey(session.id)) {
-              return const SizedBox.shrink();
-            }
-            try {
-              return session.build(scopedContext);
-            } catch (_) {
-              cancel(session.id);
-              return const SizedBox.shrink();
-            }
-          },
-        ),
-      ),
+      // Issue #276: a pane lives inside the shell's own route, so system back
+      // for it is the shell's first Back step (`requestCancelCurrentPane`); a
+      // second PopScope here would run the discard guard twice. Hosted
+      // routes, sheets and dialogs pop for real, so the Android predictive
+      // preview and the iOS swipe animate, and their host's `finally` cancels
+      // the session. A surface with unsaved changes blocks the pop with its
+      // own `PopScope(canPop: false)`; this one then asks the guard.
+      child: session.presentation is VaultPanePresentation
+          ? content
+          : PopScope(
+              onPopInvokedWithResult: (didPop, _) {
+                if (!didPop) {
+                  unawaited(requestCancel(session.id));
+                }
+              },
+              child: content,
+            ),
     );
   }
 
@@ -805,12 +814,7 @@ final class VaultShellRouter {
       if (_disposed) {
         return;
       }
-      final current = sheetContext;
-      if (current != null &&
-          current.mounted &&
-          Navigator.of(current).canPop()) {
-        Navigator.of(current).pop();
-      }
+      _dismissModal(sheetContext);
     });
     await showModalBottomSheet<void>(
       context: context,
@@ -843,12 +847,7 @@ final class VaultShellRouter {
       if (_disposed) {
         return;
       }
-      final current = dialogContext;
-      if (current != null &&
-          current.mounted &&
-          Navigator.of(current).canPop()) {
-        Navigator.of(current).pop();
-      }
+      _dismissModal(dialogContext);
     });
     await showDialog<void>(
       context: context,
@@ -869,6 +868,22 @@ final class VaultShellRouter {
     );
   }
 
+  /// Pops the sheet or dialog [modalContext] belongs to, and nothing else.
+  ///
+  /// Issue #276: system back now pops these for real, and the host's
+  /// `finally` then finishes the session and lands here while the modal is
+  /// still animating out. A bare `Navigator.pop()` at that point popped the
+  /// route *under* it: the record detail behind a dismissed confirmation.
+  void _dismissModal(BuildContext? modalContext) {
+    if (modalContext == null || !modalContext.mounted) {
+      return;
+    }
+    final route = ModalRoute.of(modalContext);
+    if (route != null && route.isCurrent) {
+      Navigator.of(modalContext).pop();
+    }
+  }
+
   void _finish(VaultOperationId id, VaultRouteResult? result) {
     final session = _sessions.remove(id);
     if (session == null) {
@@ -886,7 +901,6 @@ final class VaultShellRouter {
     try {
       session.pendingResult = result;
       session.complete(result);
-      session.allowHostRemoval = true;
       session.dismissHost?.call();
     } finally {
       session.clear();
@@ -947,7 +961,6 @@ abstract class _VaultOperationSession {
   VoidCallback? dismissHost;
   Future<bool> Function()? discardGuard;
   VaultRouteResult? pendingResult;
-  bool allowHostRemoval = false;
 
   Future<VaultRouteResult?> get future;
   bool accepts(VaultRouteResult result);

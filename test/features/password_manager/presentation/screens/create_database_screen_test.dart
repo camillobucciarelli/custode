@@ -419,6 +419,38 @@ void main() {
     });
   });
 
+  group('issue #276: system back is the on-screen back', () {
+    testWidgets('from credentials it returns to step 1 with the draft', (
+      tester,
+    ) async {
+      await pumpWizard(tester);
+      await tester.enterText(find.byType(TextFormField), 'MyVault');
+      await tester.pumpAndSettle();
+      await goToCredentials(tester);
+      expect(find.text('Protect it'), findsOneWidget);
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CreateDatabaseScreen), findsOneWidget);
+      expect(find.text('Name and place'), findsOneWidget);
+      expect(find.text('MyVault'), findsOneWidget);
+    });
+
+    testWidgets('from step 1 it leaves the wizard', (tester) async {
+      await pumpWizard(tester);
+      final bloc = tester
+          .element(find.byType(CreateDatabaseScreen))
+          .read<DatabaseSelectionBloc>();
+      expect(bloc.state, isA<DatabaseSelectionCreateStep>());
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+
+      expect(bloc.state, isNot(isA<DatabaseSelectionCreateStep>()));
+    });
+  });
+
   group('FR-10/FR-11 failure keeps the wizard mounted', () {
     testWidgets('a refused submission renders in the wizard with the draft '
         'intact', (tester) async {
