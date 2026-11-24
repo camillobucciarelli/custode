@@ -335,6 +335,56 @@ void main() {
       expect(onDisk.body.rootGroup.getAllEntries(), isNotEmpty);
     });
 
+    test('merges against a remote last saved by KeePassXC', () async {
+      // Committed fixtures, both under the test-only `_password`:
+      // * keepassxc_merge_base.kdbx: written by this package's kdbx (KDBX 4,
+      //   AES-256, Argon2d 2 rounds / 1 MiB), entries "Local Edited" and
+      //   "Remote Edited" with mtimes pinned to 2020.
+      // * keepassxc_merge_remote.kdbx: that base after KeePassXC 2.8.0
+      //   `keepassxc-cli edit -u remote-user-by-keepassxc <db> "Remote Edited"`,
+      //   so its last writer is KeePassXC, not Custode.
+      const dir = 'test/fixtures/sync_merge';
+      const localEditedUuid = 'DDDDDDDDDDDDDDDDDDDDAQ==';
+      const remoteEditedUuid = 'DDDDDDDDDDDDDDDDDDDDAg==';
+      final credentials = Credentials(ProtectedValue.fromString(_password));
+      final local = await KdbxFormat().read(
+        await File('$dir/keepassxc_merge_base.kdbx').readAsBytes(),
+        credentials,
+      );
+      _entry(local, localEditedUuid)!
+        ..setString(
+          KdbxKeyCommon.USER_NAME,
+          PlainValue('local-user-by-custode'),
+        )
+        ..times.lastModificationTime.set(DateTime.utc(2025));
+      final harness = await _Harness.build(
+        temp,
+        fixture: _FixturePair(
+          keyFilePath: '${temp.path}/unused.keyx',
+          keyFileBytes: null,
+          credentials: credentials,
+          localBytes: Uint8List.fromList(await local.save()),
+          remoteBytes: await File('$dir/keepassxc_merge_remote.kdbx')
+              .readAsBytes(),
+          rootUuid: local.body.rootGroup.uuid,
+          deletionTime: DateTime.utc(2020),
+        ),
+      );
+
+      final summary = await harness.repository.startReview(harness.databaseId);
+      final outcome = await harness.repository.commit(summary.sessionId);
+      expect(outcome, isA<MergeApplied>());
+
+      final merged = await KdbxFormat().read(
+        await File(harness.databasePath).readAsBytes(),
+        await harness.buildCredentials(),
+      );
+      String? userName(String uuid) =>
+          _entry(merged, uuid)!.getString(KdbxKeyCommon.USER_NAME)?.getText();
+      expect(userName(localEditedUuid), 'local-user-by-custode');
+      expect(userName(remoteEditedUuid), 'remote-user-by-keepassxc');
+    });
+
     test('a local edit that lands after review opened refuses the commit '
         'before anything is written or uploaded', () async {
       final harness = await _Harness.build(temp);
