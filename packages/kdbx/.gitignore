@@ -1,0 +1,6 @@
+# Local `dart pub get` / `dart test` output of the vendored package.
+pubspec.lock
+example/pubspec.lock
+/test.kdbx
+/test_v4x.kdbx
+/test_output_*.kdbx

@@ -26,7 +26,10 @@ dependencies:
   google_fonts: ^9.0.0
   crypto: ^3.0.8
   http: ^1.6.0
-  kdbx: ^2.6.0
+  # Vendored kdbx 2.6.0 plus Twofish and Argon2id; see
+  # packages/kdbx/CUSTODE_CHANGES.md.
+  kdbx:
+    path: packages/kdbx
   local_auth: ^3.0.2
   loggy: ^2.0.3
   otp: ^3.2.1

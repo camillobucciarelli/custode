@@ -7,4 +7,7 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # Vendored upstream code with its own analysis_options and test setup;
+    # analyze it with `dart analyze` from packages/kdbx.
+    - packages/**
 include: package:flutter_lints/flutter.yaml
