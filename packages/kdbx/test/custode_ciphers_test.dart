@@ -261,7 +261,7 @@ void main() {
     expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
   });
 
-  group('save reuses the derived key', () {
+  group('save rotates the KDF salt', () {
     Credentials pw([String text = password]) =>
         Credentials(ProtectedValue.fromString(text));
     Uint8List field(Uint8List bytes, HeaderFields name) =>
@@ -271,7 +271,7 @@ void main() {
 
     for (final cipher in Cipher.values) {
       for (final kdf in kdfs) {
-        test('$cipher + ${kdf.type}: fresh seed and IV, same KDF salt, '
+        test('$cipher + ${kdf.type}: fresh KDF salt, seed and IV, '
             'opens with a fresh read', () async {
           final created = format.create(
             pw(),
@@ -286,7 +286,7 @@ void main() {
           entry.setString(KdbxKeyCommon.TITLE, PlainValue('second'));
           final second = await opened.save();
 
-          expect(kdfOf(second), kdfOf(first));
+          expect(kdfOf(second), isNot(kdfOf(first)));
           for (final name in [
             HeaderFields.MasterSeed,
             HeaderFields.EncryptionIV,
@@ -320,23 +320,43 @@ void main() {
       return (file, counting);
     }
 
-    test('a save after a read runs no KDF', () async {
+    test('each save runs the KDF once, and a read of the saved bytes with '
+        'the saved file as keySource runs none', () async {
       final (file, counting) = await openCounting();
       final entry = KdbxEntry.create(file, file.body.rootGroup);
       file.body.rootGroup.addEntry(entry);
       await file.save();
-      await file.save();
-      expect(counting.calls, 0);
+      final bytes = await file.save();
+      expect(counting.calls, 2);
+
+      await KdbxFormat(counting).read(bytes, pw(), keySource: file);
+      expect(counting.calls, 2);
     });
 
-    test('new credentials run the KDF and rotate the salt', () async {
+    test('a keySource still opens the revision before its last save, but '
+        'not once its credentials changed', () async {
       final (file, counting) = await openCounting();
       final before = await file.save();
+      await file.save();
+      counting.calls = 0;
+
+      await KdbxFormat(counting).read(before, pw(), keySource: file);
+      expect(counting.calls, 0);
+
+      file.credentials = pw('new password');
+      await expectLater(
+        KdbxFormat(counting).read(before, pw('new password'), keySource: file),
+        throwsA(isA<KdbxInvalidKeyException>()),
+      );
+      expect(counting.calls, 1);
+    });
+
+    test('new credentials run the KDF once and open only with them', () async {
+      final (file, counting) = await openCounting();
       file.credentials = pw('new password');
       final after = await file.save();
 
       expect(counting.calls, 1);
-      expect(kdfOf(after), isNot(kdfOf(before)));
       await KdbxFormat().read(after, pw('new password'));
       await expectLater(
         KdbxFormat().read(after, pw()),
@@ -344,25 +364,11 @@ void main() {
       );
     });
 
-    test('new KDF parameters run the KDF', () async {
-      final (file, counting) = await openCounting();
-      final parameters = file.header.readKdfParameters;
-      KdfField.iterations.write(parameters, 2);
-      file.header.writeKdfParameters(parameters);
-      final bytes = await file.save();
-
-      expect(counting.calls, 1);
-      final read = await KdbxFormat().read(bytes, pw());
-      expect(
-        (read.header.kdfConfig as KdbxArgon2KdfConfig).iterations,
-        2,
-      );
-    });
-
     test('read with a keySource opened with the same credentials runs no '
         'KDF and can be saved', () async {
       final (file, counting) = await openCounting();
       final bytes = await file.save();
+      counting.calls = 0;
       final reread = await KdbxFormat(
         counting,
       ).read(bytes, pw(), keySource: file);
@@ -372,7 +378,7 @@ void main() {
       reread.body.rootGroup.addEntry(entry);
       entry.setString(KdbxKeyCommon.TITLE, PlainValue('from reread'));
       final saved = await reread.save();
-      expect(counting.calls, 0);
+      expect(counting.calls, 1, reason: 'the save rotates the KDF salt');
       final fresh = await KdbxFormat().read(saved, pw());
       expect(
         fresh.body.rootGroup.entries.single
@@ -387,6 +393,7 @@ void main() {
       () async {
         final (file, counting) = await openCounting();
         final bytes = await file.save();
+        counting.calls = 0;
         await expectLater(
           KdbxFormat(counting).read(bytes, pw('wrong'), keySource: file),
           throwsA(isA<KdbxInvalidKeyException>()),

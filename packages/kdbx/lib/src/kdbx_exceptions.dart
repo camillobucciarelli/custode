@@ -6,8 +6,7 @@ class KdbxInvalidKeyException implements KdbxException {}
 
 /// Thrown when a [TransformedKeyCredentials] is used against a file whose KDF
 /// parameters have changed since the key was derived — i.e. the file was saved
-/// in the meantime with a rotated salt (new credentials or KDF here, or any
-/// save by KeePass or KeePassXC).
+/// in the meantime and [KdbxHeader.generateSalts] rotated the salt.
 ///
 /// This is not a wrong-credentials error: the user's master password is still
 /// correct, the cached derived key simply expired and has to be re-derived from

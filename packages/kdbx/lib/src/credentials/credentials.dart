@@ -58,9 +58,8 @@ class HashCredentials implements Credentials {
 /// at common KeePass settings needs.
 ///
 /// The key is only valid for the exact KDF parameters it was derived from.
-/// This package keeps the KDF salt on a save, but rotates it when the
-/// credentials or the KDF change; KeePass and KeePassXC rotate it on every
-/// save. A stored transformed key therefore goes stale on such a save, by this
+/// [KdbxHeader.generateSalts] rotates the KDF salt on every save, so a stored
+/// transformed key goes stale as soon as the file is written — by this
 /// application or by any other. [kdfFingerprint] captures the parameters it
 /// belongs to; opening a file whose fingerprint differs throws
 /// [KdbxTransformedKeyStaleException] rather than reporting a wrong password.

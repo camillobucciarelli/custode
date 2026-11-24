@@ -75,9 +75,10 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
 
   /// The last file opened or saved per path, kept for its derived key only:
   /// a cache miss passes it to [KdbxFormat.read] as `keySource`, which skips
-  /// the KDF when the file on disk has the same KDF salt (any save by this
-  /// app keeps it) and the credentials are the same. Its tree is never read,
-  /// so it may be an edit's checked-out, half-mutated file.
+  /// the KDF when the file on disk has a KDF salt it holds a key for (the
+  /// revision it last read or saved, or the one before that save) and the
+  /// credentials are the same. Its tree is never read, so it may be an
+  /// edit's checked-out, half-mutated file.
   final Map<String, KdbxFile> _keySources = {};
 
   /// Drops every decrypted vault. Called when the session ends (lock,
@@ -1766,7 +1767,8 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
   /// after the cache check, so no edit can check the same object out and
   /// mutate it while it is being read. A read during an edit (the file is
   /// checked out) decrypts the bytes on disk again, the last saved state,
-  /// with the edit's derived key, so it costs no KDF either.
+  /// with the edit file's key for that revision (kept across its save), so
+  /// it costs no KDF either.
   Future<T> _read<T>({
     required String databasePath,
     required String password,

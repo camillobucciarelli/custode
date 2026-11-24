@@ -180,8 +180,8 @@ class SyncMergeRepositoryImpl implements SyncMergeRepository {
     // FR-2: everything below happens BEFORE a session id exists, so a refusal
     // cannot leave a session, a backup, a local write or an upload behind.
     final localFile = await _open(localBytes, credentials);
-    // Both sides share one KDF salt when only Custode saved them since they
-    // diverged; the remote then reuses the local side's derived key.
+    // Every save rotates the KDF salt, so the remote reuses the local side's
+    // derived key only when it carries the same salt (the same revision).
     final remoteFile = await _open(
       remoteBytes,
       credentials,
