@@ -4,7 +4,7 @@ on:
   pull_request:
     # `main` plus the maintenance lines: a PR into release/X.Y.x ships to users
     # exactly like one into main, so it gets the same gate. Without the second
-    # pattern a hotfix PR runs no analyze, no tests and no random-order job --
+    # pattern a hotfix PR runs no analyze and no tests --
     # which is what happened to the 0.5.1 PR that produced the branch model in
     # AGENTS.md.
     branches: [ main, 'release/**' ]
@@ -12,8 +12,15 @@ on:
 permissions:
   contents: read
 
+# A new push to the same PR makes the running checks obsolete: cancel them
+# instead of letting two full runs race for runners.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -25,36 +32,22 @@ jobs:
           # both at once, and a second copy is how local and CI drift apart.
           channel: stable
           flutter-version-file: .fvmrc
+          # Caches the Flutter SDK; `pub-cache: true` caches pub dependencies
+          # too (it would also fall back to `cache`, but explicit is clearer).
+          cache: true
+          pub-cache: true
 
       - run: flutter pub get
       - run: flutter analyze
 
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: subosito/flutter-action@v2
-        with:
-          # Single source of truth for the pinned Flutter version: .fvmrc.
-          # Do not add `flutter-version:` alongside it — the action rejects
-          # both at once, and a second copy is how local and CI drift apart.
-          channel: stable
-          flutter-version-file: .fvmrc
-
-      - run: flutter pub get
-      # Golden tests excluded: reference PNGs generated on macOS (dev
-      # machine); font rasterization differs on Linux CI, producing
-      # false-positive pixel diffs unrelated to logic regressions.
-      # Goldens remain a local pre-push check per AGENTS.md.
-      - run: flutter test $(find test -name '*_test.dart' ! -path 'test/goldens/*')
-
-  # Deliberately separate from `test`: that job pins no seed and answers "does
-  # the suite pass?", this one answers the different question "does the suite
-  # pass in an order nobody chose?". Folding them together would make a red
-  # ambiguous between a logic regression and an ordering defect.
+  # One job, one question: "does the suite pass, in an order nobody chose?".
+  # It used to be two jobs (`test` with the default order, `test-random-order`
+  # with a fresh seed); they were merged to save a whole runner and Flutter
+  # setup per PR. The cost is that a red no longer says by itself whether it is
+  # a logic regression or an ordering defect. The seed printed below answers
+  # that: rerun locally with the same seed, then without it.
   #
-  # Why this exists: the suite was green for months while two order
+  # Why a random order at all: the suite was green for months while two order
   # dependencies sat in it, because the default order happened to hide both. A
   # `VaultScreen.dispose()` that resolved `OtpAuthDeepLinkCoordinator` from
   # GetIt only crashed when a `tearDown` reset the locator before the widget
@@ -64,22 +57,22 @@ jobs:
   # A fresh random seed on every run turns "invisible until someone reorders
   # the suite in six months" into "visible on the PR that introduces it".
   #
-  # SCOPE LIMIT, on purpose: this reuses the same `! -path 'test/goldens/*'`
-  # exclusion as the `test` job, because the reference PNGs are generated on
-  # macOS and Linux rasterizes fonts differently — running them here would go
-  # red for reasons that have nothing to do with ordering. So the golden
-  # ordering defect that motivated this job is NOT covered by it; goldens stay
-  # a local pre-push check (AGENTS.md), and running them under a random seed
-  # locally is what catches their ordering.
+  # Golden tests excluded: reference PNGs are generated on macOS (dev machine)
+  # and font rasterization differs on Linux CI, so they would go red for
+  # reasons that have nothing to do with logic or ordering. So the golden
+  # ordering defect that motivated the random order is NOT covered here;
+  # goldens stay a local pre-push check (AGENTS.md), and running them under a
+  # random seed locally is what catches their ordering.
   #
   # Blocking, like `test-windows`, and for the same reason argued there: a job
-  # nobody has to satisfy is a job that rots. The trade-off is real though — a
+  # nobody has to satisfy is a job that rots. The trade-off is real though: a
   # random seed means a latent ordering defect surfaces on whichever PR happens
   # to draw the unlucky order, not on the PR that introduced it. The failure is
   # still a genuine defect, and the seed is printed below so it reproduces
-  # exactly. If this proves too noisy in practice, moving it to a nightly
-  # `schedule:` run against `main` is a smaller change than weakening it.
-  test-random-order:
+  # exactly. If this proves too noisy in practice, moving the random order to a
+  # nightly `schedule:` run against `main` is a smaller change than weakening it.
+  test:
+    timeout-minutes: 12
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -91,6 +84,10 @@ jobs:
           # both at once, and a second copy is how local and CI drift apart.
           channel: stable
           flutter-version-file: .fvmrc
+          # Caches the Flutter SDK; `pub-cache: true` caches pub dependencies
+          # too (it would also fall back to `cache`, but explicit is clearer).
+          cache: true
+          pub-cache: true
 
       - run: flutter pub get
 
@@ -132,6 +129,7 @@ jobs:
   # Same runner label as the release job on purpose: a green PR here should mean
   # the release build's host agrees.
   test-windows:
+    timeout-minutes: 18
     runs-on: windows-2022
     # Blocking as of the change that emptied the quarantine. `continue-on-error`
     # was the right call while 8 files were excluded and one red was known: the
@@ -158,6 +156,10 @@ jobs:
           # both at once, and a second copy is how local and CI drift apart.
           channel: stable
           flutter-version-file: .fvmrc
+          # Caches the Flutter SDK; `pub-cache: true` caches pub dependencies
+          # too (it would also fall back to `cache`, but explicit is clearer).
+          cache: true
+          pub-cache: true
 
       - run: flutter pub get
 
@@ -247,7 +249,7 @@ jobs:
           # and this step runs under `-e`: the first failing batch aborts the
           # rest, so the enumeration order decides which files ran at all.
           # Sorted input makes that set reproducible and the log readable. It is
-          # not a correctness requirement -- `test-random-order` already proves
+          # not a correctness requirement -- the `test` job's random order already proves
           # the suite does not depend on execution order.
           batch_size=50
           for ((i = 0; i < ${#suites[@]}; i += batch_size)); do
@@ -324,6 +326,7 @@ jobs:
   # it means this platform cannot hold the safe writer's contract, which is a
   # finding, not flake.
   t111-platform-artifact:
+    timeout-minutes: 8
     strategy:
       fail-fast: false
       matrix:
@@ -343,6 +346,10 @@ jobs:
           # both at once, and a second copy is how local and CI drift apart.
           channel: stable
           flutter-version-file: .fvmrc
+          # Caches the Flutter SDK; `pub-cache: true` caches pub dependencies
+          # too (it would also fall back to `cache`, but explicit is clearer).
+          cache: true
+          pub-cache: true
 
       - run: flutter pub get
 
@@ -380,6 +387,7 @@ jobs:
           path: build/safety-evidence/
 
   extension-tests:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -445,6 +453,8 @@ jobs:
         shell: bash
         run: node tool/mutation_runner.mjs --dry-run
 
+  # No `timeout-minutes` here: a job that calls a reusable workflow does not
+  # accept it. The called workflow's own jobs keep the 360-minute default.
   dependency-audit:
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.7.1
     with:
@@ -456,6 +466,7 @@ jobs:
       security-events: write
 
   secret-scan:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
