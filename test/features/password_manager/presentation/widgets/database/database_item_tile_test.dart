@@ -8,6 +8,7 @@ import 'package:password_manager/core/theme/app_theme.dart';
 import 'package:password_manager/core/widgets/kv_tag.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
 import 'package:password_manager/features/password_manager/domain/models/database_selection_item.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/database/database_item_tile.dart';
 
 DatabaseSelectionItem _item({
@@ -18,6 +19,7 @@ DatabaseSelectionItem _item({
   String? remoteProviderId,
   DateTime? lastSyncAt,
   String? lastSyncError,
+  VaultEncryption? encryption,
 }) => DatabaseSelectionItem(
   databaseId: 'db-1',
   canonicalPath: '/vault/db.kdbx',
@@ -30,6 +32,7 @@ DatabaseSelectionItem _item({
   remoteProviderId: remoteProviderId,
   lastSyncAt: lastSyncAt,
   lastSyncError: lastSyncError,
+  encryption: encryption,
 );
 
 Widget _app(Widget child) => MaterialApp(
@@ -144,12 +147,39 @@ void main() {
     await pumpTile(tester, _item());
     expect(find.byType(KvTag), findsNothing);
 
+    expect(find.bySemanticsLabel('Biometrics enabled'), findsNothing);
+
     await pumpTile(tester, _item(biometrics: true, keyFile: true));
-    expect(find.widgetWithText(KvTag, 'Biometrics'), findsOneWidget);
+    // Biometrics is a fingerprint beside the name, no longer a tag.
+    expect(find.widgetWithText(KvTag, 'Biometrics'), findsNothing);
+    expect(find.bySemanticsLabel('Biometrics enabled'), findsOneWidget);
     expect(find.widgetWithText(KvTag, 'Key file'), findsOneWidget);
+    // Unknown encryption (null): no cipher tag.
+    expect(find.byType(KvTag), findsOneWidget);
     // The retired subtitles are gone: the group header says where it lives.
     expect(find.textContaining('On this device'), findsNothing);
     expect(find.textContaining('biometrics on'), findsNothing);
+  });
+
+  testWidgets('a known cipher is a tag, accent when the row is active', (
+    tester,
+  ) async {
+    const twofish = VaultEncryption(
+      cipher: VaultCipher.twofish,
+      kdf: VaultKdf.aesKdf,
+    );
+    await pumpTile(tester, _item(encryption: twofish));
+    final tag = tester.widget<KvTag>(find.widgetWithText(KvTag, 'Twofish'));
+    expect(tag.variant, KvTagVariant.nested);
+
+    await pumpTile(tester, _item(encryption: twofish, active: true));
+    expect(
+      tester.widget<KvTag>(find.widgetWithText(KvTag, 'Twofish')).variant,
+      KvTagVariant.accent,
+    );
+
+    await pumpTile(tester, _item(encryption: twofish, missing: true));
+    expect(find.byType(KvTag), findsNothing);
   });
 
   testWidgets('the menu is labelled with the database name and is 44 px', (
@@ -198,7 +228,7 @@ void main() {
       width: 320,
     );
     expect(tester.takeException(), isNull);
-    expect(find.text('Biometrics'), findsOneWidget);
+    expect(find.bySemanticsLabel('Biometrics enabled'), findsOneWidget);
     expect(find.text('Key file'), findsOneWidget);
   });
 }

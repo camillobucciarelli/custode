@@ -11,6 +11,7 @@ import 'features/password_manager/data/services/legacy_database_registry_migrati
 import 'features/password_manager/di/password_manager_data_di.dart';
 import 'features/password_manager/di/password_manager_domain_di.dart';
 import 'features/password_manager/di/password_manager_presentation_di.dart';
+import 'features/password_manager/presentation/coordinators/session_secret_holder.dart';
 
 final sl = GetIt.instance;
 
@@ -18,7 +19,10 @@ Future<void> init() async {
   final sharedPreferences = await SharedPreferences.getInstance();
 
   await registerCoreDependencies(sl, sharedPreferences: sharedPreferences);
-  registerPasswordManagerDataDependencies(sl);
+  registerPasswordManagerDataDependencies(
+    sl,
+    keepVaultsOpenWhile: () => sl<SessionSecretHolder>().hasSecret,
+  );
   registerPasswordManagerDomainDependencies(sl);
   registerPasswordManagerPresentationDependencies(sl);
 

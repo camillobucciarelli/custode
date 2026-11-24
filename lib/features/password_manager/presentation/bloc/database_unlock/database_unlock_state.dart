@@ -4,6 +4,7 @@ import 'package:password_manager/core/utils/redacted_value.dart';
 
 import '../../../domain/errors/database_access_failure.dart';
 import '../../../domain/models/storage_account_summary.dart';
+import '../../../domain/models/vault_encryption.dart';
 
 /// C-4 unlock phase. `isLoading` is gone — derive it from [phase] via the
 /// getters below.
@@ -85,6 +86,9 @@ class DatabaseUnlockState extends Equatable {
   /// The missing database was removed from the list; the screen leaves.
   final bool databaseRemoved;
 
+  /// Key derivation named by the decrypting view. Null when unknown.
+  final VaultKdf? kdf;
+
   const DatabaseUnlockState({
     required this.databasePath,
     this.displayName,
@@ -103,6 +107,7 @@ class DatabaseUnlockState extends Equatable {
     this.notice,
     this.biometricEnabled = false,
     this.databaseRemoved = false,
+    this.kdf,
   });
 
   factory DatabaseUnlockState.initial({required String databasePath}) {
@@ -137,6 +142,7 @@ class DatabaseUnlockState extends Equatable {
     String? notice,
     bool? biometricEnabled,
     bool? databaseRemoved,
+    VaultKdf? kdf,
     bool clearError = false,
     bool clearKeyFilePath = false,
     bool clearProgress = false,
@@ -163,6 +169,7 @@ class DatabaseUnlockState extends Equatable {
       notice: notice ?? (clearNotice ? null : this.notice),
       biometricEnabled: biometricEnabled ?? this.biometricEnabled,
       databaseRemoved: databaseRemoved ?? this.databaseRemoved,
+      kdf: kdf ?? this.kdf,
     );
   }
 
@@ -185,5 +192,6 @@ class DatabaseUnlockState extends Equatable {
     notice,
     biometricEnabled,
     databaseRemoved,
+    kdf,
   ];
 }

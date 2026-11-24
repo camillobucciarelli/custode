@@ -22,6 +22,7 @@ import 'package:password_manager/features/password_manager/domain/errors/databas
 import 'package:password_manager/features/password_manager/domain/models/database_sync_mapping.dart';
 import 'package:password_manager/features/password_manager/domain/models/remote_file_selection_data.dart';
 import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
 import 'package:password_manager/features/password_manager/presentation/bloc/database_unlock/database_unlock_bloc.dart';
 import 'package:password_manager/features/password_manager/presentation/bloc/database_unlock/database_unlock_event.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/database/database_selection_sheets.dart';
@@ -37,7 +38,8 @@ import '../features/password_manager/presentation/coordinators/fake_database_por
 import '../features/password_manager/presentation/screens/database_selection_unlock_test_utils.dart';
 import 'golden_asset_warmup.dart';
 
-/// Exact inventory (spec 025 "Golden inventory", 25 files). Order
+/// Exact inventory (spec 025 "Golden inventory", 25 files, plus the
+/// encryption sheet). Order
 /// matches the spec table; used both to drive generation and as the
 /// authoritative count/name check at the end of this file.
 const exactGoldenInventory = <String>[
@@ -50,6 +52,7 @@ const exactGoldenInventory = <String>[
   'db_add_sheet_390x844_light.png',
   'db_create_step1_390x844_light.png',
   'db_create_step2_390x844_light.png',
+  'db_create_encryption_sheet_390x844_light.png',
   'db_source_sheet_390x844_light.png',
   'db_drive_files_390x844_light.png',
   'db_drive_loading_390x844_light.png',
@@ -185,6 +188,13 @@ void main() {
       },
       existingPaths: {'/tmp/work.kdbx', '/tmp/personal.kdbx'},
     );
+    // Cipher tags; the missing Family file has no header to read.
+    result.harness.fileRepository.encryptionByPath
+      ..['/tmp/work.kdbx'] = VaultEncryption.defaults
+      ..['/tmp/personal.kdbx'] = const VaultEncryption(
+        cipher: VaultCipher.chaCha20,
+        kdf: VaultKdf.argon2id,
+      );
     return result.widget;
   }
 
@@ -259,6 +269,24 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('db_create_step2_390x844_light.png'),
+    );
+  });
+
+  testWidgets('db_create_encryption_sheet_390x844_light.png', (tester) async {
+    await setSize(tester, const Size(390, 844));
+    final result = await pumpableCreateDatabaseScreen();
+
+    await tester.pumpWidget(result.widget);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Encryption'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('db_create_encryption_sheet_390x844_light.png'),
     );
   });
 
@@ -670,6 +698,8 @@ void main() {
       },
     );
     result.harness.unlockUseCase.hang = true;
+    result.harness.fileRepository.encryptionByPath[path] =
+        VaultEncryption.defaults;
 
     await tester.pumpWidget(result.widget);
     await tester.pumpAndSettle();
@@ -798,10 +828,10 @@ void main() {
     );
   });
 
-  // --- Inventory integrity: exactly 25 named files, all present on disk ----
-  test('exact golden inventory has exactly 25 files, all generated', () {
-    expect(exactGoldenInventory.toSet().length, 25);
-    expect(exactGoldenInventory.length, 25);
+  // --- Inventory integrity: exactly 26 named files, all present on disk ----
+  test('exact golden inventory has exactly 26 files, all generated', () {
+    expect(exactGoldenInventory.toSet().length, 26);
+    expect(exactGoldenInventory.length, 26);
 
     final goldensDir = Directory(
       p.join(Directory.current.path, 'test', 'goldens'),

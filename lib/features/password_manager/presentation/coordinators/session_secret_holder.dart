@@ -16,6 +16,11 @@ class SessionSecretMissingError extends StateError {
 }
 
 class SessionSecretHolder {
+  /// [onClear] runs after every [clear], i.e. at every end of a session.
+  SessionSecretHolder({this._onClear});
+
+  final void Function()? _onClear;
+
   String? _secret;
 
   /// The key file that opened this session, set only when the unlock could
@@ -42,6 +47,7 @@ class SessionSecretHolder {
   void clear() {
     _secret = null;
     keyFileOverride = null;
+    _onClear?.call();
   }
 
   @override

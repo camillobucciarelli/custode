@@ -675,6 +675,28 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination>
                 onClear: () => _removeKeyFile(databasePath),
               ),
               const SizedBox(height: 8),
+              // Read-only: a database keeps the encryption it was created
+              // with. Hidden until the open vault reports it.
+              if (context.watch<VaultBloc>().state.encryption
+                  case final encryption?) ...[
+                _SettingsRow(
+                  glyph: AppGlyph.shieldCheck,
+                  title: 'Encryption',
+                  subtitle: encryption.summary,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => EncryptionDetailsScreen(
+                        encryption: encryption,
+                        databaseName: context
+                            .read<VaultBloc>()
+                            .state
+                            .databaseLabel,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               // Recycle bin and Manage duplicates left this screen
               // (2026-08-31, user-directed): both are already reachable
               // from their own destinations — two entry points for the

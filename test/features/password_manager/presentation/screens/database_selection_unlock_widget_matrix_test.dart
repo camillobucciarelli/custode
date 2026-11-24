@@ -26,6 +26,7 @@ import 'package:password_manager/features/password_manager/domain/entities/datab
 import 'package:password_manager/features/password_manager/domain/errors/database_access_failure.dart';
 import 'package:password_manager/features/password_manager/domain/models/remote_file_selection_data.dart';
 import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
 import 'package:password_manager/features/password_manager/presentation/bloc/database_unlock/database_unlock_bloc.dart';
 import 'package:password_manager/features/password_manager/presentation/bloc/database_unlock/database_unlock_event.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/database/database_selection_sheets.dart';
@@ -421,13 +422,41 @@ void main() {
         tester
             .widget<Text>(
               find.text(
-                'Deriving your encryption key with Argon2. This can take '
-                'a moment.',
+                'Deriving your encryption key. This can take a moment.',
               ),
             )
             .style!
             .color,
         CustodeColors.dark.textSecondary,
+      );
+    });
+
+    testWidgets('decrypting names the KDF read from the header', (
+      tester,
+    ) async {
+      final result = await pumpableUnlockScreen(
+        databasePath: '/tmp/personal.kdbx',
+        records: baseRecords,
+        securityProfiles: profiles,
+      );
+      result.harness.fileRepository.encryptionByPath['/tmp/personal.kdbx'] =
+          const VaultEncryption(
+            cipher: VaultCipher.aes256,
+            kdf: VaultKdf.aesKdf,
+          );
+      result.harness.unlockUseCase.hang = true;
+      await tester.pumpWidget(result.widget);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'x');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unlock'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        find.text(
+          'Deriving your encryption key with AES-KDF. This can take a moment.',
+        ),
+        findsOneWidget,
       );
     });
 

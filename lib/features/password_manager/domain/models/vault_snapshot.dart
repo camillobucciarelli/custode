@@ -1,3 +1,4 @@
+import 'vault_encryption.dart';
 import 'vault_entry.dart';
 import 'vault_group.dart';
 
@@ -8,6 +9,7 @@ class VaultSnapshot {
     required this.groups,
     required this.entries,
     required this.allEntries,
+    this.encryption,
   });
 
   final String rootGroupId;
@@ -15,4 +17,7 @@ class VaultSnapshot {
   final List<VaultGroup> groups;
   final List<VaultEntry> entries;
   final List<VaultEntry> allEntries;
+
+  /// Cipher, KDF and KDF cost of the open file's header.
+  final VaultEncryption? encryption;
 }

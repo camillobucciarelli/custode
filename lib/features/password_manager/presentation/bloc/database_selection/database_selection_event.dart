@@ -3,6 +3,7 @@ import 'package:password_manager/core/utils/redacted_value.dart';
 
 import '../../../domain/models/database_dedup_result.dart';
 import '../../../domain/models/recent_database_removal_mode.dart';
+import '../../../domain/models/vault_encryption.dart';
 
 export '../../../domain/models/recent_database_removal_mode.dart';
 
@@ -54,6 +55,9 @@ class CreateNewDatabase extends DatabaseSelectionEvent {
   /// Spec 025 FR-C5: also create the file on Google Drive. Non-secret.
   final bool createOnRemote;
 
+  /// Null means [VaultEncryption.defaults]. Non-secret.
+  final VaultEncryption? encryption;
+
   const CreateNewDatabase({
     required this.databaseFileName,
     required this.password,
@@ -62,6 +66,7 @@ class CreateNewDatabase extends DatabaseSelectionEvent {
     this.generateKeyFile = false,
     this.generatedKeyFilePath,
     this.createOnRemote = false,
+    this.encryption,
   });
 
   @override
@@ -79,6 +84,7 @@ class CreateNewDatabase extends DatabaseSelectionEvent {
       redaction: '<redacted generatedKeyFilePath>',
     ),
     createOnRemote,
+    ?encryption,
   ];
 }
 

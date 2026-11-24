@@ -97,6 +97,8 @@ import '../widgets/sync/remote_file_list.dart';
 import '../widgets/sync/remote_file_row.dart';
 import '../widgets/sync/sync_status_hero.dart';
 import 'autofill_enablement_screen.dart';
+import 'encryption_details_screen.dart';
+import '../utils/vault_encryption_format.dart';
 import '../../data/services/browser_setup_service.dart';
 import '../../domain/repositories/autofill_ports.dart';
 import '../../domain/repositories/qr_code_decoder.dart';

@@ -15,6 +15,8 @@ import '../../domain/models/database_sync_mapping.dart';
 import '../../domain/models/remote_file_selection_data.dart';
 import '../../domain/models/storage_account_summary.dart';
 import '../../domain/models/recent_database_removal_mode.dart';
+import '../../domain/models/unlocked_database.dart';
+import '../../domain/models/vault_encryption.dart';
 import '../../domain/repositories/database_file_repository.dart';
 import '../../domain/repositories/database_registry_repository.dart';
 import '../../domain/repositories/database_security_repository.dart';
@@ -123,6 +125,7 @@ class UnlockBootstrapResult {
     this.isRemoteLinked = false,
     this.remoteAccount,
     this.fileMissing = false,
+    this.kdf,
   });
 
   final String? keyFilePath;
@@ -140,6 +143,10 @@ class UnlockBootstrapResult {
   /// The registered file is no longer on disk; the unlock screen offers
   /// locate / re-download / remove instead of a credential form.
   final bool fileMissing;
+
+  /// From the outer header, so the decrypting view can name it. Null when
+  /// unknown.
+  final VaultKdf? kdf;
 
   /// spec 014 FR-3: on mobile the file on disk is an opaque identifier, so
   /// the registry holds the only human-readable name. `null` when the path
@@ -846,6 +853,7 @@ class DatabaseSessionCoordinator {
     required bool generateKeyFile,
     String? generatedKeyFilePath,
     bool createOnRemote = false,
+    VaultEncryption? encryption,
   }) async {
     // spec 015 FR-11: biometric activation requires storable credentials,
     // decided BEFORE the vault is created. Refusal is explicit, and an
@@ -875,6 +883,7 @@ class DatabaseSessionCoordinator {
         keyFilePath: keyFilePath,
         generateKeyFile: generateKeyFile,
         generatedKeyFilePath: generatedKeyFilePath,
+        encryption: encryption,
       ),
     );
 
@@ -1132,6 +1141,9 @@ class DatabaseSessionCoordinator {
     final mapping = record == null
         ? null
         : await _mappingOrNull(record.canonicalPath);
+    final fileMissing =
+        record != null &&
+        !await databaseFileRepository.fileExists(record.canonicalPath);
     return UnlockBootstrapResult(
       keyFilePath: keyFilePath,
       biometricRequired: biometricRequired,
@@ -1140,9 +1152,12 @@ class DatabaseSessionCoordinator {
       databaseId: record?.databaseId,
       isRemoteLinked: mapping != null,
       remoteAccount: mapping == null ? null : await connectedAccountOrNull(),
-      fileMissing:
-          record != null &&
-          !await databaseFileRepository.fileExists(record.canonicalPath),
+      fileMissing: fileMissing,
+      kdf: fileMissing
+          ? null
+          : (await databaseFileRepository.readEncryption(
+              record?.canonicalPath ?? databasePath,
+            ))?.kdf,
     );
   }
 
@@ -1378,8 +1393,9 @@ class DatabaseSessionCoordinator {
     final persistedKeyFilePath = await databaseFileRepository
         .ensureManagedKeyFilePath(keyFilePath);
     final record = await _activateForUnlock(databasePath);
+    final UnlockedDatabase unlocked;
     try {
-      await unlockDatabaseUseCase(
+      unlocked = await unlockDatabaseUseCase(
         databasePath: databasePath,
         password: password,
         keyFilePath: persistedKeyFilePath,
@@ -1392,6 +1408,8 @@ class DatabaseSessionCoordinator {
     sessionSecretHolder
       ..set(password)
       ..keyFileOverride = null;
+    // Only now, with a verified secret, may the decrypted vault be kept.
+    databaseFileRepository.adoptUnlockedDatabase(unlocked);
     // The database is open. Nothing below may turn that into a failed unlock.
     final notices = <String>[];
     try {
@@ -1445,8 +1463,9 @@ class DatabaseSessionCoordinator {
       throw const InvalidCredentialsFailure();
     }
     final effectivePassword = storedPassword ?? '';
+    final UnlockedDatabase unlocked;
     try {
-      await unlockDatabaseUseCase(
+      unlocked = await unlockDatabaseUseCase(
         databasePath: databasePath,
         password: effectivePassword,
         keyFilePath: keyFilePath,
@@ -1458,6 +1477,7 @@ class DatabaseSessionCoordinator {
     sessionSecretHolder
       ..set(effectivePassword)
       ..keyFileOverride = null;
+    databaseFileRepository.adoptUnlockedDatabase(unlocked);
   }
 
   Future<bool> hasStoredMasterPassword({required String databasePath}) async {
@@ -1619,8 +1639,8 @@ class DatabaseSessionCoordinator {
   }
 
   /// C-1: builds selection metadata by joining registry/security/sync
-  /// records with file existence once — never a directory listing, never a
-  /// decrypted read.
+  /// records with file existence and the outer KDBX header once — never a
+  /// directory listing, never a decrypted read.
   Future<List<DatabaseSelectionItem>> _loadSelectionItems() async {
     try {
       final records = await databaseRegistryRepository.list();
@@ -1633,6 +1653,10 @@ class DatabaseSessionCoordinator {
         final exists = await databaseFileRepository.fileExists(
           record.canonicalPath,
         );
+        // Outer header only (not secret); null on any failure.
+        final encryption = exists
+            ? await databaseFileRepository.readEncryption(record.canonicalPath)
+            : null;
         // FR-L2: any record with a mapping is remote, whatever its
         // `sourceType`; a failed lookup degrades to local.
         final mapping = await _mappingOrNull(record.canonicalPath);
@@ -1654,6 +1678,7 @@ class DatabaseSessionCoordinator {
             remoteProviderId: mapping?.providerId,
             lastSyncAt: mapping?.lastSyncAt,
             lastSyncError: mapping?.lastError,
+            encryption: encryption,
           ),
         );
       }

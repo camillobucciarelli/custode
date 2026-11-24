@@ -1,14 +1,18 @@
 import 'package:equatable/equatable.dart';
 
 import '../entities/database_record.dart';
+import 'vault_encryption.dart';
 
 /// C-1 selection metadata. Replaces `List<String> recentDatabasePaths` in
 /// coordinator results and `DatabaseSelectionState`.
 ///
 /// Deliberately excludes an item/entry count: reading it before unlock would
 /// require decrypting the vault or persisting new decrypted metadata (see
-/// spec-003 "Open product assumptions"). `canonicalPath` stays available for
-/// overflow actions and semantics but must not be rendered as a row subtitle.
+/// spec-003 "Open product assumptions"). The outer KDBX header is allowed:
+/// it is not secret and needs no credentials (KeePass shows it before
+/// unlock), so [encryption] comes from it. `canonicalPath` stays available
+/// for overflow actions and semantics but must not be rendered as a row
+/// subtitle.
 class DatabaseSelectionItem extends Equatable {
   const DatabaseSelectionItem({
     required this.databaseId,
@@ -24,6 +28,7 @@ class DatabaseSelectionItem extends Equatable {
     this.lastOpenedAt,
     this.lastSyncAt,
     this.lastSyncError,
+    this.encryption,
   });
 
   final String databaseId;
@@ -42,6 +47,10 @@ class DatabaseSelectionItem extends Equatable {
   final DateTime? lastOpenedAt;
   final DateTime? lastSyncAt;
   final String? lastSyncError;
+
+  /// Cipher and KDF from the outer header. Null when the file is missing,
+  /// unreadable, not a KDBX file, or on web.
+  final VaultEncryption? encryption;
 
   DatabaseSelectionItem copyWith({
     String? canonicalPath,
@@ -69,6 +78,7 @@ class DatabaseSelectionItem extends Equatable {
       lastOpenedAt: lastOpenedAt ?? this.lastOpenedAt,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       lastSyncError: lastSyncError ?? this.lastSyncError,
+      encryption: encryption,
     );
   }
 
@@ -87,5 +97,6 @@ class DatabaseSelectionItem extends Equatable {
     lastOpenedAt,
     lastSyncAt,
     lastSyncError,
+    encryption,
   ];
 }

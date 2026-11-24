@@ -23,6 +23,7 @@ import '../bloc/database_unlock/database_unlock_bloc.dart';
 import '../bloc/database_unlock/database_unlock_event.dart';
 import '../bloc/database_unlock/database_unlock_state.dart';
 import '../../domain/errors/database_access_failure.dart';
+import '../../domain/models/vault_encryption.dart';
 import '../coordinators/android_autofill_save_coordinator.dart';
 import '../coordinators/database_session_coordinator.dart';
 import '../coordinators/pending_passkey_adoption_coordinator.dart';
@@ -271,7 +272,7 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
             errorMessage: state.errorMessage,
           );
         case UnlockPhase.decrypting:
-          return _DecryptingView(basename: state.databaseLabel);
+          return _DecryptingView(basename: state.databaseLabel, kdf: state.kdf);
         case UnlockPhase.failure:
           if (state.failure is DatabaseFileMissingFailure) {
             return _UnlockMissingView(

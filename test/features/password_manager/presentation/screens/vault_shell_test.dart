@@ -163,6 +163,31 @@ void main() {
       },
     );
 
+    testWidgets('the Encryption row shows the open vault\'s settings and '
+        'opens the read-only page', (tester) async {
+      await pumpAtWidth(tester, 390);
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+
+      final row = find.text('Encryption');
+      await tester.ensureVisible(row);
+      expect(find.text('AES-256 \u00b7 Argon2id'), findsOneWidget);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('ALGORITHM'), findsOneWidget);
+      expect(
+        find.text('64 MiB memory \u00b7 10 iterations \u00b7 parallelism 4'),
+        findsOneWidget,
+      );
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+      expect(find.text('ALGORITHM'), findsNothing);
+      expect(find.text('Rename database'), findsOneWidget);
+    });
+
     testWidgets('"Backups & import" row still reaches the Backups screen', (
       tester,
     ) async {

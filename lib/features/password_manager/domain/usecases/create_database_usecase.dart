@@ -5,8 +5,10 @@ import 'package:kdbx/kdbx.dart';
 import 'package:path/path.dart' as p;
 
 import '../errors/database_access_failure.dart';
+import '../models/vault_encryption.dart';
 import '../repositories/database_file_repository.dart';
 import 'vault_credentials.dart';
+import 'vault_encryption_kdbx.dart';
 
 /// Non-secret request: [password] is held only transiently for the duration
 /// of this call (C-5) and is never copied into BLoC/coordinator state.
@@ -17,6 +19,7 @@ class CreateDatabaseRequest {
     this.keyFilePath,
     this.generateKeyFile = false,
     this.generatedKeyFilePath,
+    this.encryption,
   });
 
   final String databaseFileName;
@@ -24,6 +27,9 @@ class CreateDatabaseRequest {
   final String? keyFilePath;
   final bool generateKeyFile;
   final String? generatedKeyFilePath;
+
+  /// Null means [VaultEncryption.defaults].
+  final VaultEncryption? encryption;
 }
 
 class CreateDatabaseResult {
@@ -121,7 +127,11 @@ class CreateDatabaseUseCase {
       password: request.password,
       keyFileBytes: keyFileBytes,
     );
-    final kdbx = KdbxFormat().create(credentials, 'New Database');
+    final kdbx = KdbxFormat().create(
+      credentials,
+      'New Database',
+      header: kdbxHeaderFor(request.encryption ?? VaultEncryption.defaults),
+    );
     final savedBytes = await kdbx.save();
 
     final createdPath = await databaseFileRepository.createDatabase(
