@@ -23,11 +23,14 @@ const _olderSecret = 'fixture-older-password';
 
 /// Three revisions of the GitHub fixture: a password change, a
 /// notes-and-custom-field change, and one with a different attachment set.
+///
+/// The timestamps are local, not UTC: the screen prints them in local time, so
+/// a UTC fixture renders a different hour on every host time zone.
 VaultEntryHistory _githubHistory() => VaultEntryHistory(
   revisions: [
     VaultEntryRevision(
       entryId: 'e-github',
-      replacedAt: DateTime.utc(2026, 3, 2, 10, 30),
+      replacedAt: DateTime(2026, 3, 2, 10, 30),
       title: 'GitHub',
       username: 'camillo@bucciarelli.dev',
       password: _revealedSecret,
@@ -42,7 +45,7 @@ VaultEntryHistory _githubHistory() => VaultEntryHistory(
     ),
     VaultEntryRevision(
       entryId: 'e-github',
-      replacedAt: DateTime.utc(2026, 2, 14, 18, 5),
+      replacedAt: DateTime(2026, 2, 14, 18, 5),
       title: 'GitHub',
       username: 'camillo@bucciarelli.dev',
       password: _revealedSecret,
@@ -52,7 +55,7 @@ VaultEntryHistory _githubHistory() => VaultEntryHistory(
     ),
     VaultEntryRevision(
       entryId: 'e-github',
-      replacedAt: DateTime.utc(2026, 1, 4, 8, 0),
+      replacedAt: DateTime(2026, 1, 4, 8, 0),
       title: 'GitHub',
       username: 'camillo@bucciarelli.dev',
       password: _olderSecret,
