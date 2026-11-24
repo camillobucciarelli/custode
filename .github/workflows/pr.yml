@@ -48,6 +48,9 @@ jobs:
       # false-positive pixel diffs unrelated to logic regressions.
       # Goldens remain a local pre-push check per AGENTS.md.
       - run: flutter test $(find test -name '*_test.dart' ! -path 'test/goldens/*')
+      # The vendored kdbx package has its own suite; `dart` ships with Flutter.
+      - name: kdbx package tests
+        run: cd packages/kdbx && dart pub get && dart test
 
   # Deliberately separate from `test`: that job pins no seed and answers "does
   # the suite pass?", this one answers the different question "does the suite
