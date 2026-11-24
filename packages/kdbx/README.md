@@ -60,30 +60,11 @@ write may not have happened. See `example/kdbx_example.dart`.
 ## Features and bugs
 
 * Supports kdbx v3 with native dart implementation
-* Supports kdbx v4 with combination with [argon2 ffi](https://github.com/authpass/argon2_ffi)
+* Supports kdbx v4 (Argon2d, Argon2id, AES-KDF)
 * Merging two copies of the same database, for sync
 
 # Argon2 support
 
-root directory contains shared libraries (libargon2*) which are built from
-https://github.com/authpass/argon2_ffi
-
-* MacOS:
-  * argon2_ffi/ios/Classes
-  * `cmake . && cmake --build .`
-  * `cp libargon2_ffi.dylib kdbx.dart/`
-  * Might need to run: `codesign --remove-signature /usr/local/bin/dart`
-    https://github.com/dart-lang/sdk/issues/39231#issuecomment-579743656
-* Linux:
-  * argon2_ffi/ios/Classes
-  * `cmake . && cmake --build .`
-  * `cp libargon2_ffi.so kdbx.dart/`
-* Windows:
-  * Install Visual Studio Community Edition with C++ Development environment
-  * Start "Developer Command Prompt for VS 2019"
-  * argon2_ffi/ios/Classes:
-    ```
-    cmake .
-    cmake --build .
-    cp Debug\argon2_ffi.dll C:\kdbx.dart\argon2_ffi_plugin.dll
-    ```
+Custode: Argon2 and AES-KDF run natively through `hook/build.dart` (Dart
+native assets, sources under `src/`), with the pure-Dart implementations as
+fallback. See `CUSTODE_CHANGES.md`.

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:argon2_ffi_base/argon2_ffi_base.dart';
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:kdbx/kdbx.dart';
@@ -84,8 +83,7 @@ abstract class KdbxFileCommand extends Command<void> {
     final keyFileData =
         keyFile == null ? null : await File(keyFile).readAsBytes();
 
-    Argon2.resolveLibraryForceDynamic = true;
-    final file = await KdbxFormat(Argon2FfiFlutter()).read(
+    final file = await KdbxFormat().read(
       bytes,
       Credentials.composite(ProtectedValue.fromString(password), keyFileData),
     );

@@ -75,6 +75,32 @@ offers (AES-256, ChaCha20, Twofish x AES-KDF, Argon2d, Argon2id).
 - `lib/src/internal/pointycastle_argon2.dart`: `argon2Async` runs in
   `Isolate.run` (inline on web), so key derivation no longer blocks the
   calling (UI) isolate. AES-KDF already ran in an isolate upstream.
+- Native KDF (Dart native assets). `hook/build.dart` compiles `src/` with
+  `native_toolchain_c` (CBuilder, -O3) into the `kdbx_native` code asset, for
+  every target that runs hooks (Android, iOS, macOS, Windows, Linux, and
+  `dart test`/`dart build cli`). Web has no FFI and uses
+  `native_kdf_stub.dart`. `dart compile exe` rejects programs that import a
+  package with hooks: use `dart build cli` for those.
+  - `src/argon2/`: phc-winner-argon2 reference implementation (`ref.c`, not
+    `opt.c`), CC0 / Apache-2.0, `src/argon2/LICENSE`, upstream commit
+    `f57e61e19229e23c4445b85494dbf7c07de721cb` (master, 2021-06-25, tag
+    `20190702` + 27). Unmodified; its pthread/Win32 thread support is on, so
+    lanes run in parallel.
+  - `src/aes_kdf.c`: the AES-KDF rounds (AES-256-ECB of the two 16-byte
+    halves) on AES-NI (x86_64) or ARMv8 crypto (arm64), with runtime CPU
+    detection. Returns "unsupported" elsewhere (32-bit ARM/x86, CPUs without
+    the instructions); the SHA-256 at the end stays in Dart.
+  - `lib/src/internal/native_kdf.dart` (+ `_ffi.dart`, `_stub.dart`):
+    `@Native` bindings. `NativeArgon2` extends `PointyCastleArgon2` (same
+    `Isolate.run`) and falls back to it when the library fails to load or
+    returns an error; `KdbxFormat()` now defaults to it.
+    `KeyEncrypterKdf.encryptAesSync` tries native AES-KDF first, then the
+    pointycastle loop. Inputs are copied to native memory and wiped after.
+  - Measured AOT on an Apple M5 Pro (KeePassXC defaults): Argon2id 64 MiB /
+    10 / p=4 about 1.3 s Dart against 70 to 110 ms native; AES-KDF
+    1,000,000 rounds about 1.1 s Dart against 7 ms native.
+  - Dependencies: `native_toolchain_c`, `hooks`, `code_assets`, `ffi`; SDK
+    lower bound raised to 3.10 (hooks).
 - `lib/kdbx.dart` also exports `Cipher`, `KdbxHeader`, the three
   `Kdbx*KdfConfig` types, `VarDictionary` and `PointyCastleArgon2` (the app's
   tests subclass it to count key derivations).
@@ -110,6 +136,12 @@ several times longer.
   Also a ~1 MiB Twofish payload that must decrypt in under 2 s.
   Also an AES-KDF file whose `R` is stored as `Int64`, as upstream (and older
   Custode versions) wrote: opens, re-saves, re-opens, header-only read.
+- `test/native_kdf_test.dart`: RFC 9106 Argon2d/Argon2id vectors (native via
+  `argon2_ctx`, Dart via pointycastle), phc-winner-argon2 `test.c` Argon2id
+  vectors through the kdbx path, AES-KDF known answers (computed with Apple
+  CommonCrypto), native vs Dart on random parameters (including the
+  KeePassXC defaults), and the fallbacks. `test/kdbx4_test_pointycastle.dart`
+  passes `PointyCastleArgon2` explicitly.
 - `test/deleted_objects_test.dart`: permanent deletion of the recycle bin, then
   a delete to trash on the same file, survives a save and re-read.
 - `test/pykeepass/`: KDBX 4 files written by KeePass and KeePassXC, copied from
@@ -119,5 +151,7 @@ several times longer.
   (`argon2_ffi_plugin.dll`, `libargon2_ffi.dylib`, `libargon2_ffi_plugin.so`);
   `test/internal/test_utils.dart` uses the default pure-Dart Argon2 instead,
   and `test/kdbx4_test.dart` no longer requires FFI.
-  The README section on building them is upstream text and no longer applies.
+  The README section on building them was replaced by a pointer to the native
+  KDF above, and `bin/kdbx.dart` uses the default `KdbxFormat()` instead of
+  `Argon2FfiFlutter`.
 - `test/kdbx4_test.dart`, `test/kdbx4_test_pointycastle.dart`: dropped the `src/kdbx_header.dart` import, now covered by `package:kdbx/kdbx.dart`.
