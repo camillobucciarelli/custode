@@ -61,9 +61,6 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination>
   /// Passkeys-all-platforms T015 / FR-13: per-platform truth, with the reason.
   /// Null on Android, which asks the platform channel instead.
   static String? _staticPasskeySubtitle() {
-    if (kIsWeb) {
-      return 'Not available: a web page cannot act as a passkey provider';
-    }
     return switch (defaultTargetPlatform) {
       TargetPlatform.iOS || TargetPlatform.macOS =>
         'Sign in and create passkeys through AutoFill. $_passkeyKeptOnDevice',
@@ -94,7 +91,6 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed &&
-        !kIsWeb &&
         defaultTargetPlatform == TargetPlatform.android) {
       unawaited(_loadAutofillStatus());
       unawaited(_loadPasskeyProviderStatus());
@@ -116,7 +112,7 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination>
   /// provider to register with, so the row states that plainly rather than
   /// offering a switch that would do nothing.
   Future<void> _loadPasskeyProviderStatus() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (defaultTargetPlatform != TargetPlatform.android) return;
     String? label;
     var available = false;
     try {
@@ -286,8 +282,7 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination>
     // Spec 025 FR-X5: the shared picker owns the device-auth gate and the
     // key manager.
     final picked = await pickKeyFile(context, current: _keyFilePath);
-    // Settings stores a path; a bytes-only pick (browser) has none to keep.
-    if (picked == null || (picked.path == null && !picked.isCleared)) return;
+    if (picked == null) return;
     await _applyKeyFile(databasePath, picked.path);
   }
 
@@ -730,16 +725,14 @@ class _VaultSettingsDestinationState extends State<_VaultSettingsDestination>
               ),
               // spec 023 T405 / passkeys-all-platforms T015: the one place that
               // says whether passkey sign-in and creation work on this device.
-              if (_staticPasskeySubtitle() ??
-                      (kIsWeb ? null : _passkeyProviderSubtitle)
+              if (_staticPasskeySubtitle() ?? _passkeyProviderSubtitle
                   case final passkeySubtitle?) ...[
                 const SizedBox(height: 8),
                 _SettingsRow(
                   glyph: AppGlyph.fingerprint,
                   title: 'Passkeys',
                   subtitle: passkeySubtitle,
-                  onTap:
-                      !kIsWeb && defaultTargetPlatform == TargetPlatform.android
+                  onTap: defaultTargetPlatform == TargetPlatform.android
                       ? () => _openPasskeySettings(context)
                       : null,
                 ),

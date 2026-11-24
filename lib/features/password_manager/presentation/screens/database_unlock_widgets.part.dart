@@ -454,7 +454,7 @@ class _UnlockMissingView extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<CustodeColors>()!;
     final error = state.errorMessage;
-    final canRedownload = state.isRemoteLinked && supportsRemoteSource;
+    final canRedownload = state.isRemoteLinked;
 
     return SafeArea(
       bottom: false,

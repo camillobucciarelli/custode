@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/services.dart';
 
 const _channel = MethodChannel(
@@ -12,8 +12,7 @@ Future<bool> isInstalledFromGooglePlay({
   bool? isAndroid,
   Future<String?> Function()? installer,
 }) async {
-  if (!(isAndroid ??
-      (!kIsWeb && defaultTargetPlatform == TargetPlatform.android))) {
+  if (!(isAndroid ?? defaultTargetPlatform == TargetPlatform.android)) {
     return false;
   }
   try {

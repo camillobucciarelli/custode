@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:loggy/loggy.dart';
 
@@ -37,7 +36,7 @@ class DriveAuthService {
   // BrowserSetupService.
   bool get _isDesktop =>
       _isDesktopOverride ??
-      (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS));
+      (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
   Future<void> _ensureGoogleSignInInitialized() async {
     if (_googleSignInInitialized) {
@@ -45,10 +44,8 @@ class DriveAuthService {
     }
 
     await _googleSignIn.initialize(
-      clientId: !kIsWeb && Platform.isIOS ? _config.mobileClientId : null,
-      serverClientId: !kIsWeb && Platform.isAndroid
-          ? _config.androidServerClientId
-          : null,
+      clientId: Platform.isIOS ? _config.mobileClientId : null,
+      serverClientId: Platform.isAndroid ? _config.androidServerClientId : null,
     );
     _googleSignInInitialized = true;
   }
@@ -362,12 +359,12 @@ class DriveAuthService {
       return const CloudStorageException(CloudStorageErrorCode.cancelled);
     }
     if (exception.code == GoogleSignInExceptionCode.clientConfigurationError) {
-      if (!kIsWeb && Platform.isAndroid) {
+      if (Platform.isAndroid) {
         return _authenticationFailed(
           'Android Google Sign-In is not configured. Set GOOGLE_WEB_CLIENT_ID in --dart-define-from-file.',
         );
       }
-      if (!kIsWeb && Platform.isIOS) {
+      if (Platform.isIOS) {
         return _authenticationFailed(
           'iOS Google Sign-In is not configured. Set GOOGLE_IOS_CLIENT_ID in --dart-define-from-file.',
         );

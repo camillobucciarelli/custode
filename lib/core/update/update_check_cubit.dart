@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'update_check_gateway.dart';
@@ -61,7 +60,7 @@ class UpdateCheckCubit extends Cubit<UpdateCheckState> {
   UpdateCheckCubit(
     this._gateway, {
     DateTime Function()? now,
-    this.supported = !kIsWeb,
+    this.supported = true,
   }) : _now = now ?? DateTime.now,
        super(_initial(_gateway, supported));
 

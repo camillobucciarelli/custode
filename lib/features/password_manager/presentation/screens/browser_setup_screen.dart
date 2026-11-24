@@ -30,7 +30,6 @@ class BrowserSetupScreen extends StatefulWidget {
   final Future<bool> Function(Uri url)? openUrl;
 
   static bool get shouldShow {
-    if (kIsWeb) return false;
     return defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;

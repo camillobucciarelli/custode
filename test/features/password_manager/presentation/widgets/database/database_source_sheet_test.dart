@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:password_manager/core/theme/app_glyph.dart';
 import 'package:password_manager/core/widgets/kv_icon.dart';
 import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
-import 'package:password_manager/features/password_manager/presentation/utils/platform_utils.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/database/database_source_sheet.dart';
 
 import '../../../presentation/coordinators/fake_database_ports.dart';
@@ -10,7 +9,6 @@ import '../../screens/database_selection_unlock_test_utils.dart';
 
 void main() {
   tearDown(() async {
-    debugPlatformCapabilities = null;
     await resetDatabaseTestDi();
   });
 
@@ -106,26 +104,6 @@ void main() {
     await open(tester, [], sync: sync);
 
     expect(find.text('Not connected'), findsOneWidget);
-  });
-
-  testWidgets('web override: Drive stays in place, disabled, with its reason', (
-    tester,
-  ) async {
-    debugPlatformCapabilities = const PlatformCapabilities(
-      supportsRemoteSource: false,
-      supportsBiometricUnlock: false,
-      persistsDatabases: false,
-    );
-    final results = <DatabaseSource?>[];
-    await open(tester, results);
-
-    expect(find.text('Google Drive'), findsOneWidget);
-    expect(find.text('Not available in the browser'), findsOneWidget);
-    expect(find.text('Connect'), findsNothing);
-    await tester.tap(find.text('Google Drive'), warnIfMissed: false);
-    await tester.pumpAndSettle();
-    expect(results, isEmpty);
-    expect(find.text('Where is your database?'), findsOneWidget);
   });
 
   for (final entry in {

@@ -101,7 +101,7 @@ class CreateDatabaseUseCase {
       final generatedPath = request.generatedKeyFilePath;
       keyFilePath = await databaseFileRepository.saveKeyFile(
         // The managed on-disk name is opaque (spec 014 FR-3); this name only
-        // matters on the non-managed (web download) path.
+        // matters on the non-managed path.
         fileName: generatedPath == null
             ? 'generated-key'
             : p.basename(generatedPath),

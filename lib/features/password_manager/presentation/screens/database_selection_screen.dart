@@ -34,7 +34,6 @@ import '../widgets/database/database_source_sheet.dart';
 import '../widgets/database/add_database_sheet.dart';
 import '../widgets/database/database_grouped_list.dart';
 import '../widgets/sync/remote_file_picker.dart';
-import '../utils/platform_utils.dart';
 
 class DatabaseSelectionScreen extends StatelessWidget {
   const DatabaseSelectionScreen({super.key, this.debugVaultBuilder});
@@ -122,17 +121,6 @@ class DatabaseSelectionScreen extends StatelessWidget {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     final path = item.canonicalPath;
-
-    if (!persistsDatabases) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Export is currently available on desktop/mobile only.',
-          ),
-        ),
-      );
-      return;
-    }
 
     final source = File(path);
     if (!await source.exists()) {
@@ -273,10 +261,9 @@ class DatabaseSelectionScreen extends StatelessWidget {
               ),
               KvSecondaryPillButton(
                 label: 'Remove and delete file',
-                onPressed: !persistsDatabases
-                    ? null
-                    : () => Navigator.of(sheetContext)
-                          .pop(RecentDatabaseRemovalMode.removeAndDeleteFile),
+                onPressed: () =>
+                    Navigator.of(sheetContext)
+                        .pop(RecentDatabaseRemovalMode.removeAndDeleteFile),
               ),
               const SizedBox(height: 8),
               TextButton(

@@ -91,6 +91,6 @@ bool _sameFile(String a, String b) {
       PortablePath.resolveForComparison(b),
     );
   } on Object {
-    return false; // No filesystem (web): the normalized comparison stands.
+    return false; // Unresolvable: the normalized comparison stands.
   }
 }

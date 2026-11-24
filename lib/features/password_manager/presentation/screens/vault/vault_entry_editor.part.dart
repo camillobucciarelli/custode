@@ -1250,9 +1250,6 @@ String _joinWithAnd(List<String> values) {
 }
 
 bool _supportsOtpQrScan() {
-  if (kIsWeb) {
-    return false;
-  }
   return switch (defaultTargetPlatform) {
     TargetPlatform.android || TargetPlatform.iOS => true,
     TargetPlatform.fuchsia ||

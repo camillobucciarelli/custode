@@ -27,9 +27,6 @@ class AppleAutofillV2MethodChannelClient
     if (override != null) {
       return override;
     }
-    if (kIsWeb) {
-      return false;
-    }
     return defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS;

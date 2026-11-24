@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/mobile_file_storage.dart';
@@ -655,18 +654,6 @@ class DatabaseImportService implements DatabaseFileRepository {
     required String? selectedPath,
     required List<int>? selectedBytes,
   }) async {
-    if (kIsWeb) {
-      if (selectedBytes == null || selectedBytes.isEmpty) {
-        return null;
-      }
-      final webDir = await Directory.systemTemp.createTemp('web_db_');
-      final webPath = p.join(webDir.path, fileName);
-      await _mutex.withDatabaseLock([webPath], () async {
-        await File(webPath).writeAsBytes(selectedBytes, flush: true);
-      });
-      return webPath;
-    }
-
     if (!_usesManagedStorage) {
       return selectedPath;
     }
@@ -700,12 +687,9 @@ class DatabaseImportService implements DatabaseFileRepository {
     });
   }
 
-  bool get _isMobilePlatform {
-    if (kIsWeb) {
-      return false;
-    }
-    return true;
-  }
-
-  bool get _usesManagedStorage => _isMobilePlatform;
+  // ponytail: every supported platform uses managed storage since the web
+  // target was removed; the `!_usesManagedStorage` branches are dead and can
+  // be collapsed in a dedicated change (they are counted by the writer
+  // inventory test).
+  bool get _usesManagedStorage => true;
 }
