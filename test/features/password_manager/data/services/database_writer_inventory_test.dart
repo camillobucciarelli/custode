@@ -409,10 +409,10 @@ void main() {
         },
         'lib/features/password_manager/data/services/'
             'database_import_service.dart': {
-          // T109: was 4. The cross-device install fallback, desktop
-          // createDatabase and desktop saveKeyFile (LOW follow-up) now
-          // delegate to SafeVaultFileWriter. The last site, the web staging
-          // copy (GAP 6), went with the Flutter web target.
+          // T109: was 4. The cross-device install fallback delegates to
+          // SafeVaultFileWriter. The non-managed createDatabase/saveKeyFile
+          // writers and the web staging copy (GAP 6) went with the Flutter
+          // web target.
           // T109: was 12 — the install fallback's temp->target rename moved
           // into the safe writer. P1-4 adds 2 compensation renames: a
           // post-install failure (P2) restores the staged file or deletes

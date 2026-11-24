@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/mobile_file_storage.dart';
@@ -17,7 +16,7 @@ import 'database_path_mutex.dart';
 import 'safe_vault_file_writer.dart';
 
 /// Data-layer implementation of the [DatabaseFileRepository] domain port
-/// (C-7). Owns every `dart:io`/`FilePicker`/managed-storage detail that the
+/// (C-7). Owns every `dart:io`/managed-storage detail that the
 /// coordinator used to touch directly.
 class DatabaseImportService implements DatabaseFileRepository {
   DatabaseImportService({
@@ -119,22 +118,20 @@ class DatabaseImportService implements DatabaseFileRepository {
 
     final failure = await _validationFailure(resolvedPath);
     if (failure != null) {
-      if (_usesManagedStorage) {
-        // Under managed storage `resolvedPath` is always a file this method
-        // just staged itself, via `copyFileToAppDirectory` or
-        // `saveBytesToAppDirectory` in `_resolveSelectedDatabasePath`. Gating
-        // the cleanup on `isPathInAppDirectory` could therefore only ever be
-        // false for a path we could not have produced -- and when it was, the
-        // staged file was left behind in `Documents/databases` forever (#46).
-        //
-        // Deleted directly rather than through `deleteFileFromAppDirectory`,
-        // whose own containment guard reintroduces exactly that failure mode.
-        try {
-          await deleteFile(resolvedPath);
-        } catch (_) {
-          // Best effort: a cleanup error must never mask the import failure
-          // the caller actually needs to see.
-        }
+      // `resolvedPath` is always a file this method just staged itself, via
+      // `copyFileToAppDirectory` or `saveBytesToAppDirectory` in
+      // `_resolveSelectedDatabasePath`. Gating the cleanup on
+      // `isPathInAppDirectory` could therefore only ever be false for a path
+      // we could not have produced -- and when it was, the staged file was
+      // left behind in `Documents/databases` forever (#46).
+      //
+      // Deleted directly rather than through `deleteFileFromAppDirectory`,
+      // whose own containment guard reintroduces exactly that failure mode.
+      try {
+        await deleteFile(resolvedPath);
+      } catch (_) {
+        // Best effort: a cleanup error must never mask the import failure
+        // the caller actually needs to see.
       }
       throw failure;
     }
@@ -143,11 +140,9 @@ class DatabaseImportService implements DatabaseFileRepository {
     final fileHash = md5.convert(bytes).toString();
     return DatabaseImportResult(
       path: resolvedPath,
-      // spec 014 FR-3: under managed storage `resolvedPath` carries an
-      // opaque name; the human-readable name is the caller's [fileName].
-      fileName: _usesManagedStorage
-          ? p.basename(fileName)
-          : p.basename(resolvedPath),
+      // spec 014 FR-3: `resolvedPath` carries an opaque name; the
+      // human-readable name is the caller's [fileName].
+      fileName: p.basename(fileName),
       fileHash: fileHash,
       sourceType: DatabaseSourceType.local,
     );
@@ -466,29 +461,16 @@ class DatabaseImportService implements DatabaseFileRepository {
     required String outputFile,
     required Uint8List databaseBytes,
   }) async {
-    if (_usesManagedStorage) {
-      final prospectivePath = await _prospectiveAppPath(
-        p.basename(outputFile),
-        'databases',
-      );
-      return _mutex.withDatabaseLock([prospectivePath], () {
-        return MobileFileStorage.saveBytesToAppDirectory(
-          bytes: databaseBytes,
-          fileName: p.basename(outputFile),
-          subdirectory: 'databases',
-        );
-      });
-    }
-
-    return _mutex.withDatabaseLock([outputFile], () async {
-      // T109: create the new database through the safe writer too — a crash
-      // mid-creation must never leave a truncated .kdbx at the chosen path.
-      await _safeWriter.write(
-        targetPath: outputFile,
+    final prospectivePath = await _prospectiveAppPath(
+      p.basename(outputFile),
+      'databases',
+    );
+    return _mutex.withDatabaseLock([prospectivePath], () {
+      return MobileFileStorage.saveBytesToAppDirectory(
         bytes: databaseBytes,
-        operation: 'create database',
+        fileName: p.basename(outputFile),
+        subdirectory: 'databases',
       );
-      return outputFile;
     });
   }
 
@@ -512,50 +494,35 @@ class DatabaseImportService implements DatabaseFileRepository {
     required Uint8List keyFileBytes,
     String? selectedPath,
   }) async {
-    if (_usesManagedStorage) {
-      final normalizedSelectedPath = selectedPath?.trim();
-      if (normalizedSelectedPath != null && normalizedSelectedPath.isNotEmpty) {
-        final selectedFile = File(normalizedSelectedPath);
-        if (await selectedFile.exists()) {
-          return MobileFileStorage.copyFileToAppDirectory(
-            sourcePath: normalizedSelectedPath,
-            fallbackFileName: fileName,
-            subdirectory: 'keys',
-          );
-        }
-
-        return MobileFileStorage.saveBytesToAppDirectory(
-          bytes: keyFileBytes,
-          fileName: p.basename(normalizedSelectedPath),
+    final normalizedSelectedPath = selectedPath?.trim();
+    if (normalizedSelectedPath != null && normalizedSelectedPath.isNotEmpty) {
+      final selectedFile = File(normalizedSelectedPath);
+      if (await selectedFile.exists()) {
+        return MobileFileStorage.copyFileToAppDirectory(
+          sourcePath: normalizedSelectedPath,
+          fallbackFileName: fileName,
           subdirectory: 'keys',
         );
       }
 
       return MobileFileStorage.saveBytesToAppDirectory(
         bytes: keyFileBytes,
-        fileName: fileName,
+        fileName: p.basename(normalizedSelectedPath),
         subdirectory: 'keys',
       );
     }
 
-    if (selectedPath == null || selectedPath.trim().isEmpty) {
-      throw Exception('No destination selected for key file.');
-    }
-
-    // spec 008 T109 follow-up (LOW): key-file writes are atomic too —
-    // temp + fsync + verify + rename, never an in-place overwrite.
-    final result = await _safeWriter.write(
-      targetPath: selectedPath,
+    return MobileFileStorage.saveBytesToAppDirectory(
       bytes: keyFileBytes,
-      operation: 'save key file',
+      fileName: fileName,
+      subdirectory: 'keys',
     );
-    return result.targetPath;
   }
 
   @override
   Future<String?> ensureManagedKeyFilePath(String? keyFilePath) async {
     final normalized = keyFilePath?.trim();
-    if (normalized == null || normalized.isEmpty || !_usesManagedStorage) {
+    if (normalized == null || normalized.isEmpty) {
       return normalized;
     }
     try {
@@ -613,23 +580,7 @@ class DatabaseImportService implements DatabaseFileRepository {
 
   @override
   Future<String?> resolveOutputFilePath(String preferredFileName) async {
-    final normalizedFileName = _normalizeDatabaseFileName(preferredFileName);
-    if (_usesManagedStorage) {
-      return normalizedFileName;
-    }
-    // The macOS save panel appends the allowed extension itself, so the
-    // normalized ".kdbx" name showed doubled; re-append after the pick for
-    // platforms that do not.
-    final picked = await FilePicker.saveFile(
-      dialogTitle: 'Please select an output file:',
-      fileName: normalizedFileName.replaceFirst(RegExp(r'\.kdbx$'), ''),
-      type: FileType.custom,
-      allowedExtensions: ['kdbx'],
-    );
-    if (picked == null || picked.trim().isEmpty) {
-      return picked;
-    }
-    return picked.toLowerCase().endsWith('.kdbx') ? picked : '$picked.kdbx';
+    return _normalizeDatabaseFileName(preferredFileName);
   }
 
   String _normalizeDatabaseFileName(String value) {
@@ -654,10 +605,6 @@ class DatabaseImportService implements DatabaseFileRepository {
     required String? selectedPath,
     required List<int>? selectedBytes,
   }) async {
-    if (!_usesManagedStorage) {
-      return selectedPath;
-    }
-
     if (selectedPath != null && selectedPath.trim().isNotEmpty) {
       final sourceName = p.basename(selectedPath);
       final prospectivePath = await _prospectiveAppPath(
@@ -686,10 +633,4 @@ class DatabaseImportService implements DatabaseFileRepository {
       );
     });
   }
-
-  // ponytail: every supported platform uses managed storage since the web
-  // target was removed; the `!_usesManagedStorage` branches are dead and can
-  // be collapsed in a dedicated change (they are counted by the writer
-  // inventory test).
-  bool get _usesManagedStorage => true;
 }
