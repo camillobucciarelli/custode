@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:kdbx/src/credentials/credentials.dart';
 import 'package:kdbx/src/crypto/protected_value.dart';
-import 'package:kdbx/src/internal/consts.dart';
 import 'package:kdbx/src/kdbx_consts.dart';
 import 'package:kdbx/src/kdbx_dao.dart';
 import 'package:kdbx/src/kdbx_exceptions.dart';
@@ -74,8 +73,9 @@ class KdbxFile {
   final KdbxReadWriteContext ctx;
   Credentials get credentials => _credentials;
   set credentials(Credentials credentials) {
-    // the derived key belongs to the old credentials.
+    // the derived keys belong to the old credentials.
     _transformedKey = null;
+    _previousTransformedKey = null;
     body.meta.modify(() => _credentials = credentials);
   }
 
@@ -83,33 +83,33 @@ class KdbxFile {
 
   Uint8List? _transformedKey;
 
-  /// [KdbxHeader.kdfFingerprint] and [KdbxHeader.cipher] when
-  /// [_transformedKey] was recorded.
+  /// [KdbxHeader.kdfFingerprint] when [_transformedKey] was recorded.
   String? _transformedKeyFingerprint;
-  Cipher? _transformedKeyCipher;
+
+  /// The key recorded before the last one, for [transformedKeyFor].
+  TransformedKeyCredentials? _previousTransformedKey;
 
   /// Records the key derivation output for [transformedKeyCredentials].
   /// Called by [KdbxFormat] after reading or writing a kdbx4 file.
   void setTransformedKey(Uint8List transformedKey) {
+    _previousTransformedKey = transformedKeyCredentials;
     _transformedKey = transformedKey;
     _transformedKeyFingerprint = header.kdfFingerprint;
-    _transformedKeyCipher = header.cipher;
   }
 
-  /// The recorded derived key, if it still belongs to the current credentials,
-  /// KDF parameters and cipher. [KdbxFormat] reuses it on save instead of
-  /// running the KDF again.
-  Uint8List? get reusableTransformedKey =>
-      _transformedKey != null &&
-          _transformedKeyFingerprint == header.kdfFingerprint &&
-          _transformedKeyCipher == header.cipher
-      ? _transformedKey
-      : null;
+  /// The derived key recorded for the KDF parameters [kdfFingerprint]: the
+  /// current one or, since every save rotates the KDF salt, the one from
+  /// before the last save. The latter lets a read of the previous revision
+  /// (still on disk while a save is written, or after a failed write) skip
+  /// the KDF. Used by `KdbxFormat.read(..., keySource:)`.
+  TransformedKeyCredentials? transformedKeyFor(String kdfFingerprint) => [
+    transformedKeyCredentials,
+    _previousTransformedKey,
+  ].firstWhereOrNull((key) => key?.kdfFingerprint == kdfFingerprint);
 
   /// Fingerprint of the key derivation parameters currently in the header.
   ///
-  /// Changes when the KDF parameters or salt do: on the first save, and on
-  /// every save after a credential or KDF change. Compare against
+  /// Changes on every save. Compare against
   /// [TransformedKeyCredentials.kdfFingerprint] to tell whether a stored
   /// derived key still applies to this file.
   String get kdfFingerprint => header.kdfFingerprint;
@@ -122,10 +122,15 @@ class KdbxFile {
   /// AutoFill extension, whose process memory limit is far below what Argon2
   /// needs at usual KeePass settings.
   ///
-  /// Security: this is as good as the master password for this file. Saves
-  /// keep the KDF salt (see CUSTODE_CHANGES.md), so it stays valid until the
-  /// credentials or the KDF parameters change, which rotate the salt. Store
-  /// it accordingly.
+  /// A save rotates the KDF salt (as KeePass and KeePassXC do), runs the KDF
+  /// once and records the new key, so after a save this is the key of the
+  /// bytes just written: `KdbxFormat.read(..., keySource: this)` reopens them
+  /// without a KDF.
+  ///
+  /// Security: this is as good as the master password *for the current
+  /// revision of the file*. It expires on the next save, since
+  /// [KdbxHeader.generateSalts] rotates the KDF salt — which bounds the damage
+  /// a leaked copy can do, unlike the composite hash. Store it accordingly.
   TransformedKeyCredentials? get transformedKeyCredentials {
     final transformedKey = _transformedKey;
     if (transformedKey == null) {

@@ -307,8 +307,9 @@ void main() {
       );
     });
 
-    test('review and commit derive the key once: the remote, the round-0 '
-        'reopen and the candidate check reuse it', () async {
+    test('review and commit derive the key once per side and once for the '
+        'candidate save: the round-0 reopen and the candidate check reuse '
+        'them', () async {
       final argon2 = _CountingArgon2();
       final harness = await _Harness.build(
         temp,
@@ -316,11 +317,15 @@ void main() {
       );
 
       final summary = await harness.repository.startReview(harness.databaseId);
-      expect(argon2.calls, 1, reason: 'local only; the remote shares its salt');
+      expect(
+        argon2.calls,
+        2,
+        reason: 'local and remote: every save rotates the KDF salt',
+      );
 
       final outcome = await harness.repository.commit(summary.sessionId);
       expect(outcome, isA<MergeApplied>());
-      expect(argon2.calls, 1);
+      expect(argon2.calls, 3, reason: 'the candidate save only');
 
       // Still a real, independently decryptable file.
       final onDisk = await KdbxFormat().read(

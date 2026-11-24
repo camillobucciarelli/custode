@@ -107,13 +107,14 @@ void main() {
     notes: '',
   );
 
-  test('N reads plus M edits after the first open cost no KDF, '
+  test('N reads plus M edits after the first open cost exactly M KDFs, '
       'and every edit still reaches the disk', () async {
     final groupId = await rootGroupId();
     expect(argon2.calls, 1, reason: 'first open decrypts');
     argon2.calls = 0;
 
     const reads = 6;
+    const edits = 3;
     for (var i = 0; i < reads; i++) {
       await service.loadVault(databasePath: databasePath, password: password);
       await service.loadRecycleBinEntries(
@@ -135,11 +136,7 @@ void main() {
     await create('Two', groupId);
     expect(await titles(), containsAll(['Seed', 'One edited', 'Two']));
 
-    expect(
-      argon2.calls,
-      0,
-      reason: 'saves reuse the derived key, reads the cache',
-    );
+    expect(argon2.calls, edits, reason: 'one KDF per save, none per read');
 
     // Disk, not memory: a cold reader sees the same state.
     final onDisk = await KdbxFormat().read(
@@ -272,10 +269,10 @@ void main() {
       expect(await titles(), containsAll(['Seed', 'From remote']));
       expect(
         argon2.calls,
-        0,
+        1,
         reason:
-            'decrypted again from disk; the merge kept the KDF salt, so '
-            'the derived key still fits',
+            'decrypted again from disk; the merge save rotated the KDF '
+            'salt, so the known derived key does not fit',
       );
     });
 
@@ -362,13 +359,23 @@ void main() {
       final groupId = await rootGroupId();
       argon2.calls = 0;
       List<String>? duringEdit;
-      writer.beforeWrite = () async => duringEdit = await titles();
+      int? kdfsDuringRead;
+      writer.beforeWrite = () async {
+        final before = argon2.calls;
+        duringEdit = await titles();
+        kdfsDuringRead = argon2.calls - before;
+      };
 
       await create('New', groupId);
 
       expect(duringEdit, ['Seed'], reason: 'never the half-applied edit');
+      expect(
+        kdfsDuringRead,
+        0,
+        reason: 'the edit file keeps the key of the revision still on disk',
+      );
       expect(await titles(), containsAll(['Seed', 'New']));
-      expect(argon2.calls, 0);
+      expect(argon2.calls, 1, reason: 'the save, which rotates the KDF salt');
     },
   );
 

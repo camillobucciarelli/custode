@@ -20,26 +20,6 @@ offers (AES-256, ChaCha20, Twofish x AES-KDF, Argon2d, Argon2id).
   1 MiB, against 11 ms with the adapter. To report upstream to pointycastle
   (`lib/block/twofish.dart`, `_encryptBlock` has the same pattern); drop the
   adapter once a fixed release is out.
-- `lib/src/kdbx_format.dart`, `lib/src/kdbx_header.dart`,
-  `lib/src/kdbx_file.dart`: a kdbx 4 save reuses the derived (transformed)
-  key. It rotates the master seed, the encryption IV and the inner stream key,
-  keeps the KDF salt, and builds the new keys from SHA256(masterSeed ||
-  transformedKey) and its HMAC counterpart, so it runs no KDF. The KDF runs,
-  with a new salt, only when there is no cached key (a new file, a kdbx 3
-  upgrade), the credentials changed (the `credentials` setter drops the key),
-  or the KDF parameters or the cipher differ from those the key was recorded
-  with (`KdbxFile.reusableTransformedKey` compares `kdfFingerprint` and
-  `cipher`). `KdbxHeader.generateSalts` takes `rotateKdfSalt`.
-  - A deliberate deviation: KeePassXC (`Kdbx4Writer.cpp`) and KeePass 2
-    (`KdbxFile.Write.cs`) rotate the KDF salt on every save. The file stays a
-    fully valid kdbx 4 file; only the salt is older. Upstream rotated it on
-    every save too, so each save paid a full KDF (about 1.2 s at the defaults
-    below).
-  - `KdbxFile.transformedKeyCredentials` now stays valid across saves, until
-    a credential or KDF change. Custode does not store it.
-  - If challenge-response (YubiKey) support is added, the KDF salt must rotate
-    on every save again: kdbx 4 challenge-response uses it as the challenge.
-  - kdbx 3 saves are unchanged (every seed rotates, the KDF runs).
 - `lib/src/kdbx_format.dart`: `KdbxFormat.read(bytes, credentials,
   {KdbxFile? keySource})`. When `keySource` was opened with the same
   credentials (hash compared) and its derived key was recorded for the KDF
@@ -47,7 +27,14 @@ offers (AES-256, ChaCha20, Twofish x AES-KDF, Argon2d, Argon2id).
   the KDF. The decrypt and every integrity check run in full and the result
   keeps `credentials`, so it can be saved. Any mismatch ignores `keySource`.
   The app uses it to re-read its own saves (cache misses, reads during an
-  edit, sync merge sides and the merge candidate check) without a KDF.
+  edit, sync merge sides and the merge candidate check) without a KDF. A
+  kdbx 4 save rotates the KDF salt, as upstream, KeePass 2 and KeePassXC
+  do, runs the KDF once for it and records the new derived key, so a read
+  of the bytes just written with that file as `keySource` runs no KDF. The
+  file also keeps the key from before its last save
+  (`KdbxFile.transformedKeyFor`), so the revision still on disk while a save
+  is written, or after a failed write, reopens without a KDF too; a
+  credential change drops both keys.
 - `lib/src/crypto/key_encrypter_kdf.dart`:
   - `KdfType.Argon2id`, UUID `9e298b19-56db-4773-b23d-fc3ec6f0a1e6`
     (`KdfType.Argon2` keeps its name and means Argon2d).
@@ -126,13 +113,12 @@ several times longer.
   only read, Argon2id known answer through the KDF path (phc-winner-argon2
   `src/test.c`), Twofish-256 known answer (Bouncy Castle `TwofishTest`), and
   third-party files.
-  Also save reusing the derived key: every cipher x KDF reopens with a fresh
-  read, the master seed and IV change between saves while the KDF salt does
-  not, a save after a read runs no KDF, new credentials or KDF parameters run
-  it (and new credentials rotate the salt), and a wrong password still fails.
-  `test/transformed_key_test.dart` was updated to match. A read with a
-  `keySource` runs no KDF and the result saves; other credentials or another
-  salt ignore it.
+  Also every cipher x KDF: two saves rotate the KDF salt, the master seed
+  and the IV, and the result reopens with a fresh read; a save runs exactly
+  one KDF and a read of its bytes with the saved file as `keySource` runs
+  none, and neither does the revision before that save (until a credential
+  change). A read with a `keySource` runs no KDF and the result saves; other
+  credentials or another salt ignore it.
   Also a ~1 MiB Twofish payload that must decrypt in under 2 s.
   Also an AES-KDF file whose `R` is stored as `Int64`, as upstream (and older
   Custode versions) wrote: opens, re-saves, re-opens, header-only read.

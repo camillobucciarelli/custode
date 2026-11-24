@@ -680,8 +680,8 @@ class KdbxFormat {
   /// Reads [input] with [credentials].
   ///
   /// [keySource] (Custode): a file already opened with the same credentials.
-  /// When its derived key was recorded for the KDF parameters and salt of
-  /// [input], it is reused and the KDF does not run; the result is the same
+  /// When a derived key it recorded (see [KdbxFile.transformedKeyFor]) fits
+  /// the KDF parameters and salt of [input], it is reused and the KDF does not run; the result is the same
   /// as a full read and keeps [credentials], so it can be saved. Otherwise
   /// (other credentials, other salt, kdbx 3) [keySource] is ignored.
   Future<KdbxFile> read(
@@ -760,16 +760,7 @@ class KdbxFormat {
 
     final output = BytesBuilder();
     final writer = WriterHelper(output);
-    // kdbx 4: the final keys are hashes of (master seed, transformed key), so
-    // a fresh master seed, IV and inner stream key give fresh keys without
-    // running the KDF. The KDF salt, and the KDF, only change when the cached
-    // key no longer applies: first save, new credentials, new KDF or cipher.
-    // KeePass and KeePassXC rotate the salt on every save; see
-    // CUSTODE_CHANGES.md.
-    final reusableKey = header.version.major == KdbxVersion.V4.major
-        ? file.reusableTransformedKey
-        : null;
-    header.generateSalts(rotateKdfSalt: reusableKey == null);
+    header.generateSalts();
     header.write(writer);
     final headerHash =
         (crypto.sha256.convert(writer.output.toBytes()).bytes as Uint8List);
@@ -787,18 +778,11 @@ class KdbxFormat {
       final headerBytes = writer.output.toBytes();
       writer.writeBytes(headerHash);
       final gen = _createProtectedSaltGenerator(header);
-      final keys = await _computeKeysV4(
-        header,
-        reusableKey == null
-            ? file.credentials
-            : TransformedKeyCredentials(
-                transformedKey: reusableKey,
-                kdfFingerprint: header.kdfFingerprint,
-              ),
-      );
+      final keys = await _computeKeysV4(header, file.credentials);
       final headerHmac = _getHeaderHmac(headerBytes, keys.hmacKey);
       writer.writeBytes(headerHmac.bytes as Uint8List);
       body.writeV4(writer, file, gen, keys);
+      // salts were rotated above, so the derived key is a new one.
       file.setTransformedKey(keys.transformedKey);
     } else {
       throw UnsupportedError('Unsupported version ${header.version}');
@@ -1066,9 +1050,8 @@ class KdbxFormat {
     Credentials credentials,
     KdbxHeader header,
   ) {
-    final key = source?.transformedKeyCredentials;
+    final key = source?.transformedKeyFor(header.kdfFingerprint);
     if (key == null ||
-        key.kdfFingerprint != header.kdfFingerprint ||
         credentials is TransformedKeyCredentials ||
         source!.credentials is TransformedKeyCredentials ||
         !ByteUtils.eq(source.credentials.getHash(), credentials.getHash())) {
