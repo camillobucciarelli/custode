@@ -12,7 +12,7 @@ final _logger = Logger('kdbx4_test_pointycastle');
 void main() {
   // ignore: unused_local_variable
   final testUtil = TestUtil();
-  final kdbxFormat = KdbxFormat();
+  final kdbxFormat = KdbxFormat(const PointyCastleArgon2());
   if (kdbxFormat.argon2.isFfi) {
     throw StateError('Expected non-ffi implementation.');
   }
