@@ -1165,7 +1165,7 @@ class KdbxFormat {
   }) {
     final engine = switch (header.cipher) {
       Cipher.aes => AESEngine(),
-      Cipher.twofish => TwofishEngine(),
+      Cipher.twofish => _BlockCopyCipher(TwofishEngine()),
       final cipher => throw UnsupportedError('Not a CBC cipher: $cipher'),
     };
     final encryptionIv = header.fields[HeaderFields.EncryptionIV]!.bytes;
@@ -1248,5 +1248,45 @@ class KdbxFormat {
       return GZipDecoder().decodeBytes(bytes);
     }
     return GZipCodec().decode(bytes) as Uint8List;
+  }
+}
+
+/// Hands [_engine] a 16-byte copy of each input block.
+///
+/// pointycastle 4.0.0 `TwofishEngine._decryptBlock` reads its input with
+/// `input.sublist(inOff)`, which copies the whole rest of the buffer for every
+/// block, so CBC decryption of the payload was quadratic (about 11 s for
+/// 1 MiB). With a 16-byte buffer each copy is 16 bytes.
+// ponytail: remove once pointycastle reads the block in place.
+class _BlockCopyCipher implements BlockCipher {
+  _BlockCopyCipher(this._engine);
+
+  final BlockCipher _engine;
+  final Uint8List _block = Uint8List(16);
+
+  @override
+  String get algorithmName => _engine.algorithmName;
+
+  @override
+  int get blockSize => _engine.blockSize;
+
+  @override
+  void init(bool forEncryption, CipherParameters? params) =>
+      _engine.init(forEncryption, params);
+
+  @override
+  void reset() => _engine.reset();
+
+  @override
+  int processBlock(Uint8List inp, int inpOff, Uint8List out, int outOff) {
+    _block.setRange(0, 16, inp, inpOff);
+    return _engine.processBlock(_block, 0, out, outOff);
+  }
+
+  @override
+  Uint8List process(Uint8List data) {
+    final out = Uint8List(blockSize);
+    processBlock(data, 0, out, 0);
+    return out;
   }
 }

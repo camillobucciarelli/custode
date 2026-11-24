@@ -12,6 +12,14 @@ offers (AES-256, ChaCha20, Twofish x AES-KDF, Argon2d, Argon2id).
   AES path. The AES-only helpers became `_cbcCipherV4` (AES or Twofish engine in
   CBC with the header IV), `_decryptContentV4` and `_encryptContentV4Cbc`, all
   with PKCS7 padding via `AesHelper`. kdbx 3 stays AES-only.
+- `lib/src/kdbx_format.dart`: Twofish runs through `_BlockCopyCipher`, which
+  copies each 16-byte input block into a scratch buffer before handing it to
+  `TwofishEngine`. pointycastle 4.0.0 `TwofishEngine._decryptBlock` calls
+  `_unpack32Le(input.sublist(inOff))`, copying the whole rest of the
+  ciphertext for every block, so CBC decryption was quadratic: about 11 s for
+  1 MiB, against 11 ms with the adapter. To report upstream to pointycastle
+  (`lib/block/twofish.dart`, `_encryptBlock` has the same pattern); drop the
+  adapter once a fixed release is out.
 - `lib/src/crypto/key_encrypter_kdf.dart`:
   - `KdfType.Argon2id`, UUID `9e298b19-56db-4773-b23d-fc3ec6f0a1e6`
     (`KdfType.Argon2` keeps its name and means Argon2d).
@@ -64,6 +72,7 @@ several times longer.
   only read, Argon2id known answer through the KDF path (phc-winner-argon2
   `src/test.c`), Twofish-256 known answer (Bouncy Castle `TwofishTest`), and
   third-party files.
+  Also a ~1 MiB Twofish payload that must decrypt in under 2 s.
   Also an AES-KDF file whose `R` is stored as `Int64`, as upstream (and older
   Custode versions) wrote: opens, re-saves, re-opens, header-only read.
 - `test/deleted_objects_test.dart`: permanent deletion of the recycle bin, then

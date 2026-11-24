@@ -2,6 +2,7 @@
 // See CUSTODE_CHANGES.md.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:kdbx/kdbx.dart';
@@ -228,5 +229,34 @@ void main() {
       );
       expect(_hex(out), '8ef0272c42db838bcf7b07af0ec30f38');
     });
+  });
+
+  // pointycastle's TwofishEngine copies the rest of the input per decrypted
+  // block, which made this take about 11 s before the 16-byte copy adapter.
+  test('Twofish decryption of a ~1 MiB payload is linear', () async {
+    final credentials = Credentials(ProtectedValue.fromString(password));
+    final file = format.create(
+      credentials,
+      'db',
+      header: KdbxHeader.createV4(cipher: Cipher.twofish, kdf: kdfs.first),
+    );
+    final entry = KdbxEntry.create(file, file.body.rootGroup);
+    file.body.rootGroup.addEntry(entry);
+    // Random, so gzip leaves the payload at about 1 MiB.
+    final random = Random(1);
+    final payload = Uint8List.fromList(
+      List.generate(1024 * 1024, (_) => random.nextInt(256)),
+    );
+    entry.createBinary(isProtected: false, name: 'big.bin', bytes: payload);
+    final bytes = await file.save();
+    expect(bytes.length, greaterThan(1024 * 1024));
+
+    final stopwatch = Stopwatch()..start();
+    final read = await format.read(bytes, credentials);
+    stopwatch.stop();
+
+    final binary = read.body.rootGroup.entries.single.binaryEntries.single;
+    expect(binary.value.value, payload);
+    expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
   });
 }
