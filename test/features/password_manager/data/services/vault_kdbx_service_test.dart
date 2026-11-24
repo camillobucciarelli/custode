@@ -209,6 +209,129 @@ void main() {
     );
   });
 
+  group('key-file-only vault (empty password)', () {
+    late File keyFile;
+    late Uint8List keyBytes;
+
+    // The KeePassXC shape: the composite is the key-file hash alone.
+    Credentials keyOnly() => Credentials.composite(null, keyBytes);
+    // The wrong shape: an empty string as a password factor plus the key.
+    Credentials emptyPasswordPlusKey() =>
+        Credentials.composite(ProtectedValue.fromString(''), keyBytes);
+
+    Future<void> expectKeyOnlyOnDisk() async {
+      final bytes = await File(databasePath).readAsBytes();
+      await expectLater(KdbxFormat().read(bytes, keyOnly()), completes);
+      await expectLater(
+        KdbxFormat().read(bytes, emptyPasswordPlusKey()),
+        throwsA(isA<KdbxInvalidKeyException>()),
+      );
+    }
+
+    setUp(() async {
+      keyFile = File('${tempDir.path}/key-only.keyx');
+      keyBytes = Uint8List.fromList(List<int>.generate(64, (i) => 255 - i));
+      await keyFile.writeAsBytes(keyBytes);
+    });
+
+    test('a key-only vault unlocks through the service open path', () async {
+      await File(databasePath).writeAsBytes(
+        await KdbxFormat().create(keyOnly(), 'Key only').save(),
+        flush: true,
+      );
+
+      final snapshot = await service.loadVault(
+        databasePath: databasePath,
+        password: '',
+        keyFilePath: keyFile.path,
+      );
+
+      expect(snapshot.rootGroupId, isNotEmpty);
+    });
+
+    test(
+      'an edited and saved key-only vault reopens with the key alone',
+      () async {
+        await File(databasePath).writeAsBytes(
+          await KdbxFormat().create(keyOnly(), 'Key only').save(),
+          flush: true,
+        );
+        final rootGroupId = (await service.loadVault(
+          databasePath: databasePath,
+          password: '',
+          keyFilePath: keyFile.path,
+        )).rootGroupId;
+
+        final entryId = await service.createEntry(
+          databasePath: databasePath,
+          password: '',
+          keyFilePath: keyFile.path,
+          groupId: rootGroupId,
+          title: 'Created',
+          username: 'user',
+          entryPassword: 'secret',
+          url: '',
+          notes: '',
+        );
+        await service.updateEntry(
+          databasePath: databasePath,
+          password: '',
+          keyFilePath: keyFile.path,
+          entryId: entryId,
+          title: 'Edited',
+          username: 'user',
+          entryPassword: 'secret',
+          url: '',
+          notes: '',
+        );
+
+        final reopened = await service.loadVault(
+          databasePath: databasePath,
+          password: '',
+          keyFilePath: keyFile.path,
+        );
+        expect(reopened.entries.map((e) => e.title), contains('Edited'));
+        await expectKeyOnlyOnDisk();
+      },
+    );
+
+    for (final withCurrentKey in const [true, false]) {
+      final from = withCurrentKey ? 'password + key file' : 'password only';
+      test(
+        'changing $from to key-file-only writes the KeePassXC composite',
+        () async {
+          final currentKey = File('${tempDir.path}/current.keyx');
+          await currentKey.writeAsBytes(List<int>.filled(64, 9));
+          if (withCurrentKey) {
+            await _createDatabase(
+              databasePath: databasePath,
+              password: password,
+              keyFilePath: currentKey.path,
+            );
+          }
+
+          await service.changeCredentials(
+            databasePath: databasePath,
+            currentPassword: password,
+            currentKeyFilePath: withCurrentKey ? currentKey.path : null,
+            newPassword: '',
+            newKeyFilePath: keyFile.path,
+          );
+
+          await expectLater(
+            service.loadVault(
+              databasePath: databasePath,
+              password: '',
+              keyFilePath: keyFile.path,
+            ),
+            completes,
+          );
+          await expectKeyOnlyOnDisk();
+        },
+      );
+    }
+  });
+
   test('wrong current credentials leave original database readable', () async {
     final originalBytes = await File(databasePath).readAsBytes();
 
@@ -3911,8 +4034,10 @@ Future<void> _createDatabase({
   final keyBytes = keyFilePath == null
       ? null
       : await File(keyFilePath).readAsBytes();
+  // An empty password is no password factor, exactly as KeePassXC writes a
+  // key-file-only vault. Composed here, not via the code under test.
   final credentials = Credentials.composite(
-    ProtectedValue.fromString(password),
+    password.isEmpty ? null : ProtectedValue.fromString(password),
     keyBytes,
   );
   final kdbx = KdbxFormat().create(credentials, 'Test DB');

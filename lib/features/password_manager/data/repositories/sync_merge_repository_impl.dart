@@ -49,6 +49,7 @@ import '../../domain/repositories/database_registry_repository.dart';
 import '../../domain/repositories/database_security_repository.dart';
 import '../../domain/repositories/database_sync_repository.dart';
 import '../../domain/repositories/sync_merge_repository.dart';
+import '../../domain/usecases/vault_credentials.dart';
 import '../datasources/secure_data_source.dart';
 import '../datasources/sync_metadata_data_source.dart';
 import '../services/database_path_mutex.dart';
@@ -929,9 +930,6 @@ class SyncMergeRepositoryImpl implements SyncMergeRepository {
 
   Future<Credentials> _resolveCredentials(DatabaseRecord record) async {
     final password = await _secure.getMasterPassword(record.databaseId);
-    if (password == null || password.isEmpty) {
-      throw const SyncMergeFailure(MergeFailureCode.credentialsRevoked);
-    }
 
     final profile = await _security.getProfile(record.databaseId);
     // spec 014 FR-8 (T014c): the per-database security profile is the ONLY
@@ -949,9 +947,16 @@ class SyncMergeRepositoryImpl implements SyncMergeRepository {
       keyFileBytes = await keyFile.readAsBytes();
     }
 
-    return Credentials.composite(
-      ProtectedValue.fromString(password),
-      keyFileBytes,
+    // spec-011 FR-2, as at unlock: a missing or empty password is a
+    // credential only for a key-file-only vault. Anything else whose password
+    // is not stored is revoked; a key-only guess on a password + key file
+    // vault fails to open and is reported as revoked by [_open].
+    if ((password == null || password.isEmpty) && keyFileBytes == null) {
+      throw const SyncMergeFailure(MergeFailureCode.credentialsRevoked);
+    }
+    return composeVaultCredentials(
+      password: password ?? '',
+      keyFileBytes: keyFileBytes,
     );
   }
 

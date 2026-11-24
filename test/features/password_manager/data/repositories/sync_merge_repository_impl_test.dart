@@ -2136,6 +2136,59 @@ void main() {
         throwsA(isA<KdbxInvalidKeyException>()),
       );
     });
+
+    // A key-file-only vault has NO password factor. The keystore holds no
+    // secret for it (null) or, at most, an empty one; either way the merge
+    // must compose the key file alone, never `'' + key file`, which is a
+    // different composite that KeePassXC would not open.
+    for (final storedSecret in const <String?>[null, '']) {
+      test(
+        'a key-file-only vault merges, commits and reopens with the key '
+        'file alone (stored secret: ${storedSecret == null ? 'none' : 'empty'})',
+        () async {
+          final harness = await _Harness.build(temp, keyFileOnly: true);
+          harness.secure.password = storedSecret;
+
+          var summary = await harness.repository.startReview(
+            harness.databaseId,
+          );
+          summary = await harness.applyShortcut(
+            summary,
+            MergeShortcut.preferLocal,
+          );
+          final outcome = await harness.repository.commit(summary.sessionId);
+
+          expect(outcome, isA<MergeApplied>());
+          final onDisk = await File(harness.databasePath).readAsBytes();
+          final reopened = await KdbxFormat().read(
+            onDisk,
+            Credentials.composite(null, harness.keyFileBytes),
+          );
+          expect(reopened.body.rootGroup.uuid, harness.rootUuid);
+          await expectLater(
+            KdbxFormat().read(
+              onDisk,
+              Credentials.composite(
+                ProtectedValue.fromString(''),
+                harness.keyFileBytes,
+              ),
+            ),
+            throwsA(isA<KdbxInvalidKeyException>()),
+          );
+        },
+      );
+    }
+
+    test('a password + key file vault with no stored password is still '
+        'revoked, not opened with the key file alone', () async {
+      final harness = await _Harness.build(temp, withKeyFile: true);
+      harness.secure.password = null;
+
+      await expectLater(
+        harness.repository.startReview(harness.databaseId),
+        _failsWith(MergeFailureCode.credentialsRevoked),
+      );
+    });
   });
 
   // =========================================================================
@@ -2878,6 +2931,7 @@ class _Harness {
     required this.mutex,
     required this.registry,
     required this.security,
+    this.keyFileOnly = false,
   });
 
   final SyncMergeRepositoryImpl repository;
@@ -2911,8 +2965,14 @@ class _Harness {
   final _FakeGoogleDriveApiService drive;
   final _FakeSyncMetadataDataSource syncMetadata;
 
-  Future<Credentials> buildCredentials() async =>
-      Credentials.composite(ProtectedValue.fromString(_password), keyFileBytes);
+  /// A key-file-only vault: no password factor at all, exactly what KeePassXC
+  /// writes when the password box is left empty.
+  final bool keyFileOnly;
+
+  Future<Credentials> buildCredentials() async => Credentials.composite(
+    keyFileOnly ? null : ProtectedValue.fromString(_password),
+    keyFileBytes,
+  );
 
   Future<MergeReviewSummary> applyShortcut(
     MergeReviewSummary summary,
@@ -2944,6 +3004,7 @@ class _Harness {
   static Future<_FixturePair> pair(
     Directory temp, {
     bool withKeyFile = false,
+    bool keyFileOnly = false,
     bool foreignRemote = false,
     bool tiedTimestamps = false,
     bool withPasskey = false,
@@ -2952,14 +3013,14 @@ class _Harness {
   }) async {
     Uint8List? keyFileBytes;
     final keyFilePath = '${temp.path}/fixture-key-file.keyx';
-    if (withKeyFile) {
+    if (withKeyFile || keyFileOnly) {
       keyFileBytes = Uint8List.fromList(
         utf8.encode('fixture-key-file-material-not-a-real-key'),
       );
       await File(keyFilePath).writeAsBytes(keyFileBytes);
     }
     final credentials = Credentials.composite(
-      ProtectedValue.fromString(_password),
+      keyFileOnly ? null : ProtectedValue.fromString(_password),
       keyFileBytes,
     );
 
@@ -3012,6 +3073,7 @@ class _Harness {
   static Future<_Harness> build(
     Directory temp, {
     bool withKeyFile = false,
+    bool keyFileOnly = false,
     bool foreignRemote = false,
     bool tiedTimestamps = false,
     bool withPasskey = false,
@@ -3028,6 +3090,7 @@ class _Harness {
         await pair(
           temp,
           withKeyFile: withKeyFile,
+          keyFileOnly: keyFileOnly,
           foreignRemote: foreignRemote,
           tiedTimestamps: tiedTimestamps,
           withPasskey: withPasskey,
@@ -3056,7 +3119,9 @@ class _Harness {
             ),
       remote: remote,
     );
-    final secure = _FakeSecureDataSource(_password);
+    // A key-file-only vault has no secret to store: biometric enrolment skips
+    // an empty session secret, so the keystore really holds nothing.
+    final secure = _FakeSecureDataSource(keyFileOnly ? null : _password);
     final drive = (driveFactory ?? _FakeGoogleDriveApiService.new)(remote);
     final syncMetadata = _FakeSyncMetadataDataSource();
     final mutex = DatabasePathMutex();
@@ -3071,7 +3136,7 @@ class _Harness {
       ),
     );
     final security = _FakeSecurityRepository(
-      withKeyFile
+      withKeyFile || keyFileOnly
           ? DatabaseSecurityProfile(
               databaseId: _databaseId,
               keyFilePath: keyFilePath,
@@ -3105,6 +3170,7 @@ class _Harness {
       mutex: mutex,
       registry: registry,
       security: security,
+      keyFileOnly: keyFileOnly,
     );
   }
 }

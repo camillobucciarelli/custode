@@ -18,6 +18,7 @@ import '../../domain/models/vault_passkey.dart';
 import '../../domain/models/vault_snapshot.dart';
 import '../../domain/repositories/passkey_adoption_vault_port.dart';
 import '../../domain/services/url_field_keys.dart';
+import '../../domain/usecases/vault_credentials.dart';
 import 'database_file_hash_recorder.dart';
 import 'database_path_mutex.dart';
 import 'passkey_parser.dart';
@@ -1121,9 +1122,9 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
         keyFileBytes = await keyFile.readAsBytes();
       }
 
-      file.credentials = Credentials.composite(
-        ProtectedValue.fromString(newPassword),
-        keyFileBytes,
+      file.credentials = composeVaultCredentials(
+        password: newPassword,
+        keyFileBytes: keyFileBytes,
       );
       final bytes = await file.save();
       final suffix = DateTime.now().microsecondsSinceEpoch;
@@ -1650,9 +1651,9 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
       keyFileBytes = await keyFile.readAsBytes();
     }
 
-    final credentials = Credentials.composite(
-      ProtectedValue.fromString(password),
-      keyFileBytes,
+    final credentials = composeVaultCredentials(
+      password: password,
+      keyFileBytes: keyFileBytes,
     );
     final dbBytes = await dbFile.readAsBytes();
     return KdbxFormat().read(dbBytes, credentials);
