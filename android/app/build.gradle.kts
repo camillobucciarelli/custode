@@ -48,7 +48,13 @@ android {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("upload")
+            // Google Sign-In on Android matches the package + signing SHA-1
+            // registered in Google Cloud, so debug signs with the upload key
+            // when one is configured. Without key.properties debug falls back to
+            // the standard debug key: the app builds, but Drive sign-in fails.
+            signingConfig = signingConfigs.getByName(
+                if (keystorePropertiesFile.exists()) "upload" else "debug",
+            )
         }
 
         release {
