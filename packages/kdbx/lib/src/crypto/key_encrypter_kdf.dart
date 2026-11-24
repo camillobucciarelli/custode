@@ -5,9 +5,11 @@ import 'package:argon2_ffi_base/argon2_ffi_base.dart';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:isolates/isolate_runner.dart';
 import 'package:kdbx/kdbx.dart';
+import 'package:kdbx/src/internal/native_kdf.dart';
 import 'package:kdbx/src/kdbx_var_dictionary.dart';
 import 'package:kdbx/src/utils/byte_utils.dart';
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 import 'package:pointycastle/export.dart';
 
 final _logger = Logger('key_encrypter_kdf');
@@ -165,13 +167,26 @@ class KeyEncrypterKdf {
     }
   }
 
-  static Uint8List _encryptAesSync(EncryptAesArgs args) {
+  static Uint8List _encryptAesSync(EncryptAesArgs args) => encryptAesSync(args);
+
+  /// The AES-KDF transform: hardware AES through [native] when it is
+  /// available, the pointycastle loop otherwise. [native] is swapped in tests.
+  @visibleForTesting
+  static Uint8List encryptAesSync(
+    EncryptAesArgs args, {
+    bool Function(Uint8List key, Uint8List data, int rounds) native =
+        tryNativeAesKdf,
+  }) {
+    final rounds = args.rounds!;
+    final data = Uint8List.fromList(args.key);
+    if (native(args.encryptionKey!, data, rounds)) {
+      return crypto.sha256.convert(data).bytes as Uint8List;
+    }
     final cipher = ECBBlockCipher(AESEngine())
       ..init(true, KeyParameter(args.encryptionKey!));
-    var out1 = Uint8List.fromList(args.key);
+    var out1 = data;
     var out2 = Uint8List(args.key.length);
 
-    final rounds = args.rounds!;
     for (var i = 0; i < rounds; i++) {
       for (var j = 0; j < out1.lengthInBytes;) {
         j += cipher.processBlock(out1, j, out2, j);

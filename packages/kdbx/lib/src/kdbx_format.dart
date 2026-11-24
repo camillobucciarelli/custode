@@ -12,7 +12,7 @@ import 'package:kdbx/src/crypto/key_encrypter_kdf.dart';
 import 'package:kdbx/src/crypto/protected_salt_generator.dart';
 import 'package:kdbx/src/internal/crypto_utils.dart';
 import 'package:kdbx/src/internal/extension_utils.dart';
-import 'package:kdbx/src/internal/pointycastle_argon2.dart';
+import 'package:kdbx/src/internal/native_kdf.dart';
 import 'package:kdbx/src/kdbx_deleted_object.dart';
 import 'package:kdbx/src/kdbx_entry.dart';
 import 'package:kdbx/src/kdbx_group.dart';
@@ -645,7 +645,7 @@ class KdbxFormat {
   KdbxFormat([Argon2? argon2])
     : assert(kdbxKeyCommonAssertConsistency()),
       argon2 = argon2 == null || !argon2.isImplemented
-          ? const PointyCastleArgon2()
+          ? const NativeArgon2()
           : argon2;
 
   final Argon2 argon2;
