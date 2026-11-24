@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:kdbx/src/credentials/credentials.dart';
 import 'package:kdbx/src/crypto/protected_value.dart';
+import 'package:kdbx/src/internal/consts.dart';
 import 'package:kdbx/src/kdbx_consts.dart';
 import 'package:kdbx/src/kdbx_dao.dart';
 import 'package:kdbx/src/kdbx_exceptions.dart';
@@ -82,15 +83,33 @@ class KdbxFile {
 
   Uint8List? _transformedKey;
 
+  /// [KdbxHeader.kdfFingerprint] and [KdbxHeader.cipher] when
+  /// [_transformedKey] was recorded.
+  String? _transformedKeyFingerprint;
+  Cipher? _transformedKeyCipher;
+
   /// Records the key derivation output for [transformedKeyCredentials].
   /// Called by [KdbxFormat] after reading or writing a kdbx4 file.
   void setTransformedKey(Uint8List transformedKey) {
     _transformedKey = transformedKey;
+    _transformedKeyFingerprint = header.kdfFingerprint;
+    _transformedKeyCipher = header.cipher;
   }
+
+  /// The recorded derived key, if it still belongs to the current credentials,
+  /// KDF parameters and cipher. [KdbxFormat] reuses it on save instead of
+  /// running the KDF again.
+  Uint8List? get reusableTransformedKey =>
+      _transformedKey != null &&
+          _transformedKeyFingerprint == header.kdfFingerprint &&
+          _transformedKeyCipher == header.cipher
+      ? _transformedKey
+      : null;
 
   /// Fingerprint of the key derivation parameters currently in the header.
   ///
-  /// Changes on every save. Compare against
+  /// Changes when the KDF parameters or salt do: on the first save, and on
+  /// every save after a credential or KDF change. Compare against
   /// [TransformedKeyCredentials.kdfFingerprint] to tell whether a stored
   /// derived key still applies to this file.
   String get kdfFingerprint => header.kdfFingerprint;
@@ -103,10 +122,10 @@ class KdbxFile {
   /// AutoFill extension, whose process memory limit is far below what Argon2
   /// needs at usual KeePass settings.
   ///
-  /// Security: this is as good as the master password *for the current
-  /// revision of the file*. It expires on the next save, since
-  /// [KdbxHeader.generateSalts] rotates the KDF salt — which bounds the damage
-  /// a leaked copy can do, unlike the composite hash. Store it accordingly.
+  /// Security: this is as good as the master password for this file. Saves
+  /// keep the KDF salt (see CUSTODE_CHANGES.md), so it stays valid until the
+  /// credentials or the KDF parameters change, which rotate the salt. Store
+  /// it accordingly.
   TransformedKeyCredentials? get transformedKeyCredentials {
     final transformedKey = _transformedKey;
     if (transformedKey == null) {
@@ -114,7 +133,7 @@ class KdbxFile {
     }
     return TransformedKeyCredentials(
       transformedKey: transformedKey,
-      kdfFingerprint: kdfFingerprint,
+      kdfFingerprint: _transformedKeyFingerprint!,
     );
   }
 

@@ -60,10 +60,22 @@ void main() {
       expect(file.transformedKeyCredentials, isNotNull);
     });
 
-    test('rotates on every save, because the kdf salt does', () async {
+    test('survives a save, because saves keep the kdf salt', () async {
       final file = TestUtil().createEmptyFile();
       await file.save();
       final first = file.transformedKeyCredentials!;
+      await file.save();
+      final second = file.transformedKeyCredentials!;
+
+      expect(second.kdfFingerprint, first.kdfFingerprint);
+      expect(second.transformedKey, first.transformedKey);
+    });
+
+    test('rotates when the credentials change and the file is saved', () async {
+      final file = TestUtil().createEmptyFile();
+      await file.save();
+      final first = file.transformedKeyCredentials!;
+      file.credentials = Credentials(ProtectedValue.fromString('other'));
       await file.save();
       final second = file.transformedKeyCredentials!;
 
@@ -147,15 +159,17 @@ void main() {
       );
     });
 
-    test('goes stale once the file is saved again', () async {
+    test('goes stale once the credentials change', () async {
       final file = TestUtil().createEmptyFile();
       final bytes = await file.save();
       final exported = file.transformedKeyCredentials!;
 
-      // the key still opens the revision it was exported for.
+      // the key opens the revision it was exported for, and the next save.
       await noArgon2Format.read(bytes, exported);
+      await noArgon2Format.read(await file.save(), exported);
 
-      // ... but not the next one.
+      // ... but not a save with new credentials, which rotates the salt.
+      file.credentials = Credentials(ProtectedValue.fromString('other'));
       final resaved = await file.save();
       await expectLater(
         noArgon2Format.read(resaved, exported),

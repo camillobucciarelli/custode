@@ -101,14 +101,13 @@ void main() {
     notes: '',
   );
 
-  test('N reads plus M edits after the first open cost exactly M KDFs, '
+  test('N reads plus M edits after the first open cost no KDF, '
       'and every edit still reaches the disk', () async {
     final groupId = await rootGroupId();
     expect(argon2.calls, 1, reason: 'first open decrypts');
     argon2.calls = 0;
 
     const reads = 6;
-    const edits = 3;
     for (var i = 0; i < reads; i++) {
       await service.loadVault(databasePath: databasePath, password: password);
       await service.loadRecycleBinEntries(
@@ -130,7 +129,11 @@ void main() {
     await create('Two', groupId);
     expect(await titles(), containsAll(['Seed', 'One edited', 'Two']));
 
-    expect(argon2.calls, edits, reason: 'one KDF per save, none per read');
+    expect(
+      argon2.calls,
+      0,
+      reason: 'saves reuse the derived key, reads the cache',
+    );
 
     // Disk, not memory: a cold reader sees the same state.
     final onDisk = await KdbxFormat().read(

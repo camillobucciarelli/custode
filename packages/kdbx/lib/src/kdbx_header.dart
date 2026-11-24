@@ -255,7 +255,9 @@ class KdbxHeader {
     innerHeader.fields[field] = InnerHeaderField(field, bytes);
   }
 
-  void generateSalts() {
+  /// Rotates every seed, salt and IV. With [rotateKdfSalt] false (kdbx 4
+  /// only) the KDF salt is kept, so a derived key cached for it stays valid.
+  void generateSalts({bool rotateKdfSalt = true}) {
     // TODO make sure default algorithm is "secure" engouh. Or whether we should
     //      use like [SecureRandom] from PointyCastle?
     _setHeaderField(HeaderFields.MasterSeed, ByteUtils.randomBytes(32));
@@ -276,14 +278,16 @@ class KdbxHeader {
         InnerHeaderFields.InnerRandomStreamKey,
         ByteUtils.randomBytes(64),
       );
-      // readKdfParameters decodes into a fresh VarDictionary, so the new salt
-      // has to be encoded back into the header field.
-      final kdfParameters = readKdfParameters;
-      KdfField.salt.write(
-        kdfParameters,
-        ByteUtils.randomBytes(Consts.DefaultKdfSaltLength),
-      );
-      writeKdfParameters(kdfParameters);
+      if (rotateKdfSalt) {
+        // readKdfParameters decodes into a fresh VarDictionary, so the new
+        // salt has to be encoded back into the header field.
+        final kdfParameters = readKdfParameters;
+        KdfField.salt.write(
+          kdfParameters,
+          ByteUtils.randomBytes(Consts.DefaultKdfSaltLength),
+        );
+        writeKdfParameters(kdfParameters);
+      }
       //         var ivLength = this.dataCipherUuid.toString() === Consts.CipherId.ChaCha20 ? 12 : 16;
       //        this.encryptionIV = Random.getBytes(ivLength);
       final cipher = this.cipher;

@@ -6,6 +6,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:kdbx/kdbx.dart';
+import 'package:kdbx/src/kdbx_header.dart' show HeaderFields;
 import 'package:kdbx/src/kdbx_var_dictionary.dart' show ValueType;
 import 'package:pointycastle/export.dart' show KeyParameter, TwofishEngine;
 import 'package:test/test.dart';
@@ -259,4 +260,114 @@ void main() {
     expect(binary.value.value, payload);
     expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
   });
+
+  group('save reuses the derived key', () {
+    Credentials pw([String text = password]) =>
+        Credentials(ProtectedValue.fromString(text));
+    Uint8List field(Uint8List bytes, HeaderFields name) =>
+        KdbxHeader.readFromBytes(bytes).fields[name]!.bytes;
+    String kdfOf(Uint8List bytes) =>
+        KdbxHeader.readFromBytes(bytes).kdfFingerprint;
+
+    for (final cipher in Cipher.values) {
+      for (final kdf in kdfs) {
+        test('$cipher + ${kdf.type}: fresh seed and IV, same KDF salt, '
+            'opens with a fresh read', () async {
+          final created = format.create(
+            pw(),
+            'db',
+            header: KdbxHeader.createV4(cipher: cipher, kdf: kdf),
+          );
+          final opened = await KdbxFormat().read(await created.save(), pw());
+          final entry = KdbxEntry.create(opened, opened.body.rootGroup);
+          opened.body.rootGroup.addEntry(entry);
+          entry.setString(KdbxKeyCommon.TITLE, PlainValue('first'));
+          final first = await opened.save();
+          entry.setString(KdbxKeyCommon.TITLE, PlainValue('second'));
+          final second = await opened.save();
+
+          expect(kdfOf(second), kdfOf(first));
+          for (final name in [
+            HeaderFields.MasterSeed,
+            HeaderFields.EncryptionIV,
+          ]) {
+            expect(field(second, name), isNot(field(first, name)));
+          }
+
+          final read = await KdbxFormat().read(second, pw());
+          expect(
+            read.body.rootGroup.entries.single
+                .getString(KdbxKeyCommon.TITLE)!
+                .getText(),
+            'second',
+          );
+          await expectLater(
+            KdbxFormat().read(second, pw('wrong')),
+            throwsA(isA<KdbxInvalidKeyException>()),
+          );
+        });
+      }
+    }
+
+    final argon2 = kdfs.last;
+    Future<(KdbxFile, _CountingArgon2)> openCounting() async {
+      final bytes = await format
+          .create(pw(), 'db', header: KdbxHeader.createV4(kdf: argon2))
+          .save();
+      final counting = _CountingArgon2();
+      final file = await KdbxFormat(counting).read(bytes, pw());
+      counting.calls = 0;
+      return (file, counting);
+    }
+
+    test('a save after a read runs no KDF', () async {
+      final (file, counting) = await openCounting();
+      final entry = KdbxEntry.create(file, file.body.rootGroup);
+      file.body.rootGroup.addEntry(entry);
+      await file.save();
+      await file.save();
+      expect(counting.calls, 0);
+    });
+
+    test('new credentials run the KDF and rotate the salt', () async {
+      final (file, counting) = await openCounting();
+      final before = await file.save();
+      file.credentials = pw('new password');
+      final after = await file.save();
+
+      expect(counting.calls, 1);
+      expect(kdfOf(after), isNot(kdfOf(before)));
+      await KdbxFormat().read(after, pw('new password'));
+      await expectLater(
+        KdbxFormat().read(after, pw()),
+        throwsA(isA<KdbxInvalidKeyException>()),
+      );
+    });
+
+    test('new KDF parameters run the KDF', () async {
+      final (file, counting) = await openCounting();
+      final parameters = file.header.readKdfParameters;
+      KdfField.iterations.write(parameters, 2);
+      file.header.writeKdfParameters(parameters);
+      final bytes = await file.save();
+
+      expect(counting.calls, 1);
+      final read = await KdbxFormat().read(bytes, pw());
+      expect(
+        (read.header.kdfConfig as KdbxArgon2KdfConfig).iterations,
+        2,
+      );
+    });
+  });
+}
+
+/// Counts key derivations.
+class _CountingArgon2 extends PointyCastleArgon2 {
+  int calls = 0;
+
+  @override
+  Future<Uint8List> argon2Async(args) {
+    calls++;
+    return super.argon2Async(args);
+  }
 }

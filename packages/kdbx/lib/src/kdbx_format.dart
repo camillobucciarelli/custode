@@ -749,7 +749,16 @@ class KdbxFormat {
 
     final output = BytesBuilder();
     final writer = WriterHelper(output);
-    header.generateSalts();
+    // kdbx 4: the final keys are hashes of (master seed, transformed key), so
+    // a fresh master seed, IV and inner stream key give fresh keys without
+    // running the KDF. The KDF salt, and the KDF, only change when the cached
+    // key no longer applies: first save, new credentials, new KDF or cipher.
+    // KeePass and KeePassXC rotate the salt on every save; see
+    // CUSTODE_CHANGES.md.
+    final reusableKey = header.version.major == KdbxVersion.V4.major
+        ? file.reusableTransformedKey
+        : null;
+    header.generateSalts(rotateKdfSalt: reusableKey == null);
     header.write(writer);
     final headerHash =
         (crypto.sha256.convert(writer.output.toBytes()).bytes as Uint8List);
@@ -767,11 +776,18 @@ class KdbxFormat {
       final headerBytes = writer.output.toBytes();
       writer.writeBytes(headerHash);
       final gen = _createProtectedSaltGenerator(header);
-      final keys = await _computeKeysV4(header, file.credentials);
+      final keys = await _computeKeysV4(
+        header,
+        reusableKey == null
+            ? file.credentials
+            : TransformedKeyCredentials(
+                transformedKey: reusableKey,
+                kdfFingerprint: header.kdfFingerprint,
+              ),
+      );
       final headerHmac = _getHeaderHmac(headerBytes, keys.hmacKey);
       writer.writeBytes(headerHmac.bytes as Uint8List);
       body.writeV4(writer, file, gen, keys);
-      // salts were rotated above, so the derived key is a new one.
       file.setTransformedKey(keys.transformedKey);
     } else {
       throw UnsupportedError('Unsupported version ${header.version}');
