@@ -358,6 +358,48 @@ void main() {
         2,
       );
     });
+
+    test('read with a keySource opened with the same credentials runs no '
+        'KDF and can be saved', () async {
+      final (file, counting) = await openCounting();
+      final bytes = await file.save();
+      final reread = await KdbxFormat(
+        counting,
+      ).read(bytes, pw(), keySource: file);
+      expect(counting.calls, 0);
+
+      final entry = KdbxEntry.create(reread, reread.body.rootGroup);
+      reread.body.rootGroup.addEntry(entry);
+      entry.setString(KdbxKeyCommon.TITLE, PlainValue('from reread'));
+      final saved = await reread.save();
+      expect(counting.calls, 0);
+      final fresh = await KdbxFormat().read(saved, pw());
+      expect(
+        fresh.body.rootGroup.entries.single
+            .getString(KdbxKeyCommon.TITLE)!
+            .getText(),
+        'from reread',
+      );
+    });
+
+    test(
+      'a keySource is ignored for other credentials or another salt',
+      () async {
+        final (file, counting) = await openCounting();
+        final bytes = await file.save();
+        await expectLater(
+          KdbxFormat(counting).read(bytes, pw('wrong'), keySource: file),
+          throwsA(isA<KdbxInvalidKeyException>()),
+        );
+        expect(counting.calls, 1);
+
+        final other = await format
+            .create(pw(), 'other', header: KdbxHeader.createV4(kdf: argon2))
+            .save();
+        await KdbxFormat(counting).read(other, pw(), keySource: file);
+        expect(counting.calls, 2);
+      },
+    );
   });
 }
 

@@ -73,9 +73,35 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
   /// [_OpenVault.bytes] before reusing it; saves still write every time.
   final Map<String, _OpenVault> _openVaults = {};
 
+  /// The last file opened or saved per path, kept for its derived key only:
+  /// a cache miss passes it to [KdbxFormat.read] as `keySource`, which skips
+  /// the KDF when the file on disk has the same KDF salt (any save by this
+  /// app keeps it) and the credentials are the same. Its tree is never read,
+  /// so it may be an edit's checked-out, half-mutated file.
+  final Map<String, KdbxFile> _keySources = {};
+
   /// Drops every decrypted vault. Called when the session ends (lock,
   /// database switch, failed unlock, app detach).
-  void closeOpenVaults() => _openVaults.clear();
+  void closeOpenVaults() {
+    _openVaults.clear();
+    _keySources.clear();
+  }
+
+  void _rememberKey(String databasePath, KdbxFile file) {
+    if (_keepOpenWhile()) {
+      _keySources[databasePath] = file;
+    }
+  }
+
+  /// A real decrypt of [bytes], without the KDF when a known key fits.
+  Future<KdbxFile> _decrypt(
+    String databasePath,
+    Uint8List bytes,
+    Credentials credentials,
+  ) {
+    final keySource = _keepOpenWhile() ? _keySources[databasePath] : null;
+    return _format.read(bytes, credentials, keySource: keySource);
+  }
 
   /// Takes the file an unlock has just decrypted from [bytes], so the first
   /// read after the unlock does not run the KDF a second time. Reused only on
@@ -83,6 +109,7 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
   void adoptOpenedFile(String databasePath, Uint8List bytes, KdbxFile file) {
     if (_keepOpenWhile()) {
       _openVaults[databasePath] = _OpenVault(file, bytes);
+      _keySources[databasePath] = file;
     }
   }
 
@@ -1223,7 +1250,7 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
           password: newPassword,
           keyFilePath: newKeyFilePath,
         );
-        await _format.read(tempBytes, tempCredentials);
+        final verified = await _format.read(tempBytes, tempCredentials);
 
         await _trackDatabaseWrite(
           databasePath: databasePath,
@@ -1238,7 +1265,14 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
             }
           },
         );
+        // The verified file is exactly what is on disk now, opened with the
+        // new credentials: the next read reuses it instead of a third KDF.
         _openVaults.remove(databasePath);
+        _keySources.remove(databasePath);
+        if (_keepOpenWhile()) {
+          _openVaults[databasePath] = _OpenVault(verified, tempBytes);
+          _keySources[databasePath] = verified;
+        }
 
         return KdbxCredentialChange(
           databasePath: databasePath,
@@ -1275,6 +1309,7 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
       );
       final restoredBytes = await backupFile.readAsBytes();
       _openVaults.remove(change.databasePath);
+      _keySources.remove(change.databasePath);
       await _trackDatabaseWrite(
         databasePath: change.databasePath,
         bytes: restoredBytes,
@@ -1722,12 +1757,16 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     );
     final cached = _cachedFile(databasePath, bytes, credentials);
     _openVaults.remove(databasePath);
-    return cached ?? await _format.read(bytes, credentials);
+    final file = cached ?? await _decrypt(databasePath, bytes, credentials);
+    _rememberKey(databasePath, file);
+    return file;
   }
 
   /// A read-only projection of the vault. [read] runs synchronously right
   /// after the cache check, so no edit can check the same object out and
-  /// mutate it while it is being read.
+  /// mutate it while it is being read. A read during an edit (the file is
+  /// checked out) decrypts the bytes on disk again, the last saved state,
+  /// with the edit's derived key, so it costs no KDF either.
   Future<T> _read<T>({
     required String databasePath,
     required String password,
@@ -1743,11 +1782,12 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     if (cached != null) {
       return read(cached);
     }
-    final file = await _format.read(bytes, credentials);
+    final file = await _decrypt(databasePath, bytes, credentials);
     final result = read(file);
     if (_keepOpenWhile()) {
       // An edit that finished meanwhile stored a newer state: keep that one.
       _openVaults.putIfAbsent(databasePath, () => _OpenVault(file, bytes));
+      _keySources.putIfAbsent(databasePath, () => file);
     }
     return result;
   }
@@ -1814,6 +1854,7 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     );
     if (_keepOpenWhile()) {
       _openVaults[databasePath] = _OpenVault(file, bytes);
+      _keySources[databasePath] = file;
     }
   }
 

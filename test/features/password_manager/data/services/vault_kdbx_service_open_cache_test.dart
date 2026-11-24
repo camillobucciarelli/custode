@@ -26,13 +26,19 @@ class _CountingArgon2 extends PointyCastleArgon2 {
 class _FailingWriter extends SafeVaultFileWriter {
   bool fail = false;
 
+  /// Runs while an edit's file is checked out and before its bytes land.
+  Future<void> Function()? beforeWrite;
+
   @override
   Future<SafeVaultFileWriteResult> write({
     required String targetPath,
     required Uint8List bytes,
     bool backupExistingTarget = false,
     String? operation,
-  }) {
+  }) async {
+    final hook = beforeWrite;
+    beforeWrite = null;
+    await hook?.call();
     if (fail) {
       throw const FileSystemException('disk full');
     }
@@ -264,7 +270,13 @@ void main() {
       );
 
       expect(await titles(), containsAll(['Seed', 'From remote']));
-      expect(argon2.calls, 1);
+      expect(
+        argon2.calls,
+        0,
+        reason:
+            'decrypted again from disk; the merge kept the KDF salt, so '
+            'the derived key still fits',
+      );
     });
 
     test('an import that replaces the file', () async {
@@ -322,7 +334,11 @@ void main() {
       argon2.calls = 0;
 
       expect(await titles(), ['Seed']);
-      expect(argon2.calls, 1, reason: 're-read from disk');
+      expect(
+        argon2.calls,
+        0,
+        reason: 're-decrypted from disk with the known derived key',
+      );
     });
 
     test('a failed edit before the save is dropped too', () async {
@@ -335,9 +351,56 @@ void main() {
         throwsA(anything),
       );
 
-      await titles();
-      expect(argon2.calls, 1);
+      expect(await titles(), ['Seed']);
+      expect(argon2.calls, 0, reason: 're-decrypted from disk, no KDF');
     });
+  });
+
+  test(
+    'a read during an edit sees the last saved state and runs no KDF',
+    () async {
+      final groupId = await rootGroupId();
+      argon2.calls = 0;
+      List<String>? duringEdit;
+      writer.beforeWrite = () async => duringEdit = await titles();
+
+      await create('New', groupId);
+
+      expect(duringEdit, ['Seed'], reason: 'never the half-applied edit');
+      expect(await titles(), containsAll(['Seed', 'New']));
+      expect(argon2.calls, 0);
+    },
+  );
+
+  test('a credential change costs two KDFs (save, verify) and the next '
+      'read none', () async {
+    await titles();
+    argon2.calls = 0;
+
+    await service.changeCredentials(
+      databasePath: databasePath,
+      currentPassword: password,
+      newPassword: 'new-password',
+    );
+    expect(argon2.calls, 2);
+
+    expect(await titles(pw: 'new-password'), ['Seed']);
+    expect(argon2.calls, 2);
+    await expectLater(titles(), throwsA(anything));
+  });
+
+  test('a credential change while locked adopts nothing', () async {
+    sessionOpen = false;
+    await service.changeCredentials(
+      databasePath: databasePath,
+      currentPassword: password,
+      newPassword: 'new-password',
+    );
+    sessionOpen = true;
+    argon2.calls = 0;
+
+    expect(await titles(pw: 'new-password'), ['Seed']);
+    expect(argon2.calls, 1);
   });
 }
 

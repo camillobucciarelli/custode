@@ -677,13 +677,24 @@ class KdbxFormat {
     );
   }
 
-  Future<KdbxFile> read(Uint8List input, Credentials credentials) async {
+  /// Reads [input] with [credentials].
+  ///
+  /// [keySource] (Custode): a file already opened with the same credentials.
+  /// When its derived key was recorded for the KDF parameters and salt of
+  /// [input], it is reused and the KDF does not run; the result is the same
+  /// as a full read and keeps [credentials], so it can be saved. Otherwise
+  /// (other credentials, other salt, kdbx 3) [keySource] is ignored.
+  Future<KdbxFile> read(
+    Uint8List input,
+    Credentials credentials, {
+    KdbxFile? keySource,
+  }) async {
     final reader = ReaderHelper(input);
     final header = KdbxHeader.read(reader);
     if (header.version.major == KdbxVersion.V3.major) {
       return await _loadV3(header, reader, credentials);
     } else if (header.version.major == KdbxVersion.V4.major) {
-      return await _loadV4(header, reader, credentials);
+      return await _loadV4(header, reader, credentials, keySource);
     } else {
       _logger.finer('Unsupported version for $header');
       throw KdbxUnsupportedException(
@@ -832,8 +843,9 @@ class KdbxFormat {
   Future<KdbxFile> _loadV4(
     KdbxHeader header,
     ReaderHelper reader,
-    Credentials credentials,
-  ) async {
+    Credentials credentials, [
+    KdbxFile? keySource,
+  ]) async {
     final headerBytes = reader.byteData.sublist(0, header.endPos);
     final hash = crypto.sha256.convert(headerBytes).bytes;
     final actualHash = reader.readBytes(hash.length);
@@ -847,7 +859,10 @@ class KdbxFormat {
     //    _logger
     //        .finest('KdfParameters: ${header.readKdfParameters.toDebugString()}');
     _logger.finest('Header hash matches.');
-    final keys = await _computeKeysV4(header, credentials);
+    final keys = await _computeKeysV4(
+      header,
+      _sharedKey(keySource, credentials, header) ?? credentials,
+    );
     final headerHmac = _getHeaderHmac(
       reader.byteData.sublist(0, header.endPos),
       keys.hmacKey,
@@ -1042,6 +1057,24 @@ class KdbxFormat {
     return await KeyEncrypterKdf(
       argon2,
     ).encrypt(credentials.getHash(), kdfParameters);
+  }
+
+  /// The derived key of [source], if it is valid for [header] and [source]
+  /// was opened with exactly [credentials].
+  static TransformedKeyCredentials? _sharedKey(
+    KdbxFile? source,
+    Credentials credentials,
+    KdbxHeader header,
+  ) {
+    final key = source?.transformedKeyCredentials;
+    if (key == null ||
+        key.kdfFingerprint != header.kdfFingerprint ||
+        credentials is TransformedKeyCredentials ||
+        source!.credentials is TransformedKeyCredentials ||
+        !ByteUtils.eq(source.credentials.getHash(), credentials.getHash())) {
+      return null;
+    }
+    return key;
   }
 
   ProtectedSaltGenerator _createProtectedSaltGenerator(KdbxHeader header) {

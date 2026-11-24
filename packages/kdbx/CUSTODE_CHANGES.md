@@ -40,6 +40,14 @@ offers (AES-256, ChaCha20, Twofish x AES-KDF, Argon2d, Argon2id).
   - If challenge-response (YubiKey) support is added, the KDF salt must rotate
     on every save again: kdbx 4 challenge-response uses it as the challenge.
   - kdbx 3 saves are unchanged (every seed rotates, the KDF runs).
+- `lib/src/kdbx_format.dart`: `KdbxFormat.read(bytes, credentials,
+  {KdbxFile? keySource})`. When `keySource` was opened with the same
+  credentials (hash compared) and its derived key was recorded for the KDF
+  parameters and salt of `bytes`, the read reuses that key instead of running
+  the KDF. The decrypt and every integrity check run in full and the result
+  keeps `credentials`, so it can be saved. Any mismatch ignores `keySource`.
+  The app uses it to re-read its own saves (cache misses, reads during an
+  edit, sync merge sides and the merge candidate check) without a KDF.
 - `lib/src/crypto/key_encrypter_kdf.dart`:
   - `KdfType.Argon2id`, UUID `9e298b19-56db-4773-b23d-fc3ec6f0a1e6`
     (`KdfType.Argon2` keeps its name and means Argon2d).
@@ -96,7 +104,9 @@ several times longer.
   read, the master seed and IV change between saves while the KDF salt does
   not, a save after a read runs no KDF, new credentials or KDF parameters run
   it (and new credentials rotate the salt), and a wrong password still fails.
-  `test/transformed_key_test.dart` was updated to match.
+  `test/transformed_key_test.dart` was updated to match. A read with a
+  `keySource` runs no KDF and the result saves; other credentials or another
+  salt ignore it.
   Also a ~1 MiB Twofish payload that must decrypt in under 2 s.
   Also an AES-KDF file whose `R` is stored as `Int64`, as upstream (and older
   Custode versions) wrote: opens, re-saves, re-opens, header-only read.

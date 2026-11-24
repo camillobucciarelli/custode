@@ -819,7 +819,11 @@ final class KdbxMergePair {
 /// value. FR-2 requires exactly that, because the alternative is a log line
 /// that names the entry the user was trying to protect.
 class KdbxMergeAdapter {
-  const KdbxMergeAdapter();
+  const KdbxMergeAdapter({KdbxFormat Function()? format})
+    : _format = format ?? KdbxFormat.new;
+
+  /// Tests inject a format that counts key derivations.
+  final KdbxFormat Function() _format;
 
   /// Opens one side from bytes.
   ///
@@ -838,12 +842,17 @@ class KdbxMergeAdapter {
   /// unchanged: it is the calling repository's concern (T302), it is not a
   /// property of the KDBX construct, and swallowing it here would report a
   /// revoked credential as a corrupt database.
+  ///
+  /// [keySource], a file already opened with [credentials], lets the read
+  /// skip the KDF when [bytes] carry the same KDF salt (see
+  /// [KdbxFormat.read]); the decrypt and every check still run in full.
   Future<KdbxFile> openSide({
     required Uint8List bytes,
     required Credentials credentials,
+    KdbxFile? keySource,
   }) async {
     try {
-      return await KdbxFormat().read(bytes, credentials);
+      return await _format().read(bytes, credentials, keySource: keySource);
     } on KdbxInvalidKeyException {
       rethrow;
     } on Object {
@@ -1340,7 +1349,11 @@ class KdbxMergeAdapter {
 
     final KdbxFile reopened;
     try {
-      reopened = await KdbxFormat().read(bytes, credentials);
+      // A full decrypt of the bytes with [credentials]. The candidate's
+      // derived key is reused only if the candidate was opened with these
+      // same credentials, which the library checks; the key is what the KDF
+      // would produce again, so the check is unchanged.
+      reopened = await _format().read(bytes, credentials, keySource: candidate);
     } on Object {
       throw const SyncMergeFailure(MergeFailureCode.serializationParityFailed);
     }

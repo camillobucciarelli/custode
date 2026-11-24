@@ -237,6 +237,12 @@ class _EntryDialogState extends State<_EntryDialog> {
   }
 
   Future<void> _handleSave() async {
+    // Nothing changed on an existing record: close as Cancel does. Saving
+    // would rewrite the vault for no change.
+    if (widget.initial != null && !_isDirty) {
+      await VaultOperationScope.of(context).cancel();
+      return;
+    }
     if (!_validate()) {
       return;
     }

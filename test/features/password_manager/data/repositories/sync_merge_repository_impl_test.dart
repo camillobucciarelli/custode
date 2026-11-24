@@ -307,6 +307,29 @@ void main() {
       );
     });
 
+    test('review and commit derive the key once: the remote, the round-0 '
+        'reopen and the candidate check reuse it', () async {
+      final argon2 = _CountingArgon2();
+      final harness = await _Harness.build(
+        temp,
+        adapter: KdbxMergeAdapter(format: () => KdbxFormat(argon2)),
+      );
+
+      final summary = await harness.repository.startReview(harness.databaseId);
+      expect(argon2.calls, 1, reason: 'local only; the remote shares its salt');
+
+      final outcome = await harness.repository.commit(summary.sessionId);
+      expect(outcome, isA<MergeApplied>());
+      expect(argon2.calls, 1);
+
+      // Still a real, independently decryptable file.
+      final onDisk = await KdbxFormat().read(
+        await File(harness.databasePath).readAsBytes(),
+        await harness.buildCredentials(),
+      );
+      expect(onDisk.body.rootGroup.getAllEntries(), isNotEmpty);
+    });
+
     test('a local edit that lands after review opened refuses the commit '
         'before anything is written or uploaded', () async {
       final harness = await _Harness.build(temp);
@@ -3022,6 +3045,7 @@ class _Harness {
     _FixturePair? fixture,
     SafeVaultFileWriter? safeWriter,
     _FakeGoogleDriveApiService Function(_FakeRemoteDrive)? driveFactory,
+    KdbxMergeAdapter adapter = const KdbxMergeAdapter(),
   }) async {
     final built =
         fixture ??
@@ -3089,6 +3113,7 @@ class _Harness {
         driveApiService: drive,
         syncMetadataDataSource: syncMetadata,
         safeWriter: safeWriter,
+        adapter: adapter,
       ),
       databaseId: MergeDatabaseId(_databaseId),
       databasePath: databasePath,
@@ -3549,5 +3574,16 @@ class _DepthMutex extends DatabasePathMutex {
         _depth--;
       }
     });
+  }
+}
+
+/// Counts key derivations.
+class _CountingArgon2 extends PointyCastleArgon2 {
+  int calls = 0;
+
+  @override
+  Future<Uint8List> argon2Async(args) {
+    calls++;
+    return super.argon2Async(args);
   }
 }

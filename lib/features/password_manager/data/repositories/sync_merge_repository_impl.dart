@@ -180,7 +180,13 @@ class SyncMergeRepositoryImpl implements SyncMergeRepository {
     // FR-2: everything below happens BEFORE a session id exists, so a refusal
     // cannot leave a session, a backup, a local write or an upload behind.
     final localFile = await _open(localBytes, credentials);
-    final remoteFile = await _open(remoteBytes, credentials);
+    // Both sides share one KDF salt when only Custode saved them since they
+    // diverged; the remote then reuses the local side's derived key.
+    final remoteFile = await _open(
+      remoteBytes,
+      credentials,
+      keySource: localFile,
+    );
     final pair = _adapter.validatePair(local: localFile, remote: remoteFile);
     final diff = _adapter.diffPresence(pair);
 
@@ -635,8 +641,19 @@ class SyncMergeRepositoryImpl implements SyncMergeRepository {
     _MergeSession session,
     Uint8List remoteBytes,
   ) async {
-    final localFile = await _open(session.localBytes, session.credentials);
-    final remoteFile = await _open(remoteBytes, session.credentials);
+    // Fresh decrypts of the exact bytes; only the derived key of the previous
+    // pair (opened with the same session credentials) is reused.
+    final previous = session.pair;
+    final localFile = await _open(
+      session.localBytes,
+      session.credentials,
+      keySource: previous.local.file,
+    );
+    final remoteFile = await _open(
+      remoteBytes,
+      session.credentials,
+      keySource: previous.remote.file,
+    );
     final pair = _adapter.validatePair(local: localFile, remote: remoteFile);
     final diff = _adapter.diffPresence(pair);
     session.pair = pair;
@@ -989,9 +1006,17 @@ class SyncMergeRepositoryImpl implements SyncMergeRepository {
     }
   }
 
-  Future<KdbxFile> _open(Uint8List bytes, Credentials credentials) async {
+  Future<KdbxFile> _open(
+    Uint8List bytes,
+    Credentials credentials, {
+    KdbxFile? keySource,
+  }) async {
     try {
-      return await _adapter.openSide(bytes: bytes, credentials: credentials);
+      return await _adapter.openSide(
+        bytes: bytes,
+        credentials: credentials,
+        keySource: keySource,
+      );
     } on KdbxInvalidKeyException {
       // The adapter deliberately lets this through unmapped: whether a
       // credential still opens the file is the repository's concern, not a
