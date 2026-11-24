@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -81,10 +81,9 @@ class PasswordManagerApp extends StatelessWidget {
       providers: [
         BlocProvider(create: (_) => ThemeCubit(di.sl())),
         BlocProvider(
-          create: (_) => UpdateCheckCubit(
-            di.sl(),
-            supported: !kIsWeb && updateCheckSupported,
-          )..checkOnStart(),
+          create: (_) =>
+              UpdateCheckCubit(di.sl(), supported: updateCheckSupported)
+                ..checkOnStart(),
         ),
         BlocProvider(
           create: (_) =>

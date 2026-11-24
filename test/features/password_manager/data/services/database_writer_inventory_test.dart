@@ -322,14 +322,6 @@ void main() {
       expect(source, contains('kdbx.save()'));
     });
 
-    test('GAP 6: import service also writes a web-path copy', () {
-      final source = File(
-        'lib/features/password_manager/data/services/'
-        'database_import_service.dart',
-      ).readAsStringSync();
-      expect(source, contains('File(webPath).writeAsBytes('));
-    });
-
     test('CORRECTION: session coordinator deletes through a domain port', () {
       // FR-8 lists `DatabaseSessionCoordinator ... removeRecentDatabase file
       // delete` as a direct presentation write. It is not: it goes through
@@ -417,13 +409,10 @@ void main() {
         },
         'lib/features/password_manager/data/services/'
             'database_import_service.dart': {
-          // T109: was 4. The cross-device install fallback, desktop
-          // createDatabase and desktop saveKeyFile (LOW follow-up) now
-          // delegate to SafeVaultFileWriter. The one remaining site is the
-          // kIsWeb staging copy into a fresh temp directory (GAP 6): a
-          // brand-new file with no overwrite risk, and dart:io is emulated
-          // on web anyway.
-          'writeAsBytes': 1,
+          // T109: was 4. The cross-device install fallback delegates to
+          // SafeVaultFileWriter. The non-managed createDatabase/saveKeyFile
+          // writers and the web staging copy (GAP 6) went with the Flutter
+          // web target.
           // T109: was 12 — the install fallback's temp->target rename moved
           // into the safe writer. P1-4 adds 2 compensation renames: a
           // post-install failure (P2) restores the staged file or deletes
@@ -788,7 +777,6 @@ const _baseline = <String, List<String>>{
     'copy',
     'delete',
     'rename',
-    'writeAsBytes',
   ],
   // T108/T109: the orchestrator's replace/backup sites moved into
   // SafeVaultFileWriter; it performs no direct filesystem mutation anymore

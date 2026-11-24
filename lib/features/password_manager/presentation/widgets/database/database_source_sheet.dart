@@ -6,7 +6,6 @@ import '../../../../../core/widgets/kv_bottom_sheet.dart';
 import '../../../../../injection_container.dart' as di;
 import '../../../domain/models/storage_account_summary.dart';
 import '../../coordinators/database_session_coordinator.dart';
-import '../../utils/platform_utils.dart';
 import 'source_chip.dart';
 import 'source_option_card.dart';
 
@@ -40,20 +39,16 @@ class _DatabaseSourceSheetState extends State<_DatabaseSourceSheet> {
   @override
   void initState() {
     super.initState();
-    if (supportsRemoteSource) {
-      widget.loadAccount().then((account) {
-        if (mounted) setState(() => _account = account);
-      });
-    }
+    widget.loadAccount().then((account) {
+      if (mounted) setState(() => _account = account);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<CustodeColors>()!;
     final account = _account;
-    final remoteSubtitle = !supportsRemoteSource
-        ? 'Not available in the browser'
-        : account == null
+    final remoteSubtitle = account == null
         ? 'Not connected'
         : account.email ?? account.displayLabel;
 
@@ -87,12 +82,8 @@ class _DatabaseSourceSheetState extends State<_DatabaseSourceSheet> {
             glyph: databaseSourceGlyph(remote: true),
             title: 'Google Drive',
             subtitle: remoteSubtitle,
-            actionLabel: supportsRemoteSource && account == null
-                ? 'Connect'
-                : null,
-            onTap: supportsRemoteSource
-                ? () => Navigator.of(context).pop(DatabaseSource.remote)
-                : null,
+            actionLabel: account == null ? 'Connect' : null,
+            onTap: () => Navigator.of(context).pop(DatabaseSource.remote),
           ),
           const SizedBox(height: 14),
           const SourcePrivacyLine(),

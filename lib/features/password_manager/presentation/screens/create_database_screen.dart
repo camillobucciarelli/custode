@@ -1,6 +1,3 @@
-import 'dart:typed_data';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -18,13 +15,11 @@ import '../../../../injection_container.dart' as di;
 import '../../data/datasources/biometric_data_source.dart';
 import '../../domain/models/create_database_step.dart';
 import '../../domain/models/storage_account_summary.dart';
-import '../../domain/usecases/create_database_download_usecase.dart';
 import '../../domain/utils/password_strength.dart';
 import '../bloc/database_selection/database_selection_bloc.dart';
 import '../bloc/database_selection/database_selection_event.dart';
 import '../bloc/database_selection/database_selection_state.dart';
 import '../coordinators/database_session_coordinator.dart';
-import '../utils/platform_utils.dart';
 import '../widgets/database/database_source_sheet.dart';
 import '../widgets/database/source_chip.dart';
 import '../widgets/database/source_option_card.dart';
@@ -74,30 +69,17 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
   bool _connecting = false;
   String? _connectError;
 
-  // spec 015 FR-14 — web download-only state. The key/database bytes are
-  // produced ONCE and retained so a retry after a failed download reuses
-  // the same key; nothing is ever persisted.
-  Uint8List? _webSelectedKeyBytes;
-  CreateDatabaseDownload? _webDownload;
-  bool _webKeyDownloadRequested = false;
-  bool _webBuilding = false;
-  String? _webErrorMessage;
-
   @override
   void initState() {
     super.initState();
     _coordinator = di.sl<DatabaseSessionCoordinator>();
     context.read<DatabaseSelectionBloc>().add(const StartCreateDatabaseFlow());
-    if (supportsRemoteSource) {
-      _coordinator.connectedAccountOrNull().then((account) {
-        if (mounted) setState(() => _account = account);
-      });
-    }
-    if (supportsBiometricUnlock) {
-      di.sl<BiometricDataSource>().isBiometricAvailable().then((available) {
-        if (mounted) setState(() => _biometricAvailable = available);
-      });
-    }
+    _coordinator.connectedAccountOrNull().then((account) {
+      if (mounted) setState(() => _account = account);
+    });
+    di.sl<BiometricDataSource>().isBiometricAvailable().then((available) {
+      if (mounted) setState(() => _biometricAvailable = available);
+    });
   }
 
   @override
@@ -139,9 +121,6 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
         _keyFileMode = KeyFileMode.generate;
         _keyFilePath = null;
         _keyFileName = _generatedKeyLabel;
-        _webSelectedKeyBytes = null;
-        _webDownload = null;
-        _webKeyDownloadRequested = false;
       });
       return;
     }
@@ -155,9 +134,6 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
       _keyFileMode = KeyFileMode.select;
       _keyFilePath = picked.path;
       _keyFileName = picked.name;
-      _webSelectedKeyBytes = picked.bytes;
-      _webDownload = null;
-      _webKeyDownloadRequested = false;
     });
   }
 
@@ -165,9 +141,6 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
     _keyFileMode = KeyFileMode.none;
     _keyFilePath = null;
     _keyFileName = null;
-    _webSelectedKeyBytes = null;
-    _webDownload = null;
-    _webKeyDownloadRequested = false;
   });
 
   /// spec 015 FR-8: an invalid character blocks advancing out of step 1 —
@@ -193,7 +166,7 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
 
   bool get _hasKeyFactor => switch (_keyFileMode) {
     KeyFileMode.none => false,
-    KeyFileMode.select => _keyFilePath != null || _webSelectedKeyBytes != null,
+    KeyFileMode.select => _keyFilePath != null,
     KeyFileMode.generate => true,
   };
 
@@ -243,10 +216,6 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
 
   void _submit() {
     if (_submitBlockReason != null) return;
-    if (!persistsDatabases) {
-      _buildWebDownload();
-      return;
-    }
     context.read<DatabaseSelectionBloc>().add(
       CreateNewDatabase(
         databaseFileName: _fileName,
@@ -257,77 +226,6 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
         createOnRemote: _source == DatabaseSource.remote && _account != null,
       ),
     );
-  }
-
-  String get _webBaseName => _fileName.substring(0, _fileName.length - 5);
-
-  /// FR-14: both artefacts are produced once, in memory; a retry reuses the
-  /// same generated key.
-  Future<void> _buildWebDownload() async {
-    if (_webBuilding) return;
-    setState(() => _webBuilding = true);
-    try {
-      final download = await const CreateDatabaseDownloadUseCase()(
-        CreateDatabaseDownloadRequest(
-          password: _passwordCtrl.text,
-          selectedKeyFileBytes: _keyFileMode == KeyFileMode.select
-              ? _webSelectedKeyBytes
-              : null,
-          generateKeyFile: _keyFileMode == KeyFileMode.generate,
-        ),
-      );
-      if (!mounted) return;
-      setState(() {
-        _webDownload = download;
-        _webKeyDownloadRequested = false;
-        _webErrorMessage = null;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _webErrorMessage = 'Unable to prepare the database for download.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _webBuilding = false);
-      }
-    }
-  }
-
-  Future<void> _downloadWebKeyFile() async {
-    final download = _webDownload;
-    final keyBytes = download?.keyFileBytes;
-    if (keyBytes == null) return;
-    final saved = await FilePicker.saveFile(
-      dialogTitle: 'Download key file',
-      fileName: '$_webBaseName.keyx',
-      bytes: keyBytes,
-    );
-    if (!mounted || saved == null) {
-      // A dismissed save dialog saved nothing: the FR-14 "key first" gate
-      // must stay closed.
-      return;
-    }
-    setState(() => _webKeyDownloadRequested = true);
-  }
-
-  Future<void> _downloadWebDatabase() async {
-    final download = _webDownload;
-    if (download == null) return;
-    if (download.keyFileBytes != null && !_webKeyDownloadRequested) {
-      // FR-14: the database download stays blocked until the key download
-      // has been requested.
-      return;
-    }
-    final saved = await FilePicker.saveFile(
-      dialogTitle: 'Download database',
-      fileName: '$_webBaseName.kdbx',
-      bytes: download.databaseBytes,
-    );
-    if (!mounted || saved == null) return;
-    // FR-14: nothing is persisted — return to database selection. The
-    // BlocConsumer listener owns the single pop.
-    context.read<DatabaseSelectionBloc>().add(const CancelCreateDatabaseFlow());
   }
 
   @override
@@ -353,10 +251,6 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
         final step = createState?.step ?? CreateDatabaseStep.nameAndStorage;
         final submitting = createState?.submitting ?? false;
         final errorMessage = createState?.errorMessage;
-        final showingDownloads =
-            !persistsDatabases &&
-            _webDownload != null &&
-            step == CreateDatabaseStep.credentials;
         final blockReason = step == CreateDatabaseStep.credentials
             ? _submitBlockReason
             : null;
@@ -409,20 +303,6 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
                                       ),
                                 onChanged: () => setState(() {}),
                               ),
-                              CreateDatabaseStep.credentials
-                                  when showingDownloads =>
-                                _WebDownloadStep(
-                                  hasKeyFile:
-                                      _webDownload!.keyFileBytes != null,
-                                  keyDownloadRequested:
-                                      _webKeyDownloadRequested,
-                                  onDownloadKeyFile: _downloadWebKeyFile,
-                                  onDownloadDatabase: _downloadWebDatabase,
-                                  onEditCredentials: () => setState(() {
-                                    _webDownload = null;
-                                    _webKeyDownloadRequested = false;
-                                  }),
-                                ),
                               CreateDatabaseStep.credentials =>
                                 _CredentialsStep(
                                   passwordCtrl: _passwordCtrl,
@@ -443,58 +323,46 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
                                   onChooseKeyFile: _chooseKeyFile,
                                   onClearKeyFile: _clearKeyFile,
                                   biometricEnabled: _biometricProtectionEnabled,
-                                  biometricUnavailable:
-                                      !supportsBiometricUnlock ||
-                                      !_biometricAvailable,
+                                  biometricUnavailable: !_biometricAvailable,
                                   onBiometricChanged: (value) => setState(
                                     () => _biometricProtectionEnabled = value,
                                   ),
-                                  errorMessage:
-                                      errorMessage ?? _webErrorMessage,
+                                  errorMessage: errorMessage,
                                 ),
                             },
                           ),
                         ),
                         const SizedBox(height: 16),
-                        if (!showingDownloads) ...[
-                          KvPillButton(
-                            label: submitting
-                                ? 'Creating $_fileName…'
-                                : step == CreateDatabaseStep.credentials
-                                ? (persistsDatabases
-                                      ? 'Create database'
-                                      : 'Prepare downloads')
-                                : 'Continue',
-                            onPressed:
-                                submitting ||
-                                    _webBuilding ||
-                                    blockReason != null ||
-                                    (step ==
-                                            CreateDatabaseStep.nameAndStorage &&
-                                        !_nameValid)
-                                ? null
-                                : () => _advance(step, submitting: submitting),
-                          ),
-                          if (step == CreateDatabaseStep.credentials) ...[
-                            const SizedBox(height: 10),
-                            // Disabled-button reason, announced when it
-                            // changes; otherwise the outcome caption.
-                            Semantics(
-                              liveRegion: true,
-                              child: Text(
-                                blockReason ??
-                                    (persistsDatabases
-                                        ? 'Opens right away, no need to type '
-                                              'the password again.'
-                                        : 'Downloads the database. The '
-                                              'browser keeps nothing.'),
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.secondary.copyWith(
-                                  color: colors.textSecondary,
-                                ),
+                        KvPillButton(
+                          label: submitting
+                              ? 'Creating $_fileName…'
+                              : step == CreateDatabaseStep.credentials
+                              ? 'Create database'
+                              : 'Continue',
+                          onPressed:
+                              submitting ||
+                                  blockReason != null ||
+                                  (step == CreateDatabaseStep.nameAndStorage &&
+                                      !_nameValid)
+                              ? null
+                              : () => _advance(step, submitting: submitting),
+                        ),
+                        if (step == CreateDatabaseStep.credentials) ...[
+                          const SizedBox(height: 10),
+                          // Disabled-button reason, announced when it
+                          // changes; otherwise the outcome caption.
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              blockReason ??
+                                  'Opens right away, no need to type '
+                                      'the password again.',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.secondary.copyWith(
+                                color: colors.textSecondary,
                               ),
                             ),
-                          ],
+                          ),
                         ],
                       ],
                     ),
@@ -611,14 +479,12 @@ class _NameStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<CustodeColors>()!;
     final selectable = enabled && !connecting;
-    final remoteSubtitle = !supportsRemoteSource
-        ? 'Not available in the browser'
-        : connecting
+    final remoteSubtitle = connecting
         ? 'Connecting…'
         : account == null
         ? 'Not connected'
         : account!.email ?? account!.displayLabel;
-    final showConnect = supportsRemoteSource && account == null;
+    final showConnect = account == null;
     final check = KvIcon(
       glyph: AppGlyph.check,
       size: 18,
@@ -633,9 +499,7 @@ class _NameStep extends StatelessWidget {
           onSheet: false,
           glyph: databaseSourceGlyph(remote: false),
           title: 'This device',
-          subtitle: persistsDatabases
-              ? "Stays in Custode's storage"
-              : 'Downloaded to your device',
+          subtitle: "Stays in Custode's storage",
           selected: source == DatabaseSource.device,
           trailing: source == DatabaseSource.device ? check : const SizedBox(),
           onTap: selectable ? onSelectDevice : null,
@@ -653,7 +517,7 @@ class _NameStep extends StatelessWidget {
               : source == DatabaseSource.remote
               ? check
               : const SizedBox(),
-          onTap: supportsRemoteSource && selectable ? onSelectRemote : null,
+          onTap: selectable ? onSelectRemote : null,
         ),
         if (connectError != null) ...[
           const SizedBox(height: 8),
@@ -874,17 +738,6 @@ class _CredentialsStep extends StatelessWidget {
           ),
           onTap: biometricTap,
         ),
-        if (!persistsDatabases) ...[
-          const SizedBox(height: 12),
-          Text(
-            'The web app keeps nothing: the database and key file are '
-            'only downloaded to your device. Reloading the page loses '
-            'this draft and the key.',
-            style: AppTextStyles.secondary.copyWith(
-              color: colors.textSecondary,
-            ),
-          ),
-        ],
         if (errorMessage != null) ...[
           const SizedBox(height: 8),
           Semantics(
@@ -940,69 +793,6 @@ class _KeyChoiceSheet extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// spec 015 FR-14: the download phase — two explicit gestures, key first,
-/// then database; nothing persisted.
-class _WebDownloadStep extends StatelessWidget {
-  const _WebDownloadStep({
-    required this.hasKeyFile,
-    required this.keyDownloadRequested,
-    required this.onDownloadKeyFile,
-    required this.onDownloadDatabase,
-    required this.onEditCredentials,
-  });
-
-  final bool hasKeyFile;
-  final bool keyDownloadRequested;
-  final VoidCallback onDownloadKeyFile;
-  final VoidCallback onDownloadDatabase;
-  final VoidCallback onEditCredentials;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<CustodeColors>()!;
-    final databaseEnabled = !hasKeyFile || keyDownloadRequested;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'The web app keeps nothing: the database and key file are only '
-          'downloaded to your device. Reloading the page loses this draft '
-          'and the key.',
-          style: AppTextStyles.secondary.copyWith(color: colors.textSecondary),
-        ),
-        const SizedBox(height: 16),
-        if (hasKeyFile) ...[
-          KvSecondaryPillButton(
-            onPressed: onDownloadKeyFile,
-            label: keyDownloadRequested
-                ? 'Download key file again'
-                : 'Download key file',
-          ),
-          const SizedBox(height: 8),
-          if (!keyDownloadRequested)
-            Text(
-              'Download the key file first: the database download unlocks '
-              'after it.',
-              style: AppTextStyles.secondary.copyWith(
-                color: colors.textSecondary,
-              ),
-            ),
-          const SizedBox(height: 8),
-        ],
-        KvSecondaryPillButton(
-          onPressed: databaseEnabled ? onDownloadDatabase : null,
-          label: 'Download database',
-        ),
-        const SizedBox(height: 16),
-        TextButton(
-          onPressed: onEditCredentials,
-          child: const Text('Edit credentials'),
-        ),
-      ],
     );
   }
 }

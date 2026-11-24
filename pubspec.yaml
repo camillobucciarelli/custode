@@ -132,8 +132,6 @@ flutter_launcher_icons:
   image_path_ios_dark_transparent: assets/logo/app_icon_family/custode-adaptive-foreground-1024.png
   image_path_ios_tinted_grayscale: assets/logo/app_icon_family/custode-monochrome-1024.png
   desaturate_tinted_to_grayscale_ios: true
-  web:
-    generate: false
   windows:
     generate: true
   macos:

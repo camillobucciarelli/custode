@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:loggy/loggy.dart';
 
 /// Typed validation result instead of a bool-only collapse, so callers can
@@ -11,12 +10,6 @@ enum DatabaseFileValidation { valid, missing, invalidStructure }
 
 class ValidateDatabaseUseCase {
   Future<DatabaseFileValidation> call(String path) async {
-    if (kIsWeb) {
-      // On web we cannot reliably use dart:io File. Assume valid; a
-      // web-specific validation path can be added later.
-      return DatabaseFileValidation.valid;
-    }
-
     final file = File(path);
     if (!await file.exists()) {
       return DatabaseFileValidation.missing;

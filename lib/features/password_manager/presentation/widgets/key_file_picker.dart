@@ -1,6 +1,3 @@
-import 'dart:typed_data';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 
@@ -13,21 +10,18 @@ import '../../../../core/widgets/kv_list_row.dart';
 import '../../../../injection_container.dart' as di;
 import '../../data/datasources/biometric_data_source.dart';
 import '../coordinators/database_session_coordinator.dart';
-import '../utils/platform_utils.dart';
 import 'internal_key_file_manager_sheet.dart';
 import 'managed_key_picker_gate.dart';
 
-/// What [pickKeyFile] hands back. [path] on managed platforms (a file already
-/// copied into app storage), [bytes] on the web, where nothing is durable.
-/// A result with neither means the key that was selected is gone.
+/// What [pickKeyFile] hands back: [path] is a file already copied into app
+/// storage. A result without one means the key that was selected is gone.
 class PickedKeyFile {
-  const PickedKeyFile({this.path, this.name, this.bytes});
+  const PickedKeyFile({this.path, this.name});
 
   final String? path;
   final String? name;
-  final Uint8List? bytes;
 
-  bool get isCleared => path == null && bytes == null;
+  bool get isCleared => path == null;
 }
 
 /// The key manager's listing seam: real listing is `dart:io`, which never
@@ -35,26 +29,14 @@ class PickedKeyFile {
 @visibleForTesting
 KeyFileLister? debugKeyFileLister;
 
-/// The only entry point for choosing a key file (spec 025 FR-X5). Managed
-/// platforms run the spec 015 FR-12 device-auth gate and the internal key
-/// manager sheet; the browser reads bytes. Returns null when the user backs
-/// out or the gate refuses, so callers keep whatever they had.
+/// The only entry point for choosing a key file (spec 025 FR-X5). Runs the
+/// spec 015 FR-12 device-auth gate and the internal key manager sheet.
+/// Returns null when the user backs out or the gate refuses, so callers keep
+/// whatever they had.
 Future<PickedKeyFile?> pickKeyFile(
   BuildContext context, {
   String? current,
 }) async {
-  if (!isManagedStoragePlatform) {
-    final result = await FilePicker.pickFiles(
-      dialogTitle: 'Select a Key File',
-      withData: true,
-    );
-    final file = result?.files.single;
-    if (file == null || file.bytes == null) {
-      return null;
-    }
-    return PickedKeyFile(name: file.name, bytes: file.bytes);
-  }
-
   final biometrics = di.sl<BiometricDataSource>();
   final coordinator = di.sl<DatabaseSessionCoordinator>();
   // spec 015 FR-12: managed keys list only after device auth.
@@ -160,7 +142,7 @@ class _KeyFileRowState extends State<KeyFileRow> {
 
     Widget row(String title) => KvListRow(
       title: title,
-      subtitle: isManagedStoragePlatform ? 'Stored in Custode' : null,
+      subtitle: 'Stored in Custode',
       semanticLabel: 'Change key file',
       leading: leading,
       onTap: widget.onPick,

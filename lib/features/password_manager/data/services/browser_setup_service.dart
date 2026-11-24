@@ -264,7 +264,6 @@ class BrowserSetupService {
   Future<List<File>> staleUserManifests({
     String extensionId = chromeExtensionId,
   }) async {
-    if (kIsWeb) return const [];
     final stale = <File>[];
     for (final pair in _manifestDirectoryPairs()) {
       final userFile = File(p.join(pair.user, '$nativeHostName.json'));
@@ -405,10 +404,7 @@ class BrowserSetupService {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  bool get _isDesktop {
-    if (kIsWeb) return false;
-    return _hostPlatform != BrowserSetupHostPlatform.unsupported;
-  }
+  bool get _isDesktop => _hostPlatform != BrowserSetupHostPlatform.unsupported;
 
   BrowserSetupHostPlatform get _hostPlatform {
     final override = _platformOverride;

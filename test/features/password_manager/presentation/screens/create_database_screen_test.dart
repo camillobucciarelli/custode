@@ -1,13 +1,8 @@
 // Spec 025 S3 (T301/T302/T305): the Create wizard on the Kv design system.
 // Source selection, name validation, the three key modes through the row and
 // sheet, the optional password, biometric availability, a refused submission
-// that keeps the draft, and the web download-only outcome behind the
-// capability override. Replaces the spec 015 T014 assertions that targeted
+// that keeps the draft. Replaces the spec 015 T014 assertions that targeted
 // stock Material widgets.
-import 'dart:typed_data';
-
-import 'package:file_picker/file_picker.dart';
-import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -17,23 +12,14 @@ import 'package:password_manager/features/password_manager/domain/models/storage
 import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_bloc.dart';
 import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_state.dart';
 import 'package:password_manager/features/password_manager/presentation/screens/create_database_screen.dart';
-import 'package:password_manager/features/password_manager/presentation/utils/platform_utils.dart';
-import 'package:password_manager/features/password_manager/presentation/widgets/key_file_picker.dart';
 
 import '../coordinators/fake_database_ports.dart';
 import 'database_selection_unlock_test_utils.dart';
-
-const _webCapabilities = PlatformCapabilities(
-  supportsRemoteSource: false,
-  supportsBiometricUnlock: false,
-  persistsDatabases: false,
-);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   tearDown(() async {
-    debugPlatformCapabilities = null;
     await resetDatabaseTestDi();
   });
 
@@ -49,11 +35,6 @@ void main() {
     await tester.pumpWidget(result.widget);
     await tester.pumpAndSettle();
     return result.harness;
-  }
-
-  Future<void> pumpWebWizard(WidgetTester tester) async {
-    debugPlatformCapabilities = _webCapabilities;
-    await pumpWizard(tester);
   }
 
   Future<void> goToCredentials(WidgetTester tester) async {
@@ -72,13 +53,6 @@ void main() {
   }
 
   const password = 'kv-test-only-not-a-real-password';
-
-  Future<void> enterPasswordAndConfirm(WidgetTester tester) async {
-    await tester.enterText(find.byType(TextFormField).at(0), password);
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField).at(1), password);
-    await tester.pumpAndSettle();
-  }
 
   testWidgets('FR-X6: while creating, the action names the database', (
     tester,
@@ -174,20 +148,6 @@ void main() {
 
       expect(find.text('Could not connect to Google Drive.'), findsOneWidget);
       expect(find.text('Connect'), findsOneWidget);
-    });
-
-    testWidgets('the capability override disables Drive in place with its '
-        'reason and never signs in', (tester) async {
-      final sync = FakeDatabaseSyncRepository();
-      debugPlatformCapabilities = _webCapabilities;
-      await pumpWizard(tester, syncRepository: sync);
-
-      expect(find.text('Google Drive'), findsOneWidget);
-      expect(find.text('Not available in the browser'), findsOneWidget);
-      expect(find.text('Connect'), findsNothing);
-      await tester.tap(find.text('Google Drive'));
-      await tester.pumpAndSettle();
-      expect(sync.connectCalls, 0);
     });
 
     testWidgets('the live caption names the file, with or without the '
@@ -369,29 +329,6 @@ void main() {
       );
       expect(primaryButton(tester).onPressed, isNull);
     });
-
-    testWidgets('choose a file selects it as the sole factor and shows its '
-        'name (bytes picker)', (tester) async {
-      debugPlatformCapabilities = _webCapabilities;
-      final original = FilePickerPlatform.instance;
-      FilePickerPlatform.instance = _BytesFilePicker();
-      addTearDown(() => FilePickerPlatform.instance = original);
-      await pumpWizard(tester);
-      await goToCredentials(tester);
-
-      await tester.tap(find.text('Add a key file'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Choose a file'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('web.key'), findsOneWidget);
-      expect(primaryButton(tester).onPressed, isNotNull);
-      expect(find.byType(KeyFileRow), findsOneWidget);
-
-      await tester.tap(find.byTooltip('Remove key file'));
-      await tester.pumpAndSettle();
-      expect(find.text('Add a key file'), findsOneWidget);
-    });
   });
 
   group('biometric switch', () {
@@ -480,91 +417,9 @@ void main() {
       expect(find.text('MyVault'), findsOneWidget);
     });
   });
-
-  group('FR-C8 web download-only outcome (capability override)', () {
-    testWidgets('keeps-nothing caption, a disabled biometric row in place, '
-        'and the two-gesture order: the database download stays blocked '
-        'until the key download is requested', (tester) async {
-      await pumpWebWizard(tester);
-      await goToCredentials(tester);
-
-      expect(find.text('Unlock with biometrics'), findsOneWidget);
-      expect(find.text('Not available on this device'), findsOneWidget);
-      expect(
-        find.textContaining('Reloading the page loses this draft'),
-        findsOneWidget,
-      );
-
-      await addGeneratedKey(tester);
-      expect(
-        find.text('Downloads the database. The browser keeps nothing.'),
-        findsOneWidget,
-      );
-      await tester.tap(find.text('Prepare downloads'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Download key file'), findsOneWidget);
-      final databaseButton = tester.widget<OutlinedButton>(
-        find.widgetWithText(OutlinedButton, 'Download database'),
-      );
-      expect(
-        databaseButton.onPressed,
-        isNull,
-        reason:
-            'FR-14: creation stays blocked until the key download has '
-            'been requested',
-      );
-      expect(
-        find.textContaining('Download the key file first'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('password-only on web needs no key gesture and persists '
-        'nothing', (tester) async {
-      await pumpWebWizard(tester);
-      await goToCredentials(tester);
-      await enterPasswordAndConfirm(tester);
-
-      await tester.tap(find.text('Prepare downloads'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Download key file'), findsNothing);
-      final databaseButton = tester.widget<OutlinedButton>(
-        find.widgetWithText(OutlinedButton, 'Download database'),
-      );
-      expect(databaseButton.onPressed, isNotNull);
-    });
-  });
 }
 
 class _RefusingSyncRepository extends FakeDatabaseSyncRepository {
   @override
   Future<void> connect() async => throw Exception('cancelled');
-}
-
-class _BytesFilePicker extends FilePickerPlatform {
-  @override
-  Future<FilePickerResult?> pickFiles({
-    String? dialogTitle,
-    String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    Function(FilePickerStatus)? onFileLoading,
-    int compressionQuality = 0,
-    bool allowMultiple = false,
-    bool withData = false,
-    bool withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
-    bool cancelUploadOnWindowBlur = true,
-  }) async {
-    return FilePickerResult([
-      PlatformFile(
-        name: 'web.key',
-        size: 3,
-        bytes: Uint8List.fromList(const [1, 2, 3]),
-      ),
-    ]);
-  }
 }

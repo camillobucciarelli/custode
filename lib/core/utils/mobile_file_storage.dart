@@ -83,9 +83,6 @@ class MobileFileStorage {
   }
 
   static bool get isMobilePlatform {
-    if (kIsWeb) {
-      return false;
-    }
     return switch (defaultTargetPlatform) {
       TargetPlatform.android || TargetPlatform.iOS => true,
       TargetPlatform.fuchsia ||

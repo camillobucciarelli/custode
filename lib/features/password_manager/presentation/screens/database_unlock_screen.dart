@@ -29,7 +29,6 @@ import '../coordinators/pending_passkey_adoption_coordinator.dart';
 import '../widgets/database/biometric_offer_sheet.dart';
 import '../widgets/database/source_chip.dart';
 import '../widgets/key_file_picker.dart';
-import '../utils/platform_utils.dart';
 import 'database_selection_screen.dart';
 import 'vault_screen.dart';
 
@@ -148,12 +147,7 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
     if (!mounted || picked == null) {
       return;
     }
-    // Unlock has no bytes path: a browser never reaches a stored database.
-    if (picked.path != null) {
-      bloc.add(UpdateKeyFilePath(picked.path));
-    } else if (picked.isCleared) {
-      bloc.add(const UpdateKeyFilePath(null));
-    }
+    bloc.add(UpdateKeyFilePath(picked.path));
   }
 
   /// Offer once, then continue to the vault. Neither the offer nor a keystore
@@ -167,7 +161,7 @@ class _DatabaseUnlockViewState extends State<_DatabaseUnlockView> {
     try {
       if (await coordinator.shouldOfferBiometricUnlock(
         state.databasePath,
-        biometricAvailable: supportsBiometricUnlock && state.biometricAvailable,
+        biometricAvailable: state.biometricAvailable,
       )) {
         if (!mounted) {
           return;

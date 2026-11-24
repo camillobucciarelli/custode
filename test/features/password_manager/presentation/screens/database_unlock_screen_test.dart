@@ -32,7 +32,6 @@ import 'package:password_manager/features/password_manager/domain/models/databas
 import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
 import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_bloc.dart';
 import 'package:password_manager/features/password_manager/presentation/screens/database_selection_screen.dart';
-import 'package:password_manager/features/password_manager/presentation/utils/platform_utils.dart';
 import 'package:password_manager/injection_container.dart' as di;
 
 import '../bloc/vault/vault_bloc_harness.dart'
@@ -571,21 +570,6 @@ void main() {
       expect(find.text('vault:$path'), findsOneWidget);
     });
 
-    testWidgets('not shown on a platform without biometric unlock', (
-      tester,
-    ) async {
-      debugPlatformCapabilities = const PlatformCapabilities(
-        supportsRemoteSource: false,
-        supportsBiometricUnlock: false,
-        persistsDatabases: false,
-      );
-      addTearDown(() => debugPlatformCapabilities = null);
-
-      await pumpAndUnlock(tester, localRecord);
-
-      expect(find.text('Unlock Personal with biometrics?'), findsNothing);
-    });
-
     testWidgets('a keystore failure still unlocks and tells the user', (
       tester,
     ) async {
@@ -954,22 +938,6 @@ void main() {
       expect(harness.fileRepository.commitTargets, [path]);
       expect(find.byType(TextFormField), findsOneWidget);
       expect(find.text("personal.kdbx can't be found"), findsNothing);
-    });
-
-    testWidgets('re-download is hidden where remote sources are unsupported', (
-      tester,
-    ) async {
-      debugPlatformCapabilities = const PlatformCapabilities(
-        supportsRemoteSource: false,
-        supportsBiometricUnlock: false,
-        persistsDatabases: false,
-      );
-      addTearDown(() => debugPlatformCapabilities = null);
-
-      await pumpMissing(tester, mapped: true);
-
-      expect(find.text('Download again from Google Drive'), findsNothing);
-      expect(find.text('Locate file'), findsOneWidget);
     });
 
     testWidgets('a failed re-download keeps the view and says why inline', (

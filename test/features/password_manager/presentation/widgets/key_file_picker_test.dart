@@ -1,13 +1,8 @@
-import 'dart:typed_data';
-
-import 'package:file_picker/file_picker.dart';
-import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:password_manager/core/theme/app_theme.dart';
 import 'package:password_manager/core/utils/mobile_file_storage.dart';
 import 'package:password_manager/features/password_manager/data/datasources/biometric_data_source.dart';
-import 'package:password_manager/features/password_manager/presentation/utils/platform_utils.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/key_file_picker.dart';
 import 'package:password_manager/injection_container.dart' as di;
 
@@ -17,7 +12,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   tearDown(() async {
-    debugPlatformCapabilities = null;
     debugKeyFileLister = null;
     await resetDatabaseTestDi();
   });
@@ -112,42 +106,6 @@ void main() {
     expect(picked, isNull);
   });
 
-  testWidgets('web: reads bytes through the file picker, no sheet, no gate', (
-    tester,
-  ) async {
-    debugPlatformCapabilities = const PlatformCapabilities(
-      supportsRemoteSource: false,
-      supportsBiometricUnlock: false,
-      persistsDatabases: false,
-    );
-    final original = FilePickerPlatform.instance;
-    FilePickerPlatform.instance = _BytesFilePicker();
-    addTearDown(() => FilePickerPlatform.instance = original);
-
-    PickedKeyFile? picked;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.lightTheme,
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () async => picked = await pickKeyFile(context),
-              child: const Text('open'),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-
-    expect(picked?.name, 'web.key');
-    expect(picked?.bytes, Uint8List.fromList(const [1, 2, 3]));
-    expect(picked?.path, isNull);
-    expect(find.text('Internal key files'), findsNothing);
-  });
-
   group('KeyFileRow', () {
     Widget host(Widget row) => MaterialApp(
       theme: AppTheme.lightTheme,
@@ -223,14 +181,14 @@ void main() {
       expect(find.byType(FutureBuilder<String>), findsNothing);
     });
 
-    testWidgets('an in-memory name (web) renders without a path', (
+    testWidgets('an in-memory name (generated key) renders without a path', (
       tester,
     ) async {
       await tester.pumpWidget(
-        host(KeyFileRow(name: 'web.key', onPick: () {}, onClear: () {})),
+        host(KeyFileRow(name: 'generated.key', onPick: () {}, onClear: () {})),
       );
 
-      expect(find.text('web.key'), findsOneWidget);
+      expect(find.text('generated.key'), findsOneWidget);
     });
   });
 }
@@ -253,31 +211,4 @@ class _GateBiometrics implements BiometricDataSource {
 
   @override
   Future<bool> authenticate({required String reason}) async => true;
-}
-
-class _BytesFilePicker extends FilePickerPlatform {
-  @override
-  Future<FilePickerResult?> pickFiles({
-    String? dialogTitle,
-    String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    Function(FilePickerStatus)? onFileLoading,
-    int compressionQuality = 0,
-    bool allowMultiple = false,
-    bool withData = false,
-    bool withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
-    bool cancelUploadOnWindowBlur = true,
-  }) async {
-    expect(withData, isTrue, reason: 'web has no path, only bytes');
-    return FilePickerResult([
-      PlatformFile(
-        name: 'web.key',
-        size: 3,
-        bytes: Uint8List.fromList(const [1, 2, 3]),
-      ),
-    ]);
-  }
 }

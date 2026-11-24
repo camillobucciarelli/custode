@@ -63,8 +63,8 @@ Autofill spans Flutter and native/runtime integration:
   `desktop/native_host/`, and Dart protocol/entry points under
   `tool/native_host_protocol.dart` and `tool/native_host.dart`.
 
-Flutter platform projects live under `android/`, `ios/`, `macos/`, `linux/`,
-`windows/` and `web/`. Avoid native changes unless the task requires them and can
+Flutter platform projects live under `android/`, `ios/`, `macos/`, `linux/`
+and `windows/`. Avoid native changes unless the task requires them and can
 be reviewed by the relevant platform specialist.
 
 Tests under `test/` mirror `lib/`; protocol tests also live under `test/tool/`.
