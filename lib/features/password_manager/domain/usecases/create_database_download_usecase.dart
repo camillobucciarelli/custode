@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:kdbx/kdbx.dart';
 
 import '../errors/database_access_failure.dart';
+import '../models/vault_encryption.dart';
 import 'vault_credentials.dart';
+import 'vault_encryption_kdbx.dart';
 
 /// spec 015 FR-14: the web create path is download-only. This use case
 /// builds both artefacts entirely in memory — no registry entry, no opened
@@ -15,9 +17,13 @@ class CreateDatabaseDownloadRequest {
     required this.password,
     this.selectedKeyFileBytes,
     this.generateKeyFile = false,
+    this.encryption,
   });
 
   final String password;
+
+  /// Null means [VaultEncryption.defaults].
+  final VaultEncryption? encryption;
 
   /// Bytes of a key file the user picked (`withData: true` — web has no
   /// durable path to read from).
@@ -67,7 +73,11 @@ class CreateDatabaseDownloadUseCase {
       password: request.password,
       keyFileBytes: keyBytes,
     );
-    final kdbx = KdbxFormat().create(credentials, 'New Database');
+    final kdbx = KdbxFormat().create(
+      credentials,
+      'New Database',
+      header: kdbxHeaderFor(request.encryption ?? VaultEncryption.defaults),
+    );
     final databaseBytes = await kdbx.save();
     return CreateDatabaseDownload(
       databaseBytes: databaseBytes,

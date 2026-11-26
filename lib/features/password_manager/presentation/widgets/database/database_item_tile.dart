@@ -50,11 +50,12 @@ class DatabaseItemTile extends StatelessWidget {
     final active = item.isActive && !missing;
     final status = missing ? 'File not found' : databaseStatusLine(item);
     final tagVariant = active ? KvTagVariant.accent : KvTagVariant.nested;
+    final encryption = item.encryption;
     final tags = [
-      if (!missing && item.biometricProtectionEnabled)
-        KvTag(label: 'Biometrics', variant: tagVariant),
       if (!missing && item.keyFileConfigured)
         KvTag(label: 'Key file', variant: tagVariant),
+      if (!missing && encryption != null)
+        KvTag(label: encryption.cipher.label, variant: tagVariant),
     ];
 
     return Semantics(
@@ -104,13 +105,28 @@ class DatabaseItemTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      item.displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.rowTitle.copyWith(
-                        color: colors.textPrimary,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            item.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.rowTitle.copyWith(
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (!missing && item.biometricProtectionEnabled) ...[
+                          const SizedBox(width: 6),
+                          KvIcon(
+                            glyph: AppGlyph.fingerprint,
+                            size: 14,
+                            color: colors.iconNeutral,
+                            semanticLabel: 'Biometrics enabled',
+                          ),
+                        ],
+                      ],
                     ),
                     if (status != null || tags.isNotEmpty) ...[
                       SizedBox(height: missing ? 2 : 5),

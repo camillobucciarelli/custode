@@ -14,10 +14,12 @@ import '../../../../core/widgets/kv_icon.dart';
 import '../../../../core/widgets/kv_list_row.dart';
 import '../../../../core/widgets/kv_pill_button.dart';
 import '../../../../core/widgets/kv_switch.dart';
+import '../../../../core/widgets/kv_tag.dart';
 import '../../../../injection_container.dart' as di;
 import '../../data/datasources/biometric_data_source.dart';
 import '../../domain/models/create_database_step.dart';
 import '../../domain/models/storage_account_summary.dart';
+import '../../domain/models/vault_encryption.dart';
 import '../../domain/usecases/create_database_download_usecase.dart';
 import '../../domain/utils/password_strength.dart';
 import '../bloc/database_selection/database_selection_bloc.dart';
@@ -25,6 +27,7 @@ import '../bloc/database_selection/database_selection_event.dart';
 import '../bloc/database_selection/database_selection_state.dart';
 import '../coordinators/database_session_coordinator.dart';
 import '../utils/platform_utils.dart';
+import '../utils/vault_encryption_format.dart';
 import '../widgets/database/database_source_sheet.dart';
 import '../widgets/database/source_chip.dart';
 import '../widgets/database/source_option_card.dart';
@@ -67,6 +70,7 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
   KeyFileMode _keyFileMode = KeyFileMode.none;
   String? _keyFilePath;
   String? _keyFileName;
+  VaultEncryption _encryption = VaultEncryption.defaults;
 
   // Step 1: where the database lives. Ephemeral, never in BLoC state.
   DatabaseSource _source = DatabaseSource.device;
@@ -156,6 +160,20 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
       _keyFilePath = picked.path;
       _keyFileName = picked.name;
       _webSelectedKeyBytes = picked.bytes;
+      _webDownload = null;
+      _webKeyDownloadRequested = false;
+    });
+  }
+
+  Future<void> _chooseEncryption() async {
+    final choice = await KvBottomSheet.show<VaultEncryption>(
+      context: context,
+      builder: (sheetContext) => _EncryptionChoiceSheet(initial: _encryption),
+    );
+    if (!mounted || choice == null || choice == _encryption) return;
+    setState(() {
+      _encryption = choice;
+      // Prepared web artefacts used the old settings.
       _webDownload = null;
       _webKeyDownloadRequested = false;
     });
@@ -255,6 +273,7 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
         biometricProtectionEnabled: _biometricProtectionEnabled,
         generateKeyFile: _keyFileMode == KeyFileMode.generate,
         createOnRemote: _source == DatabaseSource.remote && _account != null,
+        encryption: _encryption,
       ),
     );
   }
@@ -274,6 +293,7 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
               ? _webSelectedKeyBytes
               : null,
           generateKeyFile: _keyFileMode == KeyFileMode.generate,
+          encryption: _encryption,
         ),
       );
       if (!mounted) return;
@@ -449,6 +469,8 @@ class _CreateDatabaseScreenState extends State<CreateDatabaseScreen> {
                                   onBiometricChanged: (value) => setState(
                                     () => _biometricProtectionEnabled = value,
                                   ),
+                                  encryption: _encryption,
+                                  onChooseEncryption: _chooseEncryption,
                                   errorMessage:
                                       errorMessage ?? _webErrorMessage,
                                 ),
@@ -715,6 +737,8 @@ class _CredentialsStep extends StatelessWidget {
     required this.biometricEnabled,
     required this.biometricUnavailable,
     required this.onBiometricChanged,
+    required this.encryption,
+    required this.onChooseEncryption,
     required this.errorMessage,
   });
 
@@ -734,6 +758,8 @@ class _CredentialsStep extends StatelessWidget {
   final bool biometricEnabled;
   final bool biometricUnavailable;
   final ValueChanged<bool> onBiometricChanged;
+  final VaultEncryption encryption;
+  final VoidCallback onChooseEncryption;
   final String? errorMessage;
 
   Widget _visibilityToggle(bool visible, VoidCallback onPressed, String what) =>
@@ -874,6 +900,28 @@ class _CredentialsStep extends StatelessWidget {
           ),
           onTap: biometricTap,
         ),
+        const SizedBox(height: 8),
+        KvListRow(
+          title: 'Encryption',
+          subtitle: encryption == VaultEncryption.defaults
+              ? '${encryption.summary} (recommended)'
+              : encryption.summary,
+          leading: Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colors.ground,
+              shape: BoxShape.circle,
+            ),
+            child: KvIcon(
+              glyph: AppGlyph.shieldCheck,
+              size: 18,
+              color: colors.textSecondary,
+            ),
+          ),
+          onTap: enabled ? onChooseEncryption : null,
+        ),
         if (!persistsDatabases) ...[
           const SizedBox(height: 12),
           Text(
@@ -937,6 +985,128 @@ class _KeyChoiceSheet extends StatelessWidget {
             title: 'Generate a new key file',
             subtitle: 'Created with the database',
             onTap: () => Navigator.of(context).pop(KeyFileMode.generate),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cipher and key derivation for a new database. Pops the chosen
+/// [VaultEncryption] on Done; dismissing keeps the previous choice.
+class _EncryptionChoiceSheet extends StatefulWidget {
+  const _EncryptionChoiceSheet({required this.initial});
+
+  final VaultEncryption initial;
+
+  @override
+  State<_EncryptionChoiceSheet> createState() => _EncryptionChoiceSheetState();
+}
+
+class _EncryptionChoiceSheetState extends State<_EncryptionChoiceSheet> {
+  late VaultCipher _cipher = widget.initial.cipher;
+  late VaultKdf _kdf = widget.initial.kdf;
+
+  static const _cipherHints = {
+    VaultCipher.aes256: 'The standard. Hardware-accelerated on most devices.',
+    VaultCipher.chaCha20: 'Fast on devices without AES acceleration.',
+    // KeePass 2 core rejects Twofish ("unknown encryption algorithm");
+    // KeePassXC opens it.
+    VaultCipher.twofish:
+        'An alternative block cipher.\nKeePass 2 needs a plugin to open it.',
+  };
+
+  static const _kdfHints = {
+    VaultKdf.argon2id: 'Resists GPU and side-channel attacks.',
+    VaultKdf.argon2d: "Strong against GPU attacks; KeePass's older default.",
+    VaultKdf.aesKdf:
+        'Compatible with old KeePass versions; weaker than Argon2.',
+  };
+
+  Widget _option({
+    required AppGlyph glyph,
+    required String title,
+    required String hint,
+    required bool selected,
+    required bool recommended,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SourceOptionCard(
+        glyph: glyph,
+        title: title,
+        subtitle: hint,
+        selected: selected,
+        onTap: onTap,
+        // The selected recipe marks the choice; a check would squeeze the
+        // hint onto a third line.
+        trailing: recommended
+            ? const KvTag(label: 'Recommended', variant: KvTagVariant.neutral)
+            : const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<CustodeColors>()!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Encryption',
+                  style: AppTextStyles.sheetTitle.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'The recommended setting suits almost everyone.',
+                  style: AppTextStyles.secondary.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          kvFieldLabel('CIPHER', colors),
+          for (final cipher in VaultCipher.values)
+            _option(
+              glyph: AppGlyph.lock,
+              title: cipher.label,
+              hint: _cipherHints[cipher]!,
+              selected: cipher == _cipher,
+              recommended: cipher == VaultEncryption.defaults.cipher,
+              onTap: () => setState(() => _cipher = cipher),
+            ),
+          const SizedBox(height: 10),
+          kvFieldLabel('KEY DERIVATION', colors),
+          for (final kdf in VaultKdf.values)
+            _option(
+              glyph: AppGlyph.key,
+              title: kdf.label,
+              hint: _kdfHints[kdf]!,
+              selected: kdf == _kdf,
+              recommended: kdf == VaultEncryption.defaults.kdf,
+              onTap: () => setState(() => _kdf = kdf),
+            ),
+          const SizedBox(height: 8),
+          KvPillButton(
+            label: 'Done',
+            // Cost fields stay null: the KDF's default cost applies.
+            onPressed: () =>
+                Navigator.of(context)
+                    .pop(VaultEncryption(cipher: _cipher, kdf: _kdf)),
           ),
         ],
       ),

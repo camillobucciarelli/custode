@@ -1118,6 +1118,7 @@ class VaultBloc extends Bloc<VaultEvent, VaultState> {
           groups: snapshot.groups,
           entries: snapshot.entries,
           allEntries: snapshot.allEntries,
+          encryption: snapshot.encryption,
           visibleEntries: _computeVisibleEntries(
             entries: snapshot.allEntries,
             searchQuery: state.searchQuery,

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:kdbx/kdbx.dart' show KdbxFile, KdbxHeader;
 import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/mobile_file_storage.dart';
@@ -11,8 +12,11 @@ import '../../domain/entities/database_record.dart';
 import '../../domain/errors/database_access_failure.dart';
 import '../../domain/models/database_import_result.dart';
 import '../../domain/models/database_import_transaction.dart';
+import '../../domain/models/unlocked_database.dart';
+import '../../domain/models/vault_encryption.dart';
 import '../../domain/repositories/database_file_repository.dart';
 import '../../domain/usecases/validate_database_usecase.dart';
+import '../../domain/usecases/vault_encryption_kdbx.dart';
 import 'database_file_hash_recorder.dart';
 import 'database_path_mutex.dart';
 import 'safe_vault_file_writer.dart';
@@ -27,6 +31,7 @@ class DatabaseImportService implements DatabaseFileRepository {
     SafeVaultFileWriter? safeWriter,
     this._fileHashRecorder,
     this._afterCommitInstall,
+    this._adoptOpenedFile,
   }) : _mutex = mutex ?? DatabasePathMutex(),
        _safeWriter = safeWriter ?? SafeVaultFileWriter();
 
@@ -52,6 +57,15 @@ class DatabaseImportService implements DatabaseFileRepository {
   /// code never sets this; tests use it to prove that a failure in this
   /// window is compensated internally rather than leaving an orphan file.
   final Future<void> Function()? _afterCommitInstall;
+
+  /// `VaultKdbxService.adoptOpenedFile` in production; null where no vault
+  /// is read after an unlock (tests).
+  final void Function(String databasePath, Uint8List bytes, KdbxFile file)?
+  _adoptOpenedFile;
+
+  @override
+  void adoptUnlockedDatabase(UnlockedDatabase unlocked) => _adoptOpenedFile
+      ?.call(unlocked.databasePath, unlocked.bytes, unlocked.file);
 
   Future<T> _trackDatabaseWrite<T>({
     required String databasePath,
@@ -97,6 +111,28 @@ class DatabaseImportService implements DatabaseFileRepository {
 
   @override
   Future<bool> fileExists(String path) => File(path).exists();
+
+  /// The outer header is a few hundred bytes; 64 KiB covers any real one.
+  static const _headerReadLimit = 64 * 1024;
+
+  @override
+  Future<VaultEncryption?> readEncryption(String path) async {
+    if (kIsWeb) {
+      return null;
+    }
+    try {
+      final file = await File(path).open();
+      try {
+        final bytes = await file.read(_headerReadLimit);
+        return vaultEncryptionOf(KdbxHeader.readFromBytes(bytes));
+      } finally {
+        await file.close();
+      }
+    } catch (_) {
+      // Missing, unreadable, truncated or not KDBX: the list shows nothing.
+      return null;
+    }
+  }
 
   @override
   Future<String> hashFile(String path) async {

@@ -3,11 +3,16 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kdbx/kdbx.dart';
 import 'package:password_manager/features/password_manager/domain/models/database_import_result.dart';
 import 'package:password_manager/features/password_manager/domain/models/database_import_transaction.dart';
+import 'package:password_manager/features/password_manager/domain/models/unlocked_database.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
 import 'package:password_manager/features/password_manager/domain/errors/database_access_failure.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_file_repository.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/create_database_usecase.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/vault_credentials.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/vault_encryption_kdbx.dart';
 
 void main() {
   group('CreateDatabaseUseCase', () {
@@ -220,6 +225,60 @@ void main() {
         );
       });
     });
+
+    group('encryption', () {
+      const password = 'kv-test-only-not-a-real-password';
+
+      Future<KdbxHeader> createHeader(VaultEncryption? encryption) async {
+        await useCase(
+          CreateDatabaseRequest(
+            databaseFileName: 'vault',
+            password: password,
+            encryption: encryption,
+          ),
+        );
+        final bytes = repository.createdBytes!;
+        // The file really opens with the chosen cipher and KDF.
+        await KdbxFormat().read(
+          bytes,
+          composeVaultCredentials(password: password),
+        );
+        return KdbxHeader.readFromBytes(bytes);
+      }
+
+      test('no encryption requested writes AES-256 + Argon2id defaults', () {
+        // Header only: the KeePassXC-cost KDF is not run twice here.
+        expect(
+          kdbxHeaderFor(VaultEncryption.defaults).kdfConfig,
+          const KdbxArgon2KdfConfig(type: KdfType.Argon2id),
+        );
+      });
+
+      for (final cipher in VaultCipher.values) {
+        for (final kdf in VaultKdf.values) {
+          test('creates ${cipher.label} + ${kdf.label}', () async {
+            // Low cost so the test stays fast.
+            final requested = VaultEncryption(
+              cipher: cipher,
+              kdf: kdf,
+              rounds: kdf == VaultKdf.aesKdf ? 10 : null,
+              iterations: kdf == VaultKdf.aesKdf ? null : 1,
+              memoryBytes: kdf == VaultKdf.aesKdf ? null : 64 * 1024,
+              parallelism: kdf == VaultKdf.aesKdf ? null : 1,
+            );
+
+            final header = await createHeader(requested);
+
+            final read = vaultEncryptionOf(header);
+            expect(read.cipher, cipher);
+            expect(read.kdf, kdf);
+            expect(read.rounds, requested.rounds);
+            expect(read.iterations, requested.iterations);
+            expect(read.memoryBytes, requested.memoryBytes);
+          });
+        }
+      }
+    });
   });
 }
 
@@ -230,6 +289,7 @@ class _FakeDatabaseFileRepository implements DatabaseFileRepository {
   Object? hashFileError;
   String? saveKeyFileResult;
   int createDatabaseCalls = 0;
+  Uint8List? createdBytes;
   int? savedKeyFileBytesLength;
   final List<String> deletedPaths = [];
 
@@ -239,6 +299,7 @@ class _FakeDatabaseFileRepository implements DatabaseFileRepository {
     required Uint8List databaseBytes,
   }) async {
     createDatabaseCalls += 1;
+    createdBytes = databaseBytes;
     return createDatabaseResult;
   }
 
@@ -246,6 +307,12 @@ class _FakeDatabaseFileRepository implements DatabaseFileRepository {
   Future<void> deleteFile(String path) async {
     deletedPaths.add(path);
   }
+
+  @override
+  Future<VaultEncryption?> readEncryption(String path) async => null;
+
+  @override
+  void adoptUnlockedDatabase(UnlockedDatabase unlocked) {}
 
   @override
   Future<void> copyFile({

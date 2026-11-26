@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import '../../domain/errors/passkey_errors.dart';
 import '../../domain/models/vault_attachment.dart';
 import '../../domain/models/vault_custom_field.dart';
+import '../../domain/models/vault_encryption.dart';
 import '../../domain/models/vault_entry.dart';
 import '../../domain/models/vault_entry_revision.dart';
 import '../../domain/models/vault_group.dart';
@@ -18,6 +19,7 @@ import '../../domain/models/vault_passkey.dart';
 import '../../domain/models/vault_snapshot.dart';
 import '../../domain/repositories/passkey_adoption_vault_port.dart';
 import '../../domain/services/url_field_keys.dart';
+import '../../domain/usecases/vault_encryption_kdbx.dart';
 import 'database_file_hash_recorder.dart';
 import 'database_path_mutex.dart';
 import 'passkey_parser.dart';
@@ -33,14 +35,84 @@ class KdbxCredentialChange {
   final String backupPath;
 }
 
+/// A decrypted vault and the exact file bytes it was decrypted from (or last
+/// saved as). It is reused only while the file on disk still holds those
+/// bytes, so any writer outside this service invalidates it by changing them.
+class _OpenVault {
+  _OpenVault(this.file, this.bytes);
+
+  final KdbxFile file;
+  final Uint8List bytes;
+}
+
 class VaultKdbxService implements PasskeyAdoptionVaultPort {
   VaultKdbxService({
     this.credentialTempWriter,
     DatabasePathMutex? mutex,
     SafeVaultFileWriter? safeWriter,
     this._fileHashRecorder,
+    KdbxFormat? kdbxFormat,
+    bool Function()? keepOpenWhile,
   }) : _mutex = mutex ?? DatabasePathMutex(),
-       _safeWriter = safeWriter ?? SafeVaultFileWriter();
+       _safeWriter = safeWriter ?? SafeVaultFileWriter(),
+       _format = kdbxFormat ?? KdbxFormat(),
+       _keepOpenWhile = keepOpenWhile ?? _always;
+
+  static bool _always() => true;
+
+  final KdbxFormat _format;
+
+  /// Decrypted vaults are kept between operations only while this holds. DI
+  /// passes "a session is unlocked", so a vault opened while locked (an
+  /// autofill save, say) is never left in memory.
+  final bool Function() _keepOpenWhile;
+
+  /// Decrypting runs the KDF, which at KeePassXC defaults takes seconds, so
+  /// the last decrypted state of each vault is kept, keyed by path. Every
+  /// operation still reads the file and compares it byte for byte with
+  /// [_OpenVault.bytes] before reusing it; saves still write every time.
+  final Map<String, _OpenVault> _openVaults = {};
+
+  /// The last file opened or saved per path, kept for its derived key only:
+  /// a cache miss passes it to [KdbxFormat.read] as `keySource`, which skips
+  /// the KDF when the file on disk has a KDF salt it holds a key for (the
+  /// revision it last read or saved, or the one before that save) and the
+  /// credentials are the same. Its tree is never read, so it may be an
+  /// edit's checked-out, half-mutated file.
+  final Map<String, KdbxFile> _keySources = {};
+
+  /// Drops every decrypted vault. Called when the session ends (lock,
+  /// database switch, failed unlock, app detach).
+  void closeOpenVaults() {
+    _openVaults.clear();
+    _keySources.clear();
+  }
+
+  void _rememberKey(String databasePath, KdbxFile file) {
+    if (_keepOpenWhile()) {
+      _keySources[databasePath] = file;
+    }
+  }
+
+  /// A real decrypt of [bytes], without the KDF when a known key fits.
+  Future<KdbxFile> _decrypt(
+    String databasePath,
+    Uint8List bytes,
+    Credentials credentials,
+  ) {
+    final keySource = _keepOpenWhile() ? _keySources[databasePath] : null;
+    return _format.read(bytes, credentials, keySource: keySource);
+  }
+
+  /// Takes the file an unlock has just decrypted from [bytes], so the first
+  /// read after the unlock does not run the KDF a second time. Reused only on
+  /// the same terms as any cached file: same bytes, same credentials.
+  void adoptOpenedFile(String databasePath, Uint8List bytes, KdbxFile file) {
+    if (_keepOpenWhile()) {
+      _openVaults[databasePath] = _OpenVault(file, bytes);
+      _keySources[databasePath] = file;
+    }
+  }
 
   /// spec 008 T105: every mutation below runs inside this lock so vault
   /// edits, sync replacement, import commits and renames on the same file
@@ -89,13 +161,13 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     required String databasePath,
     required String password,
     String? keyFilePath,
-  }) async {
-    final file = await _openFile(
+  }) {
+    return _read(
       databasePath: databasePath,
       password: password,
       keyFilePath: keyFilePath,
+      read: (file) => file.recycleBin?.uuid.uuid,
     );
-    return file.recycleBin?.uuid.uuid;
   }
 
   @override
@@ -104,13 +176,16 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     required String password,
     String? keyFilePath,
     String? currentGroupId,
-  }) async {
-    final file = await _openFile(
+  }) {
+    return _read(
       databasePath: databasePath,
       password: password,
       keyFilePath: keyFilePath,
+      read: (file) => _snapshotOf(file, currentGroupId),
     );
+  }
 
+  VaultSnapshot _snapshotOf(KdbxFile file, String? currentGroupId) {
     final rootGroup = file.body.rootGroup;
     final groups = rootGroup.getAllGroups();
 
@@ -149,20 +224,32 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
       groups: groupModels,
       entries: entryModels,
       allEntries: allEntryModels,
+      encryption: _encryptionOrNull(file.header),
     );
+  }
+
+  VaultEncryption? _encryptionOrNull(KdbxHeader header) {
+    try {
+      return vaultEncryptionOf(header);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<List<VaultEntry>> loadRecycleBinEntries({
     required String databasePath,
     required String password,
     String? keyFilePath,
-  }) async {
-    final file = await _openFile(
+  }) {
+    return _read(
       databasePath: databasePath,
       password: password,
       keyFilePath: keyFilePath,
+      read: _recycleBinEntriesOf,
     );
+  }
 
+  List<VaultEntry> _recycleBinEntriesOf(KdbxFile file) {
     final recycleBin = file.recycleBin;
     if (recycleBin == null) {
       return const [];
@@ -187,13 +274,16 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     required String databasePath,
     required String password,
     String? keyFilePath,
-  }) async {
-    final file = await _openFile(
+  }) {
+    return _read(
       databasePath: databasePath,
       password: password,
       keyFilePath: keyFilePath,
+      read: _allEntriesOf,
     );
+  }
 
+  List<VaultEntry> _allEntriesOf(KdbxFile file) {
     final recycleBinUuid = file.recycleBin?.uuid.uuid;
     final entries =
         file.body.rootGroup
@@ -461,29 +551,31 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     String? keyFilePath,
     required String entryId,
   }) {
-    return _mutex.withDatabaseLock([databasePath], () async {
-      final file = await _openFile(
+    return _mutex.withDatabaseLock([databasePath], () {
+      return _read(
         databasePath: databasePath,
         password: password,
         keyFilePath: keyFilePath,
-      );
+        read: (file) {
+          final entry = _findEntryById(
+            file.body.rootGroup.getAllEntries(),
+            entryId,
+          );
 
-      final entry = _findEntryById(
-        file.body.rootGroup.getAllEntries(),
-        entryId,
-      );
+          final revisions = [
+            for (final (_, revision) in _orderedHistory(entryId, entry))
+              revision,
+          ].toList(growable: false);
 
-      final revisions = [
-        for (final (_, revision) in _orderedHistory(entryId, entry)) revision,
-      ].toList(growable: false);
-
-      final meta = file.body.meta;
-      return VaultEntryHistory(
-        revisions: revisions,
-        retention: VaultHistoryRetention(
-          maxItems: meta.historyMaxItems.get(),
-          maxSizeBytes: meta.historyMaxSize.get(),
-        ),
+          final meta = file.body.meta;
+          return VaultEntryHistory(
+            revisions: revisions,
+            retention: VaultHistoryRetention(
+              maxItems: meta.historyMaxItems.get(),
+              maxSizeBytes: meta.historyMaxSize.get(),
+            ),
+          );
+        },
       );
     });
   }
@@ -700,29 +792,31 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     required Uint8List credentialId,
     Uint8List? userHandle,
   }) {
-    return _mutex.withDatabaseLock([databasePath], () async {
-      final file = await _openFile(
+    return _mutex.withDatabaseLock([databasePath], () {
+      return _read(
         databasePath: databasePath,
         password: password,
         keyFilePath: keyFilePath,
-      );
-      final recycleBinUuid = file.recycleBin?.uuid.uuid;
-      String? credentialEntryId;
-      final accountEntryIds = <String>[];
-      for (final entry in file.body.rootGroup.getAllEntries()) {
-        if (_isInsideRecycleBin(entry, recycleBinUuid)) continue;
-        final passkeys = _mapPasskeys(entry)
-            .where((passkey) => passkey.relyingPartyId == relyingPartyId);
-        if (passkeys.any((p) => _sameBytes(p.credentialId, credentialId))) {
-          credentialEntryId ??= entry.uuid.uuid;
-        }
-        if (passkeys.any((p) => _sameHandle(p.userHandle, userHandle))) {
-          accountEntryIds.add(entry.uuid.uuid);
-        }
-      }
-      return (
-        credentialEntryId: credentialEntryId,
-        accountEntryIds: accountEntryIds,
+        read: (file) {
+          final recycleBinUuid = file.recycleBin?.uuid.uuid;
+          String? credentialEntryId;
+          final accountEntryIds = <String>[];
+          for (final entry in file.body.rootGroup.getAllEntries()) {
+            if (_isInsideRecycleBin(entry, recycleBinUuid)) continue;
+            final passkeys = _mapPasskeys(entry)
+                .where((passkey) => passkey.relyingPartyId == relyingPartyId);
+            if (passkeys.any((p) => _sameBytes(p.credentialId, credentialId))) {
+              credentialEntryId ??= entry.uuid.uuid;
+            }
+            if (passkeys.any((p) => _sameHandle(p.userHandle, userHandle))) {
+              accountEntryIds.add(entry.uuid.uuid);
+            }
+          }
+          return (
+            credentialEntryId: credentialEntryId,
+            accountEntryIds: accountEntryIds,
+          );
+        },
       );
     });
   }
@@ -1151,11 +1245,13 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
         } else {
           await writer(tempFile, bytes);
         }
-        await _openFile(
+        // A real decrypt of what was written, never the cache.
+        final (tempBytes, tempCredentials) = await _readInputs(
           databasePath: tempFile.path,
           password: newPassword,
           keyFilePath: newKeyFilePath,
         );
+        final verified = await _format.read(tempBytes, tempCredentials);
 
         await _trackDatabaseWrite(
           databasePath: databasePath,
@@ -1170,6 +1266,14 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
             }
           },
         );
+        // The verified file is exactly what is on disk now, opened with the
+        // new credentials: the next read reuses it instead of a third KDF.
+        _openVaults.remove(databasePath);
+        _keySources.remove(databasePath);
+        if (_keepOpenWhile()) {
+          _openVaults[databasePath] = _OpenVault(verified, tempBytes);
+          _keySources[databasePath] = verified;
+        }
 
         return KdbxCredentialChange(
           databasePath: databasePath,
@@ -1205,6 +1309,8 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
         '${change.databasePath}.credentials-rollback-${DateTime.now().microsecondsSinceEpoch}',
       );
       final restoredBytes = await backupFile.readAsBytes();
+      _openVaults.remove(change.databasePath);
+      _keySources.remove(change.databasePath);
       await _trackDatabaseWrite(
         databasePath: change.databasePath,
         bytes: restoredBytes,
@@ -1276,23 +1382,25 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     return _mutex.withDatabaseLock(
       [databasePath, p.join(destinationDirectory, attachmentKey)],
       () async {
-        final file = await _openFile(
+        final bytes = await _read(
           databasePath: databasePath,
           password: password,
           keyFilePath: keyFilePath,
+          read: (file) {
+            final entry = _findEntryById(
+              file.body.rootGroup.getAllEntries(),
+              entryId,
+            );
+            final binary = entry.getBinary(KdbxKey(attachmentKey));
+            if (binary == null) {
+              throw Exception('Attachment not found.');
+            }
+            return binary.value;
+          },
         );
-
-        final entry = _findEntryById(
-          file.body.rootGroup.getAllEntries(),
-          entryId,
-        );
-        final binary = entry.getBinary(KdbxKey(attachmentKey));
-        if (binary == null) {
-          throw Exception('Attachment not found.');
-        }
 
         final destination = File(p.join(destinationDirectory, attachmentKey));
-        await destination.writeAsBytes(binary.value, flush: true);
+        await destination.writeAsBytes(bytes, flush: true);
         return destination.path;
       },
     );
@@ -1432,19 +1540,22 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     required String password,
     String? keyFilePath,
     required String groupId,
-  }) async {
-    final file = await _openFile(
+  }) {
+    return _read(
       databasePath: databasePath,
       password: password,
       keyFilePath: keyFilePath,
+      read: (file) {
+        final group = _findGroupById(
+          file.body.rootGroup.getAllGroups(),
+          groupId,
+        );
+        if (group.parent == null) {
+          throw Exception('Root group cannot be deleted.');
+        }
+        return group.entries.isEmpty && group.groups.isEmpty;
+      },
     );
-
-    final group = _findGroupById(file.body.rootGroup.getAllGroups(), groupId);
-    if (group.parent == null) {
-      throw Exception('Root group cannot be deleted.');
-    }
-
-    return group.entries.isEmpty && group.groups.isEmpty;
   }
 
   Future<void> moveGroup({
@@ -1631,7 +1742,79 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
     });
   }
 
+  /// The file for an edit, checked OUT of the cache: nothing else can see it
+  /// while it is being mutated, and only a successful [_save] puts it back.
+  /// An edit that throws, at any point, leaves the half-mutated object
+  /// unreachable, so the next operation decrypts the file on disk again.
   Future<KdbxFile> _openFile({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+  }) async {
+    final (bytes, credentials) = await _readInputs(
+      databasePath: databasePath,
+      password: password,
+      keyFilePath: keyFilePath,
+    );
+    final cached = _cachedFile(databasePath, bytes, credentials);
+    _openVaults.remove(databasePath);
+    final file = cached ?? await _decrypt(databasePath, bytes, credentials);
+    _rememberKey(databasePath, file);
+    return file;
+  }
+
+  /// A read-only projection of the vault. [read] runs synchronously right
+  /// after the cache check, so no edit can check the same object out and
+  /// mutate it while it is being read. A read during an edit (the file is
+  /// checked out) decrypts the bytes on disk again, the last saved state,
+  /// with the edit file's key for that revision (kept across its save), so
+  /// it costs no KDF either.
+  Future<T> _read<T>({
+    required String databasePath,
+    required String password,
+    String? keyFilePath,
+    required T Function(KdbxFile file) read,
+  }) async {
+    final (bytes, credentials) = await _readInputs(
+      databasePath: databasePath,
+      password: password,
+      keyFilePath: keyFilePath,
+    );
+    final cached = _cachedFile(databasePath, bytes, credentials);
+    if (cached != null) {
+      return read(cached);
+    }
+    final file = await _decrypt(databasePath, bytes, credentials);
+    final result = read(file);
+    if (_keepOpenWhile()) {
+      // An edit that finished meanwhile stored a newer state: keep that one.
+      _openVaults.putIfAbsent(databasePath, () => _OpenVault(file, bytes));
+      _keySources.putIfAbsent(databasePath, () => file);
+    }
+    return result;
+  }
+
+  /// The cached file, only if it was decrypted from exactly [bytes] (what is
+  /// on disk now) with exactly [credentials]. Anything else evicts it.
+  KdbxFile? _cachedFile(
+    String databasePath,
+    Uint8List bytes,
+    Credentials credentials,
+  ) {
+    final open = _openVaults[databasePath];
+    if (open == null) {
+      return null;
+    }
+    if (_keepOpenWhile() &&
+        _sameBytes(open.bytes, bytes) &&
+        _sameBytes(open.file.credentials.getHash(), credentials.getHash())) {
+      return open.file;
+    }
+    _openVaults.remove(databasePath);
+    return null;
+  }
+
+  Future<(Uint8List, Credentials)> _readInputs({
     required String databasePath,
     required String password,
     String? keyFilePath,
@@ -1654,8 +1837,7 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
       ProtectedValue.fromString(password),
       keyFileBytes,
     );
-    final dbBytes = await dbFile.readAsBytes();
-    return KdbxFormat().read(dbBytes, credentials);
+    return (await dbFile.readAsBytes(), credentials);
   }
 
   Future<void> _save(String databasePath, KdbxFile file) async {
@@ -1672,6 +1854,10 @@ class VaultKdbxService implements PasskeyAdoptionVaultPort {
         operation: 'vault save',
       ),
     );
+    if (_keepOpenWhile()) {
+      _openVaults[databasePath] = _OpenVault(file, bytes);
+      _keySources[databasePath] = file;
+    }
   }
 
   KdbxGroup _findGroupById(List<KdbxGroup> groups, String id) {

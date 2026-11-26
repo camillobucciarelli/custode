@@ -3,8 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kdbx/kdbx.dart';
 import 'package:password_manager/features/password_manager/domain/errors/database_access_failure.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/create_database_download_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/vault_credentials.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/vault_encryption_kdbx.dart';
 
 /// spec 015 FR-14 / AC-8 (T020/T022): the download-only web path, verified
 /// without a real browser. The two artefacts must be mutually consistent —
@@ -23,6 +25,30 @@ void main() {
       composeVaultCredentials(password: password, keyFileBytes: keyFileBytes),
     );
   }
+
+  test('the requested encryption is written to the header', () async {
+    const requested = VaultEncryption(
+      cipher: VaultCipher.chaCha20,
+      kdf: VaultKdf.aesKdf,
+      rounds: 10,
+    );
+    final download = await useCase(
+      const CreateDatabaseDownloadRequest(
+        password: 'kv-test-only-not-a-real-password',
+        encryption: requested,
+      ),
+    );
+    final read = vaultEncryptionOf(
+      KdbxHeader.readFromBytes(download.databaseBytes),
+    );
+    expect(read.cipher, VaultCipher.chaCha20);
+    expect(read.kdf, VaultKdf.aesKdf);
+    expect(read.rounds, 10);
+    await expectOpens(
+      download.databaseBytes,
+      password: 'kv-test-only-not-a-real-password',
+    );
+  });
 
   test('password only: the database opens with the password', () async {
     final download = await useCase(

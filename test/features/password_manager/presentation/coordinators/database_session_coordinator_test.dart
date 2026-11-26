@@ -19,10 +19,13 @@ import 'package:password_manager/features/password_manager/domain/models/databas
 import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
 import 'package:password_manager/features/password_manager/domain/models/remote_file.dart';
 import 'package:password_manager/features/password_manager/domain/models/sync_conflict.dart';
+import 'package:password_manager/features/password_manager/domain/models/unlocked_database.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_entry.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_registry_repository.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_security_repository.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_sync_repository.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/create_database_download_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/create_database_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/get_active_database_usecase.dart';
 import 'package:password_manager/features/password_manager/domain/usecases/resolve_database_duplicate_usecase.dart';
@@ -37,26 +40,34 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:path/path.dart' as p;
 
+import 'fake_database_ports.dart' show fakeUnlockedDatabase;
+
 List<String> _paths(List<DatabaseSelectionItem> items) =>
     items.map((item) => item.canonicalPath).toList(growable: false);
 
 class _StubUnlockDatabaseUseCase extends UnlockDatabaseUseCase {
+  _StubUnlockDatabaseUseCase([this.holder]);
+
+  final SessionSecretHolder? holder;
   Object? error;
   int calls = 0;
   String? lastPassword;
+  bool? hasSecretWhileRunning;
 
   @override
-  Future<void> call({
+  Future<UnlockedDatabase> call({
     required String databasePath,
     required String password,
     String? keyFilePath,
   }) async {
     calls += 1;
     lastPassword = password;
+    hasSecretWhileRunning = holder?.hasSecret;
     final pending = error;
     if (pending != null) {
       throw pending;
     }
+    return fakeUnlockedDatabase(databasePath);
   }
 }
 
@@ -122,11 +133,21 @@ void main() {
       late _StubUnlockDatabaseUseCase unlockUseCase;
       late DatabaseSessionCoordinator stubbedCoordinator;
 
+      late List<({String path, bool hasSecret})> adopted;
+
       setUp(() {
-        unlockUseCase = _StubUnlockDatabaseUseCase();
+        unlockUseCase = _StubUnlockDatabaseUseCase(sessionSecretHolder);
+        adopted = [];
+        final adoptingImportService = DatabaseImportService(
+          validateDatabaseUseCase: ValidateDatabaseUseCase(),
+          adoptOpenedFile: (path, _, _) => adopted.add((
+            path: path,
+            hasSecret: sessionSecretHolder.hasSecret,
+          )),
+        );
         stubbedCoordinator = DatabaseSessionCoordinator(
           sessionSecretHolder: sessionSecretHolder,
-          databaseFileRepository: databaseImportService,
+          databaseFileRepository: adoptingImportService,
           databaseSessionRepository: DatabaseSessionRepositoryImpl(
             localDataSource: localDataSource,
             secureDataSource: secureDataSource,
@@ -174,6 +195,35 @@ void main() {
         );
 
         expect(sessionSecretHolder.hasSecret, isFalse);
+        expect(adopted, isEmpty);
+      });
+
+      test('unlockWithManualCredentials: no secret while the unlock runs, '
+          'then the secret, then the hand-off', () async {
+        await stubbedCoordinator.unlockWithManualCredentials(
+          databasePath: '/tmp/db.kdbx',
+          password: 'pw',
+          keyFilePath: null,
+        );
+
+        expect(unlockUseCase.hasSecretWhileRunning, isFalse);
+        expect(adopted, [(path: '/tmp/db.kdbx', hasSecret: true)]);
+      });
+
+      test('unlockWithStoredCredentials: no secret while the unlock runs, '
+          'then the secret, then the hand-off', () async {
+        registryRepository.records = [
+          _record(id: 'db-test', path: '/tmp/db.kdbx'),
+        ];
+        secureDataSource.passwords['db-test'] = 'stored-pw';
+
+        await stubbedCoordinator.unlockWithStoredCredentials(
+          databasePath: '/tmp/db.kdbx',
+          keyFilePath: null,
+        );
+
+        expect(unlockUseCase.hasSecretWhileRunning, isFalse);
+        expect(adopted, [(path: '/tmp/db.kdbx', hasSecret: true)]);
       });
 
       test(
@@ -255,6 +305,7 @@ void main() {
         );
 
         expect(sessionSecretHolder.hasSecret, isFalse);
+        expect(adopted, isEmpty);
       });
     });
 
@@ -573,6 +624,62 @@ void main() {
       );
       expect(missingItem.isMissing, isTrue);
       expect(registryRepository.activeId, 'db-b');
+    });
+
+    group('encryption from the outer header', () {
+      const cheapTwofish = VaultEncryption(
+        cipher: VaultCipher.twofish,
+        kdf: VaultKdf.argon2id,
+        iterations: 1,
+        memoryBytes: 64 * 1024,
+        parallelism: 1,
+      );
+
+      test('selection items carry it, null for missing or unparseable '
+          'files', () async {
+        final created = await const CreateDatabaseDownloadUseCase()(
+          const CreateDatabaseDownloadRequest(
+            password: 'kv-test-only-not-a-real-password',
+            encryption: cheapTwofish,
+          ),
+        );
+        final realPath = p.join(tempDir.path, 'real.kdbx');
+        await File(realPath).writeAsBytes(created.databaseBytes);
+        // KDBX signature, no parseable header.
+        final garbagePath = await _writeManagedDatabase(tempDir, 'g.kdbx');
+        final missingPath = p.join(tempDir.path, 'missing.kdbx');
+        registryRepository.records = [
+          _record(id: 'db-real', path: realPath),
+          _record(id: 'db-garbage', path: garbagePath),
+          _record(id: 'db-missing', path: missingPath),
+        ];
+        registryRepository.activeId = 'db-missing';
+
+        final result = await coordinator.checkInitialDatabase();
+
+        DatabaseSelectionItem item(String path) =>
+            result.items.firstWhere((item) => item.canonicalPath == path);
+        expect(item(realPath).encryption?.cipher, VaultCipher.twofish);
+        expect(item(realPath).encryption?.kdf, VaultKdf.argon2id);
+        expect(item(garbagePath).encryption, isNull);
+        expect(item(missingPath).encryption, isNull);
+      });
+
+      test('createNewDatabase writes the requested encryption', () async {
+        final result = await coordinator.createNewDatabase(
+          databaseFileName: 'created.kdbx',
+          password: 'kv-test-only-not-a-real-password',
+          biometricProtectionEnabled: false,
+          generateKeyFile: false,
+          encryption: cheapTwofish,
+        );
+
+        expect(result.status, DatabaseSessionStatus.success);
+        final read = await databaseImportService.readEncryption(result.path!);
+        expect(read?.cipher, VaultCipher.twofish);
+        expect(read?.kdf, VaultKdf.argon2id);
+        expect(read?.iterations, 1);
+      });
     });
 
     test(

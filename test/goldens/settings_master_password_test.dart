@@ -87,6 +87,34 @@ void main() {
     }
   });
 
+  group('Encryption page (read-only, from Settings)', () {
+    tearDown(resetVaultShellTestDi);
+
+    testWidgets('settings_encryption_390x844_light.png', (tester) async {
+      await setSize(tester, const Size(390, 844));
+      await tester.pumpWidget(
+        await pumpableVaultShell(themeMode: ThemeMode.light),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics && widget.properties.label == 'Settings',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Encryption'));
+      await tester.tap(find.text('Encryption'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('settings_encryption_390x844_light.png'),
+      );
+    });
+  });
+
   // spec-006 T2/AC4: the theme selector exposes exactly the three
   // `ThemeMode` values — no fourth option — and each pill actually drives
   // `ThemeCubit`.

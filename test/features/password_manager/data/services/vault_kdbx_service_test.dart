@@ -17,11 +17,11 @@ import 'package:kdbx/kdbx.dart';
 // ignore: implementation_imports
 import 'package:kdbx/src/kdbx_entry.dart' show KdbxEntryInternal;
 // ignore: implementation_imports
-import 'package:kdbx/src/kdbx_header.dart' show KdbxHeader;
-// ignore: implementation_imports
 import 'package:kdbx/src/kdbx_object.dart' show KdbxObjectInternal;
 // ignore: implementation_imports
 import 'package:kdbx/src/kdbx_xml.dart' show KdbxColor;
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
+import 'package:password_manager/features/password_manager/domain/usecases/create_database_download_usecase.dart';
 import 'package:password_manager/features/password_manager/data/services/database_file_hash_recorder.dart';
 import 'package:password_manager/features/password_manager/data/services/safe_vault_file_writer.dart';
 import 'package:password_manager/features/password_manager/data/services/passkey_parser.dart';
@@ -58,6 +58,35 @@ void main() {
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
     }
+  });
+
+  test('loadVault exposes the header encryption of the open file', () async {
+    final created = await const CreateDatabaseDownloadUseCase()(
+      const CreateDatabaseDownloadRequest(
+        password: password,
+        encryption: VaultEncryption(
+          cipher: VaultCipher.chaCha20,
+          kdf: VaultKdf.aesKdf,
+          rounds: 10,
+        ),
+      ),
+    );
+    await File(databasePath).writeAsBytes(created.databaseBytes);
+
+    final snapshot = await service.loadVault(
+      databasePath: databasePath,
+      password: password,
+    );
+
+    expect(
+      snapshot.encryption,
+      const VaultEncryption(
+        cipher: VaultCipher.chaCha20,
+        kdf: VaultKdf.aesKdf,
+        kdbxVersion: '4.0',
+        rounds: 10,
+      ),
+    );
   });
 
   test('changes password and key file together', () async {

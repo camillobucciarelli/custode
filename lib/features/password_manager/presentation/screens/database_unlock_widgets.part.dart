@@ -100,9 +100,12 @@ class _BiometricGate extends StatelessWidget {
 /// C-4 decrypting: entered before the KDBX await, indeterminate only, no
 /// cancel affordance. Reduced motion freezes it to a static busy state.
 class _DecryptingView extends StatelessWidget {
-  const _DecryptingView({required this.basename});
+  const _DecryptingView({required this.basename, this.kdf});
 
   final String basename;
+
+  /// Named when known; the wording stays generic otherwise.
+  final VaultKdf? kdf;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +142,9 @@ class _DecryptingView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Deriving your encryption key with Argon2. This can take a moment.',
+              'Deriving your encryption key'
+              '${kdf == null ? '' : ' with ${kdf!.label}'}. '
+              'This can take a moment.',
               textAlign: TextAlign.center,
               style: AppTextStyles.body.copyWith(color: colors.textSecondary),
             ),

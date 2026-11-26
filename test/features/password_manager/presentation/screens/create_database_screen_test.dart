@@ -14,10 +14,13 @@ import 'package:material_ui/material_ui.dart';
 import 'package:password_manager/core/widgets/kv_switch.dart';
 import 'package:password_manager/features/password_manager/domain/models/create_database_step.dart';
 import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
 import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_bloc.dart';
+import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_event.dart';
 import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_state.dart';
 import 'package:password_manager/features/password_manager/presentation/screens/create_database_screen.dart';
 import 'package:password_manager/features/password_manager/presentation/utils/platform_utils.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/database/source_option_card.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/key_file_picker.dart';
 
 import '../coordinators/fake_database_ports.dart';
@@ -63,6 +66,23 @@ void main() {
 
   ElevatedButton primaryButton(WidgetTester tester) =>
       tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+
+  /// The KDF runs in a real isolate (`Isolate.run`), whose result arrives on
+  /// the real event loop that fake-async pumps never advance.
+  Future<void> prepareDownloads(WidgetTester tester) async {
+    await tester.tap(find.text('Prepare downloads'));
+    for (
+      var i = 0;
+      i < 400 && find.text('Download database').evaluate().isEmpty;
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+  }
 
   Future<void> addGeneratedKey(WidgetTester tester) async {
     await tester.tap(find.text('Add a key file'));
@@ -419,6 +439,85 @@ void main() {
     });
   });
 
+  group('encryption', () {
+    testWidgets('defaults to AES-256 with Argon2id and sends the sheet\'s '
+        'choice with the create event', (tester) async {
+      final events = <Object?>[];
+      final previousObserver = Bloc.observer;
+      Bloc.observer = _EventRecorder(events);
+      addTearDown(() => Bloc.observer = previousObserver);
+
+      await pumpWizard(tester);
+      await goToCredentials(tester);
+      expect(
+        find.text('AES-256 \u00b7 Argon2id (recommended)'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Encryption'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('The recommended setting suits almost everyone.'),
+        findsOneWidget,
+      );
+      expect(find.text('Recommended'), findsNWidgets(2));
+      const keePassNote = 'KeePass 2 needs a plugin to open it';
+      Finder noteIn(String cipher) => find.descendant(
+        of: find.widgetWithText(SourceOptionCard, cipher),
+        matching: find.textContaining(keePassNote),
+      );
+      expect(noteIn('Twofish'), findsOneWidget);
+      expect(noteIn('AES-256'), findsNothing);
+      expect(noteIn('ChaCha20'), findsNothing);
+      expect(
+        tester.getSemantics(find.text('AES-256')),
+        isSemantics(isSelected: true),
+      );
+
+      await tester.tap(find.text('ChaCha20'));
+      await tester.pump();
+      await tester.ensureVisible(find.text('AES-KDF'));
+      await tester.tap(find.text('AES-KDF'));
+      await tester.pump();
+      await tester.ensureVisible(find.text('Done'));
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('ChaCha20 \u00b7 AES-KDF'), findsOneWidget);
+
+      await enterPasswordAndConfirm(tester);
+      await tester.tap(find.text('Create database'));
+      await tester.pumpAndSettle();
+
+      final create = events.whereType<CreateNewDatabase>().single;
+      expect(
+        create.encryption,
+        const VaultEncryption(
+          cipher: VaultCipher.chaCha20,
+          kdf: VaultKdf.aesKdf,
+        ),
+      );
+    });
+
+    testWidgets('dismissing the sheet keeps the previous choice', (
+      tester,
+    ) async {
+      await pumpWizard(tester);
+      await goToCredentials(tester);
+      await tester.tap(find.text('Encryption'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Twofish'));
+      await tester.pump();
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('AES-256 \u00b7 Argon2id (recommended)'),
+        findsOneWidget,
+      );
+    });
+  });
+
   group('issue #276: system back is the on-screen back', () {
     testWidgets('from credentials it returns to step 1 with the draft', (
       tester,
@@ -500,8 +599,7 @@ void main() {
         find.text('Downloads the database. The browser keeps nothing.'),
         findsOneWidget,
       );
-      await tester.tap(find.text('Prepare downloads'));
-      await tester.pumpAndSettle();
+      await prepareDownloads(tester);
 
       expect(find.text('Download key file'), findsOneWidget);
       final databaseButton = tester.widget<OutlinedButton>(
@@ -526,8 +624,7 @@ void main() {
       await goToCredentials(tester);
       await enterPasswordAndConfirm(tester);
 
-      await tester.tap(find.text('Prepare downloads'));
-      await tester.pumpAndSettle();
+      await prepareDownloads(tester);
 
       expect(find.text('Download key file'), findsNothing);
       final databaseButton = tester.widget<OutlinedButton>(
@@ -536,6 +633,18 @@ void main() {
       expect(databaseButton.onPressed, isNotNull);
     });
   });
+}
+
+class _EventRecorder extends BlocObserver {
+  _EventRecorder(this.events);
+
+  final List<Object?> events;
+
+  @override
+  void onEvent(Bloc<dynamic, dynamic> bloc, Object? event) {
+    super.onEvent(bloc, event);
+    events.add(event);
+  }
 }
 
 class _RefusingSyncRepository extends FakeDatabaseSyncRepository {

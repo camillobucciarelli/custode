@@ -197,6 +197,23 @@ void main() {
       reason: 'G5.5 — the record is still shown and still selected',
     );
   });
+
+  testWidgets('Save with nothing changed closes the editor without writing', (
+    tester,
+  ) async {
+    final service = await pumpWideVault(tester);
+    await openGmail(tester);
+
+    await tester.tap(inDetail(find.byTooltip('Edit')));
+    await tester.pumpAndSettle();
+    await tester.tap(inDetail(find.byTooltip('Save')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(service.calls, isEmpty, reason: 'an unchanged record is not saved');
+    expect(inDetail(find.byTooltip('Save')), findsNothing);
+    expect(find.byKey(const ValueKey('entry-detail-body')), findsOneWidget);
+  });
 }
 
 // ---- The real D5 reproduction ------------------------------------------
