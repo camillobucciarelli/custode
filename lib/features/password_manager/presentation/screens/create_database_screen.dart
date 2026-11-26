@@ -1010,7 +1010,10 @@ class _EncryptionChoiceSheetState extends State<_EncryptionChoiceSheet> {
   static const _cipherHints = {
     VaultCipher.aes256: 'The standard. Hardware-accelerated on most devices.',
     VaultCipher.chaCha20: 'Fast on devices without AES acceleration.',
-    VaultCipher.twofish: 'An alternative block cipher, for compatibility.',
+    // KeePass 2 core rejects Twofish ("unknown encryption algorithm");
+    // KeePassXC opens it.
+    VaultCipher.twofish:
+        'An alternative block cipher.\nKeePass 2 needs a plugin to open it.',
   };
 
   static const _kdfHints = {

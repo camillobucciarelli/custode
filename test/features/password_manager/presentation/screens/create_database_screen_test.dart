@@ -20,6 +20,7 @@ import 'package:password_manager/features/password_manager/presentation/bloc/dat
 import 'package:password_manager/features/password_manager/presentation/bloc/database_selection/database_selection_state.dart';
 import 'package:password_manager/features/password_manager/presentation/screens/create_database_screen.dart';
 import 'package:password_manager/features/password_manager/presentation/utils/platform_utils.dart';
+import 'package:password_manager/features/password_manager/presentation/widgets/database/source_option_card.dart';
 import 'package:password_manager/features/password_manager/presentation/widgets/key_file_picker.dart';
 
 import '../coordinators/fake_database_ports.dart';
@@ -460,6 +461,14 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Recommended'), findsNWidgets(2));
+      const keePassNote = 'KeePass 2 needs a plugin to open it';
+      Finder noteIn(String cipher) => find.descendant(
+        of: find.widgetWithText(SourceOptionCard, cipher),
+        matching: find.textContaining(keePassNote),
+      );
+      expect(noteIn('Twofish'), findsOneWidget);
+      expect(noteIn('AES-256'), findsNothing);
+      expect(noteIn('ChaCha20'), findsNothing);
       expect(
         tester.getSemantics(find.text('AES-256')),
         isSemantics(isSelected: true),
