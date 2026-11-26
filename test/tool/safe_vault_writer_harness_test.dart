@@ -13,8 +13,8 @@
 //     Android, iOS or Windows.
 //
 // Order-independent by construction: every case gets its own `createTemp`
-// directory and nothing is shared between tests (the repo runs a
-// `test-random-order` job with a random seed).
+// directory and nothing is shared between tests (the PR `test` job runs the
+// suite with a random seed).
 
 import 'dart:io';
 
