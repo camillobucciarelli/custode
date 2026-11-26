@@ -543,10 +543,9 @@ packages:
   kdbx:
     dependency: "direct main"
     description:
-      name: kdbx
-      sha256: "62fe148de36103ef0684ad2d37461f57532a707023dab72f4709579d217cb4fe"
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/kdbx"
+      relative: true
+    source: path
     version: "2.6.0"
   leak_tracker:
     dependency: transitive

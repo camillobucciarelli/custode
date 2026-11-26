@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import '../models/database_import_result.dart';
 import '../models/database_import_transaction.dart';
+import '../models/unlocked_database.dart';
+import '../models/vault_encryption.dart';
 
 /// C-7 domain port covering every file-system/KDBX-file operation the
 /// coordinator previously performed directly (stage/open/commit/rollback/
@@ -14,6 +16,15 @@ abstract class DatabaseFileRepository {
   /// Whether a file exists at [path]. Used for recent-item `isMissing` and
   /// for the `removeAndDeleteFile` check.
   Future<bool> fileExists(String path);
+
+  /// Cipher and KDF from the outer KDBX header of [path], read without
+  /// credentials. Never throws: null when the file is missing, unreadable,
+  /// not a KDBX file, or there is no local file access (web).
+  Future<VaultEncryption?> readEncryption(String path);
+
+  /// Keeps what an unlock just decrypted for the vault's first read. Call
+  /// only after the session holds the secret: it is dropped otherwise.
+  void adoptUnlockedDatabase(UnlockedDatabase unlocked);
 
   /// Content hash of the file at [path] (used for duplicate detection and
   /// Locate hash-match verification).

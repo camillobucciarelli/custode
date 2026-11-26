@@ -199,6 +199,7 @@ class DatabaseSelectionBloc
         generateKeyFile: event.generateKeyFile,
         generatedKeyFilePath: event.generatedKeyFilePath,
         createOnRemote: event.createOnRemote,
+        encryption: event.encryption,
       );
       if (result.status == DatabaseSessionStatus.error) {
         _safeEmit(

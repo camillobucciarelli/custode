@@ -72,6 +72,7 @@ class DatabaseUnlockBloc
         keyFilePath: bootstrap.keyFilePath,
         clearKeyFilePath: bootstrap.keyFilePath == null,
         biometricAvailable: bootstrap.biometricAvailable,
+        kdf: bootstrap.kdf,
         clearError: true,
       );
 

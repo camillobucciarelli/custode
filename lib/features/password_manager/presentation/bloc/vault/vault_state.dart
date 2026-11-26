@@ -7,6 +7,7 @@ import '../../../domain/models/remote_file.dart';
 import '../../../domain/models/duplicate_group.dart';
 import '../../../domain/models/sync_conflict.dart';
 import '../../../domain/models/sync_merge_models.dart';
+import '../../../domain/models/vault_encryption.dart';
 import '../../../domain/models/vault_entry.dart';
 import '../../../domain/models/vault_entry_revision.dart';
 import '../../../domain/models/vault_group.dart';
@@ -28,6 +29,7 @@ class VaultState extends Equatable {
     this.groups = const [],
     this.entries = const [],
     this.allEntries = const [],
+    this.encryption,
     this.visibleEntries = const [],
     this.expandedGroupIds = const [],
     this.folderCounts = const {},
@@ -95,6 +97,9 @@ class VaultState extends Equatable {
   final List<VaultGroup> groups;
   final List<VaultEntry> entries;
   final List<VaultEntry> allEntries;
+
+  /// Cipher, KDF and KDF cost of the open vault, refreshed on every reload.
+  final VaultEncryption? encryption;
   final List<VaultEntry> visibleEntries;
   final List<String> expandedGroupIds;
 
@@ -223,6 +228,7 @@ class VaultState extends Equatable {
     List<VaultGroup>? groups,
     List<VaultEntry>? entries,
     List<VaultEntry>? allEntries,
+    VaultEncryption? encryption,
     List<VaultEntry>? visibleEntries,
     List<String>? expandedGroupIds,
     Map<String, int>? folderCounts,
@@ -291,6 +297,7 @@ class VaultState extends Equatable {
       groups: groups ?? this.groups,
       entries: entries ?? this.entries,
       allEntries: allEntries ?? this.allEntries,
+      encryption: encryption ?? this.encryption,
       visibleEntries: visibleEntries ?? this.visibleEntries,
       expandedGroupIds: expandedGroupIds ?? this.expandedGroupIds,
       folderCounts: folderCounts ?? this.folderCounts,
@@ -417,6 +424,7 @@ class VaultState extends Equatable {
     groups,
     entries,
     allEntries,
+    encryption,
     visibleEntries,
     expandedGroupIds,
     folderCounts,

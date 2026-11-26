@@ -307,6 +307,84 @@ void main() {
       );
     });
 
+    test('review and commit derive the key once per side and once for the '
+        'candidate save: the round-0 reopen and the candidate check reuse '
+        'them', () async {
+      final argon2 = _CountingArgon2();
+      final harness = await _Harness.build(
+        temp,
+        adapter: KdbxMergeAdapter(format: () => KdbxFormat(argon2)),
+      );
+
+      final summary = await harness.repository.startReview(harness.databaseId);
+      expect(
+        argon2.calls,
+        2,
+        reason: 'local and remote: every save rotates the KDF salt',
+      );
+
+      final outcome = await harness.repository.commit(summary.sessionId);
+      expect(outcome, isA<MergeApplied>());
+      expect(argon2.calls, 3, reason: 'the candidate save only');
+
+      // Still a real, independently decryptable file.
+      final onDisk = await KdbxFormat().read(
+        await File(harness.databasePath).readAsBytes(),
+        await harness.buildCredentials(),
+      );
+      expect(onDisk.body.rootGroup.getAllEntries(), isNotEmpty);
+    });
+
+    test('merges against a remote last saved by KeePassXC', () async {
+      // Committed fixtures, both under the test-only `_password`:
+      // * keepassxc_merge_base.kdbx: written by this package's kdbx (KDBX 4,
+      //   AES-256, Argon2d 2 rounds / 1 MiB), entries "Local Edited" and
+      //   "Remote Edited" with mtimes pinned to 2020.
+      // * keepassxc_merge_remote.kdbx: that base after KeePassXC 2.8.0
+      //   `keepassxc-cli edit -u remote-user-by-keepassxc <db> "Remote Edited"`,
+      //   so its last writer is KeePassXC, not Custode.
+      const dir = 'test/fixtures/sync_merge';
+      const localEditedUuid = 'DDDDDDDDDDDDDDDDDDDDAQ==';
+      const remoteEditedUuid = 'DDDDDDDDDDDDDDDDDDDDAg==';
+      final credentials = Credentials(ProtectedValue.fromString(_password));
+      final local = await KdbxFormat().read(
+        await File('$dir/keepassxc_merge_base.kdbx').readAsBytes(),
+        credentials,
+      );
+      _entry(local, localEditedUuid)!
+        ..setString(
+          KdbxKeyCommon.USER_NAME,
+          PlainValue('local-user-by-custode'),
+        )
+        ..times.lastModificationTime.set(DateTime.utc(2025));
+      final harness = await _Harness.build(
+        temp,
+        fixture: _FixturePair(
+          keyFilePath: '${temp.path}/unused.keyx',
+          keyFileBytes: null,
+          credentials: credentials,
+          localBytes: Uint8List.fromList(await local.save()),
+          remoteBytes: await File('$dir/keepassxc_merge_remote.kdbx')
+              .readAsBytes(),
+          rootUuid: local.body.rootGroup.uuid,
+          deletionTime: DateTime.utc(2020),
+        ),
+      );
+
+      final summary = await harness.repository.startReview(harness.databaseId);
+      final outcome = await harness.repository.commit(summary.sessionId);
+      expect(outcome, isA<MergeApplied>());
+
+      final merged = await KdbxFormat().read(
+        await File(harness.databasePath).readAsBytes(),
+        await harness.buildCredentials(),
+      );
+      String? userName(String uuid) =>
+          _entry(merged, uuid)!.getString(KdbxKeyCommon.USER_NAME)?.getText();
+      expect(userName(localEditedUuid), 'local-user-by-custode');
+      expect(userName(remoteEditedUuid), 'remote-user-by-keepassxc');
+    });
+
     test('a local edit that lands after review opened refuses the commit '
         'before anything is written or uploaded', () async {
       final harness = await _Harness.build(temp);
@@ -3022,6 +3100,7 @@ class _Harness {
     _FixturePair? fixture,
     SafeVaultFileWriter? safeWriter,
     _FakeGoogleDriveApiService Function(_FakeRemoteDrive)? driveFactory,
+    KdbxMergeAdapter adapter = const KdbxMergeAdapter(),
   }) async {
     final built =
         fixture ??
@@ -3089,6 +3168,7 @@ class _Harness {
         driveApiService: drive,
         syncMetadataDataSource: syncMetadata,
         safeWriter: safeWriter,
+        adapter: adapter,
       ),
       databaseId: MergeDatabaseId(_databaseId),
       databasePath: databasePath,
@@ -3549,5 +3629,16 @@ class _DepthMutex extends DatabasePathMutex {
         _depth--;
       }
     });
+  }
+}
+
+/// Counts key derivations.
+class _CountingArgon2 extends PointyCastleArgon2 {
+  int calls = 0;
+
+  @override
+  Future<Uint8List> argon2Async(args) {
+    calls++;
+    return super.argon2Async(args);
   }
 }

@@ -114,6 +114,10 @@ jobs:
           (( ${#suites[@]} > 0 )) || { echo "No test files matched"; exit 1; }
           flutter test --test-randomize-ordering-seed="$seed" "${suites[@]}"
 
+      # The vendored kdbx package has its own suite; `dart` ships with Flutter.
+      - name: kdbx package tests
+        run: cd packages/kdbx && dart pub get && dart test
+
   # Windows is the only supported platform whose filesystem semantics the code
   # actually depends on AND that no PR check has ever exercised: `release.yml`
   # builds on `windows-2022`, but that runs after merge, so a Windows-only

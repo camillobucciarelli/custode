@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/utils/clipboard_guard.dart';
+import '../data/services/vault_kdbx_service.dart';
 import '../presentation/bloc/database_selection/database_selection_bloc.dart';
 import '../presentation/bloc/database_unlock/database_unlock_bloc.dart';
 import '../presentation/bloc/vault/vault_bloc.dart';
@@ -29,7 +30,10 @@ void registerPasswordManagerPresentationDependencies(GetIt sl) {
   // spec-011 FR-1: single session-scoped instance shared by both session
   // coordinators and VaultBloc — the in-memory transport for the master
   // password of the unlocked session.
-  sl.registerLazySingleton<SessionSecretHolder>(() => SessionSecretHolder());
+  sl.registerLazySingleton<SessionSecretHolder>(
+    // Every end of a session also drops the decrypted vaults kept in memory.
+    () => SessionSecretHolder(onClear: sl<VaultKdbxService>().closeOpenVaults),
+  );
 
   sl.registerLazySingleton<AppleAutofillV2CoordinatorContract>(
     () => CompositeAutofillV2Coordinator([

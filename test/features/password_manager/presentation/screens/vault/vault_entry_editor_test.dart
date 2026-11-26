@@ -104,6 +104,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// An unrelated change: Save on an untouched record writes nothing.
+  Future<void> editTitle(WidgetTester tester) async {
+    final title = find
+        .descendant(
+          of: find.byKey(const ValueKey('vault-detail-pane')),
+          matching: find.byType(TextField),
+        )
+        .first;
+    await tester.enterText(title, 'Renamed');
+    await tester.pumpAndSettle();
+  }
+
   Future<void> save(WidgetTester tester) async {
     await tester.tap(find.byTooltip('Save'));
     await tester.pumpAndSettle();
@@ -181,6 +193,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.widget<KvSwitch>(switchIn(row(0))).value, isTrue);
 
+      await editTitle(tester);
       await save(tester);
       expect(
         service.calls.last.customFields,
@@ -221,6 +234,7 @@ void main() {
     expect(tester.widget<KvSwitch>(switchIn(row(0))).value, isTrue);
     expect(valueFieldIn(tester, row(0)).obscureText, isTrue);
 
+    await editTitle(tester);
     await save(tester);
 
     final saved = service.calls.last.customFields;

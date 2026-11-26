@@ -5,6 +5,7 @@ import 'package:kdbx/kdbx.dart';
 import 'package:path/path.dart' as p;
 
 import '../errors/database_access_failure.dart';
+import '../models/unlocked_database.dart';
 import 'vault_credentials.dart';
 
 /// KDBX read/unlock boundary. Maps concrete `kdbx` package exceptions to
@@ -12,7 +13,7 @@ import 'vault_credentials.dart';
 /// inspect raw exception text (and never confuses "corrupted" with "wrong
 /// password").
 class UnlockDatabaseUseCase {
-  Future<void> call({
+  Future<UnlockedDatabase> call({
     required String databasePath,
     required String password,
     String? keyFilePath,
@@ -40,8 +41,9 @@ class UnlockDatabaseUseCase {
     );
 
     final dbBytes = await dbFile.readAsBytes();
+    final KdbxFile file;
     try {
-      await KdbxFormat().read(dbBytes, credentials);
+      file = await KdbxFormat().read(dbBytes, credentials);
     } on KdbxInvalidKeyException {
       throw const InvalidCredentialsFailure();
     } on KdbxCorruptedFileException {
@@ -60,5 +62,10 @@ class UnlockDatabaseUseCase {
       // a credentials problem, and must never surface as a raw exception.
       throw CorruptDatabaseFailure(p.basename(databasePath));
     }
+    return UnlockedDatabase(
+      databasePath: databasePath,
+      bytes: dbBytes,
+      file: file,
+    );
   }
 }

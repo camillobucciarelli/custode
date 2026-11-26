@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:kdbx/kdbx.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_record.dart';
 import 'package:password_manager/features/password_manager/domain/entities/database_security_profile.dart';
 import 'package:password_manager/features/password_manager/domain/models/database_import_result.dart';
@@ -15,6 +16,8 @@ import 'package:password_manager/features/password_manager/domain/models/databas
 import 'package:password_manager/features/password_manager/domain/models/storage_account_summary.dart';
 import 'package:password_manager/features/password_manager/domain/models/remote_file.dart';
 import 'package:password_manager/features/password_manager/domain/models/sync_conflict.dart';
+import 'package:password_manager/features/password_manager/domain/models/unlocked_database.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_file_repository.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_registry_repository.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_security_repository.dart';
@@ -43,6 +46,21 @@ class FakeDatabaseFileRepository implements DatabaseFileRepository {
 
   @override
   Future<bool> fileExists(String path) async => existingPaths.contains(path);
+
+  final List<UnlockedDatabase> adopted = [];
+
+  @override
+  void adoptUnlockedDatabase(UnlockedDatabase unlocked) =>
+      adopted.add(unlocked);
+
+  final Map<String, VaultEncryption> encryptionByPath = {};
+  final List<String> readEncryptionPaths = [];
+
+  @override
+  Future<VaultEncryption?> readEncryption(String path) async {
+    readEncryptionPaths.add(path);
+    return encryptionByPath[path];
+  }
 
   // spec 008 T102: `VaultSessionCoordinator` renames/copies through the
   // domain port. Its tests run against real temp files, so these perform
@@ -456,10 +474,11 @@ class FakeUnlockDatabaseUseCase extends UnlockDatabaseUseCase {
   /// When true, `call()` never resolves during the test — used to capture a
   /// stable C-4 `decrypting` frame (entered before the KDBX await).
   bool hang = false;
-  final Completer<void> _hangCompleter = Completer<void>();
+  final Completer<UnlockedDatabase> _hangCompleter =
+      Completer<UnlockedDatabase>();
 
   @override
-  Future<void> call({
+  Future<UnlockedDatabase> call({
     required String databasePath,
     required String password,
     String? keyFilePath,
@@ -474,8 +493,16 @@ class FakeUnlockDatabaseUseCase extends UnlockDatabaseUseCase {
     if (error != null) {
       throw error!;
     }
+    return fakeUnlockedDatabase(databasePath);
   }
 }
+
+/// A stand-in for what a real unlock decrypts; `create` runs no KDF.
+UnlockedDatabase fakeUnlockedDatabase(String databasePath) => UnlockedDatabase(
+  databasePath: databasePath,
+  bytes: Uint8List(0),
+  file: KdbxFormat().create(Credentials(ProtectedValue.fromString('x')), 'f'),
+);
 
 /// `CreateDatabaseUseCase` builds and saves a real KDBX, whose key derivation
 /// runs off the fake test clock. Widget tests that only assert what the

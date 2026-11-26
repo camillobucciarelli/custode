@@ -50,7 +50,13 @@ import '../domain/repositories/sync_merge_repository.dart';
 import '../domain/services/apple_autofill_v2_payload_mapper.dart';
 import '../domain/services/vault_autofill_matcher.dart';
 
-void registerPasswordManagerDataDependencies(GetIt sl) {
+/// [keepVaultsOpenWhile] is "a session is unlocked": decrypted vaults stay in
+/// memory only while it holds. The composition root supplies it, since the
+/// session lives in presentation.
+void registerPasswordManagerDataDependencies(
+  GetIt sl, {
+  required bool Function() keepVaultsOpenWhile,
+}) {
   sl.registerLazySingleton<DatabaseRegistryRepository>(
     () => DatabaseRegistryRepositoryImpl(localDataSource: sl()),
   );
@@ -169,7 +175,11 @@ void registerPasswordManagerDataDependencies(GetIt sl) {
   sl.registerLazySingleton(() => VaultCsvImportService());
   sl.registerLazySingleton(() => VaultDuplicateService());
   sl.registerLazySingleton(
-    () => VaultKdbxService(mutex: sl(), fileHashRecorder: sl()),
+    () => VaultKdbxService(
+      mutex: sl(),
+      fileHashRecorder: sl(),
+      keepOpenWhile: keepVaultsOpenWhile,
+    ),
   );
   sl.registerLazySingleton<PasskeyAdoptionVaultPort>(
     () => sl<VaultKdbxService>(),
@@ -179,6 +189,9 @@ void registerPasswordManagerDataDependencies(GetIt sl) {
       validateDatabaseUseCase: sl(),
       mutex: sl(),
       fileHashRecorder: sl(),
+      // An unlock's decrypted file goes to the vault service, so unlocking
+      // runs the key derivation once instead of twice (unlock, loadVault).
+      adoptOpenedFile: sl<VaultKdbxService>().adoptOpenedFile,
     ),
   );
   sl.registerLazySingleton<DatabaseFileRepository>(

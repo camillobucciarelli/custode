@@ -24,6 +24,7 @@ import 'package:password_manager/features/password_manager/data/services/vault_c
 import 'package:password_manager/features/password_manager/data/services/vault_duplicate_service.dart';
 import 'package:password_manager/features/password_manager/data/services/vault_kdbx_service.dart';
 import 'package:password_manager/features/password_manager/domain/models/database_sync_mapping.dart';
+import 'package:password_manager/features/password_manager/domain/models/vault_encryption.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_entry.dart';
 import 'package:password_manager/features/password_manager/domain/models/vault_snapshot.dart';
 import 'package:password_manager/features/password_manager/domain/repositories/database_sync_repository.dart';
@@ -43,6 +44,16 @@ import 'package:password_manager/features/password_manager/domain/usecases/sync_
 import 'package:shared_preferences/shared_preferences.dart';
 
 const kTestDatabasePath = '/tmp/vault_shell_test.kdbx';
+
+/// What the default fake vault reports: KeePassXC's defaults on KDBX 4.1.
+const kTestVaultEncryption = VaultEncryption(
+  cipher: VaultCipher.aes256,
+  kdf: VaultKdf.argon2id,
+  kdbxVersion: '4.1',
+  iterations: 10,
+  memoryBytes: 64 * 1024 * 1024,
+  parallelism: 4,
+);
 
 /// Registers fakes into the global `di.sl` GetIt instance and returns a
 /// ready-to-pump `VaultScreen` wrapped in the app theme + ThemeCubit it
@@ -220,6 +231,7 @@ class _FakeVaultKdbxService implements VaultKdbxService {
     groups: [],
     entries: [],
     allEntries: [],
+    encryption: kTestVaultEncryption,
   );
 
   @override
